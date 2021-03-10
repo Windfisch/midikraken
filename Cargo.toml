@@ -8,7 +8,7 @@ edition = "2018"
 cortex-m = "0.6.7"
 cortex-m-rt = ">=0.6"
 cortex-m-rtic = ">=0.5"
-stm32f1xx-hal = { version = "0.7",  features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
+stm32f1xx-hal = { version = "0.5.3",  features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 panic-semihosting = ">=0.5"
 
 #usb-device = ">=0.2.1"
@@ -18,17 +18,17 @@ panic-semihosting = ">=0.5"
 embedded-hal = ">=0.2.3"
 #libm = ">=0.1.4"
 
-stm32f1 = { version="0.11", features = ["stm32f103", "rt"] }
+#stm32f1 = { version="0.11", features = ["stm32f103", "rt"] }
 
 [build-dependencies]
 vergen = "3"
 
 
-#[profile.dev]
-#opt-level = "z"
-#debug = true
-#lto = true
-#[profile.release]
-#codegen-units = 1
-#debug = true
-#lto = true
+[profile.dev]
+opt-level = "z"
+debug = true
+lto = true
+[profile.release]
+codegen-units = 1
+debug = true
+lto = true

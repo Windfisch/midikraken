@@ -158,15 +158,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embedded-dma"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46c8c02e4347a0267ca60813c952017f4c5948c232474c6010a381a337f1bda4"
-dependencies = [
- "stable_deref_trait",
-]
-
-[[package]]
 name = "embedded-hal"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -256,7 +247,6 @@ dependencies = [
  "cortex-m-rtic",
  "embedded-hal",
  "panic-semihosting",
- "stm32f1",
  "stm32f1xx-hal",
  "vergen",
 ]
@@ -425,9 +415,9 @@ dependencies = [
 
 [[package]]
 name = "stm32f1"
-version = "0.11.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "849b1e8d9bcfd792c9d9178cf86165d299a661c26e35d9322ae9382d3f3fe460"
+checksum = "22ce629123831891663402861bdc7140ebfd6a34a464329f9b9ec1cfde72055a"
 dependencies = [
  "bare-metal",
  "cortex-m 0.6.7",
@@ -437,14 +427,14 @@ dependencies = [
 
 [[package]]
 name = "stm32f1xx-hal"
-version = "0.7.0"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf679de34580d2f8806d9a6384c110b6df002404e1ff024cf8d567c91df4d4b2"
+checksum = "455bf444813cdc2498130626c5d0ca42f91de1e8261751f3bdc6e5ad9e2aa128"
 dependencies = [
+ "as-slice",
  "cast",
  "cortex-m 0.6.7",
  "cortex-m-rt",
- "embedded-dma",
  "embedded-hal",
  "nb 0.1.3",
  "stm32-usbd",

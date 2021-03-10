@@ -2,6 +2,7 @@
 #![no_std]
 
 use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::v2::InputPin;
 
 //use embedded_hal::digital::v1_compat::OldOutputPin;
 use rtic::app;
@@ -10,14 +11,23 @@ use cortex_m::asm::delay;
 use stm32f1xx_hal::{prelude::*, stm32, gpio::*, serial, timer, spi};
 use core::fmt::Write;
 use stm32f1xx_hal::usb::UsbBus;
+use stm32::interrupt;
+
+//use stm32f1;
+//use stm32f1xx_hal::pac::NVIC_PRIO_BITS;
 
 use stm32f1xx_hal::time::Hertz;
 const SYSCLK : Hertz = Hertz(72_000_000);
 
-#[app(device = stm32f1)]
+#[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
+	struct Resources {
+		tx: serial::Tx<stm32::USART1>,
+		mytimer: timer::CountDownTimer<stm32::TIM2>
+	}
+
 	#[init]
-	fn init(mut cx : init::Context) {
+	fn init(mut cx : init::Context) -> init::LateResources {
 		//static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<MyUsbBus>> = None;
 
 		let dp = stm32::Peripherals::take().unwrap();
@@ -42,12 +52,21 @@ const APP: () = {
 
 		let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
 		let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
-		let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
+		//let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
 		let mut gpioc = dp.GPIOC.split(&mut rcc.apb2);
 
 		// Configure the on-board LED (PC13, green)
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
+
+		let pa0 = gpioa.pa0.into_floating_input(&mut gpioa.crl);
+		let pa1 = gpioa.pa1.into_floating_input(&mut gpioa.crl);
+		let pa2 = gpioa.pa2.into_floating_input(&mut gpioa.crl);
+		let pa3 = gpioa.pa3.into_floating_input(&mut gpioa.crl);
+		let pa4 = gpioa.pa4.into_floating_input(&mut gpioa.crl);
+		let pa5 = gpioa.pa5.into_floating_input(&mut gpioa.crl);
+		let pa6 = gpioa.pa6.into_floating_input(&mut gpioa.crl);
+		let pa7 = gpioa.pa7.into_floating_input(&mut gpioa.crl);
 
 		// Configure the USART
 		let gpio_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -67,6 +86,19 @@ const APP: () = {
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		writeln!(tx, "========================================================\n").ok();
 		
+		let b = unsafe {
+			let x = stm32::GPIOA::ptr();
+			(*x).idr.read().bits()
+		};
+
+		let fnord = b & 0x1F; /*
+			if pa0.is_high().unwrap() { 1 } else { 0 } |
+			if pa1.is_high().unwrap() { 2 } else { 0 } |
+			if pa2.is_high().unwrap() { 4 } else { 0 } |
+			if pa3.is_high().unwrap() { 8 } else { 0 } |
+			if pa4.is_high().unwrap() { 16 } else { 0 };*/
+
+		writeln!(tx, "{}", fnord);
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
 		// Pull the D+ pin down to send a RESET condition to the USB bus.
@@ -91,18 +123,21 @@ const APP: () = {
 		
 		// Timer
 		//let mytimer = timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_raw(4800, 65535);
-		let mytimer = timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1);
-		mytimer.start_count_down(Hertz(3*31250));
-
-		// Periodic timer
-		let mut env_timer = timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2).start_count_down(1000.hz());
-		env_timer.listen(timer::Event::Update);
+		//let mut mytimer = timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_count_down(Hertz(3*31250));
+		let mut mytimer = timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_count_down(Hertz(1));
+		mytimer.listen(timer::Event::Update);
 
 		// USB interrupt
-		p.NVIC.enable(stm32::Interrupt::USB_LP_CAN_RX0);
+		//stm32::NVIC::unmask(stm32::Interrupt::USB_LP_CAN_RX0);
 
 		//cx.spawn.xmain(Command::Calibrate);
-		//return init::LateResources { exti : dp.EXTI, tx, led, usb_dev, midi, mytimer, env_timer, test_env2, test_lfo1, test_lfo2};
+		return init::LateResources { tx, mytimer };
+	}
+	
+	#[task(binds = TIM2, resources = [tx, mytimer],  priority=9)]
+	fn timer_interrupt(mut c: timer_interrupt::Context) {
+		writeln!(c.resources.tx, "Timer!");
+		c.resources.mytimer.clear_update_interrupt_flag();
 	}
 
 };

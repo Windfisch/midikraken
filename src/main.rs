@@ -1,6 +1,8 @@
 #![no_main]
 #![no_std]
 
+#![feature(asm)]
+
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::digital::v2::InputPin;
 
@@ -19,6 +21,9 @@ use stm32::interrupt;
 use stm32f1xx_hal::time::Hertz;
 const SYSCLK : Hertz = Hertz(72_000_000);
 
+
+static UART_READ_BUFFER: [u16; 16] = [42; 16];
+
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
 	struct Resources {
@@ -31,11 +36,8 @@ const APP: () = {
 		//static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<MyUsbBus>> = None;
 
 		let dp = stm32::Peripherals::take().unwrap();
-		let p = &mut cx.core; //cortex_m::peripheral::Peripherals::take().unwrap();
-
 
 		// Clock configuration
-
 		let mut flash = dp.FLASH.constrain();
 		let mut rcc = dp.RCC.constrain();
 
@@ -49,7 +51,6 @@ const APP: () = {
 
 
 		// GPIO and peripheral configuration
-
 		let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
 		let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
 		//let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
@@ -80,7 +81,6 @@ const APP: () = {
 			&mut rcc.apb2
 		);
 		let (mut tx, _rx) = serial.split();
-		writeln!(tx, "usart initialized").ok();
 		writeln!(tx, "========================================================").ok();
 		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
@@ -91,14 +91,7 @@ const APP: () = {
 			(*x).idr.read().bits()
 		};
 
-		let fnord = b & 0x1F; /*
-			if pa0.is_high().unwrap() { 1 } else { 0 } |
-			if pa1.is_high().unwrap() { 2 } else { 0 } |
-			if pa2.is_high().unwrap() { 4 } else { 0 } |
-			if pa3.is_high().unwrap() { 8 } else { 0 } |
-			if pa4.is_high().unwrap() { 16 } else { 0 };*/
-
-		writeln!(tx, "{}", fnord);
+		/*
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
 		// Pull the D+ pin down to send a RESET condition to the USB bus.
@@ -109,7 +102,7 @@ const APP: () = {
 		let usb_dm = gpioa.pa11;
 		let usb_dp = usb_dp.into_floating_input(&mut gpioa.crh);
 
-		/* *USB_BUS = Some( UsbBus::new(dp.USB, (usb_dm, usb_dp)) );
+		*USB_BUS = Some( UsbBus::new(dp.USB, (usb_dm, usb_dp)) );
 		let usb_bus = USB_BUS.as_ref().unwrap();
 
 		let mut midi = usbd_midi::MidiClass::new(usb_bus);
@@ -121,23 +114,71 @@ const APP: () = {
 			.build();
 		*/
 		
-		// Timer
-		//let mytimer = timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_raw(4800, 65535);
-		//let mut mytimer = timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_count_down(Hertz(3*31250));
-		let mut mytimer = timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1).start_count_down(Hertz(1));
+		let mut mytimer =
+			timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
+			.start_count_down(Hertz(1));
 		mytimer.listen(timer::Event::Update);
 
 		// USB interrupt
 		//stm32::NVIC::unmask(stm32::Interrupt::USB_LP_CAN_RX0);
 
-		//cx.spawn.xmain(Command::Calibrate);
 		return init::LateResources { tx, mytimer };
 	}
 	
 	#[task(binds = TIM2, resources = [tx, mytimer],  priority=9)]
 	fn timer_interrupt(mut c: timer_interrupt::Context) {
-		writeln!(c.resources.tx, "Timer!");
+		static mut in_bits_old: u16 = 0;
+		static mut active: [u16; 3] = [0; 3];
+		static mut current: usize = 0;
+
+		static mut buffer: [u16; 12] = [1; 12];
+		static mut outbuffer: [u16; 12] = [0; 12];
+		static mut send_buffer: [u16; 12] = [0; 12];
+
+		let next = (*current + 1) % 3;
+		
 		c.resources.mytimer.clear_update_interrupt_flag();
+		//writeln!(c.resources.tx, "Timer!");
+
+		// receive
+
+		let gpiob_in = unsafe { (*stm32::GPIOB::ptr()).idr.read().bits() };
+		let in_bits: u16 = gpiob_in as u16 & 0xfff;
+		let in_edge = in_bits ^ *in_bits_old;
+		*in_bits_old = in_bits;
+		
+		let active_total = active[0] | active[1] | active[2];
+		let start_of_transmission = !active_total & in_edge;
+
+		active[next] |= start_of_transmission;
+
+		let mut finished = 0;
+
+		for i in 0..12 {
+			let mask = 1 << i;
+			
+			if active[*current] & mask != 0 {
+				/*let mut dings = 0;
+				if in_bits & mask != 0 {
+					dings = 1;
+				}*/
+				let mut dings = if in_bits & mask == 0 { 0 } else { 1 };
+
+				buffer[i] = (buffer[i] << 1) | dings;
+
+				if buffer[i] & (1 << 11) != 0 {
+					outbuffer[i] = (buffer[i] >> 1) & 0xFF;
+					buffer[i] = 1;
+					finished |= mask;
+				}
+			}
+		}
+
+		active[*current] &= !finished;
+
+		*current = next;
+
+		//writeln!(c.resources.tx, "{}", o);
 	}
 
 };

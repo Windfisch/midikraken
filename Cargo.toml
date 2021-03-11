@@ -29,6 +29,7 @@ opt-level = "z"
 debug = true
 lto = true
 [profile.release]
+opt-level = "z"
 codegen-units = 1
 debug = true
 lto = true

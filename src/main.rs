@@ -6,23 +6,49 @@
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::digital::v2::InputPin;
 
-//use embedded_hal::digital::v1_compat::OldOutputPin;
+use core::ptr::{read_volatile, write_volatile};
+
 use rtic::app;
 use panic_semihosting as _;
-use cortex_m::asm::delay;
 use stm32f1xx_hal::{prelude::*, stm32, gpio::*, serial, timer, spi};
 use core::fmt::Write;
-use stm32f1xx_hal::usb::UsbBus;
-use stm32::interrupt;
-
-//use stm32f1;
-//use stm32f1xx_hal::pac::NVIC_PRIO_BITS;
 
 use stm32f1xx_hal::time::Hertz;
 const SYSCLK : Hertz = Hertz(72_000_000);
 
+const N_UART: usize = 12;
 
-static UART_READ_BUFFER: [u16; 16] = [42; 16];
+const RECV_BIT: u16 = 1 << 10; // we need 11 bits for marker (10) + start (9) + 8x data (8-1) + stop (0) (marker is not actually transmitted over the line)
+static UART_READ_BUFFER: [u16; N_UART] = [42; N_UART];
+static mut uart_send: [u16; N_UART] = [0; N_UART];
+static mut uart_recv: [u16; N_UART] = [0; N_UART];
+const UART_SEND_IDLE: u16 = 1;
+
+fn uart_clear_to_send(index: usize) -> bool {
+	unsafe {
+		return read_volatile(&uart_send[index]) == UART_SEND_IDLE;
+	}
+}
+
+fn uart_send_byte(index: usize, data: u8) {
+	unsafe {
+		write_volatile(&mut uart_send[index], ((data as u16) << 1) | (1 << 9));
+	}
+}
+
+fn uart_recv_byte(index: usize) -> Option<u8> {
+	unsafe {
+		let data = read_volatile(&uart_recv[index]);
+		write_volatile(&mut uart_recv[index], 0);
+
+		if data != 0 {
+			return Some(((data >> 2) & 0xFF) as u8); // shift out the marker bit and the start bit. then AND out the stop bit
+		}
+		else {
+			return None;
+		}
+	}
+}
 
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
@@ -53,21 +79,21 @@ const APP: () = {
 		// GPIO and peripheral configuration
 		let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
 		let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
-		//let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
+		let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
 		let mut gpioc = dp.GPIOC.split(&mut rcc.apb2);
 
 		// Configure the on-board LED (PC13, green)
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
 
-		let pa0 = gpioa.pa0.into_floating_input(&mut gpioa.crl);
-		let pa1 = gpioa.pa1.into_floating_input(&mut gpioa.crl);
-		let pa2 = gpioa.pa2.into_floating_input(&mut gpioa.crl);
-		let pa3 = gpioa.pa3.into_floating_input(&mut gpioa.crl);
-		let pa4 = gpioa.pa4.into_floating_input(&mut gpioa.crl);
-		let pa5 = gpioa.pa5.into_floating_input(&mut gpioa.crl);
-		let pa6 = gpioa.pa6.into_floating_input(&mut gpioa.crl);
-		let pa7 = gpioa.pa7.into_floating_input(&mut gpioa.crl);
+		let pb0 = gpiob.pb0.into_floating_input(&mut gpiob.crl);
+		let pb1 = gpiob.pb1.into_floating_input(&mut gpiob.crl);
+		let pb2 = gpiob.pb2.into_floating_input(&mut gpiob.crl);
+		//let pb3 = gpiob.pb3.into_floating_input(&mut gpiob.crl);
+		//let pb4 = gpiob.pb4.into_floating_input(&mut gpiob.crl);
+		let pb5 = gpiob.pb5.into_floating_input(&mut gpiob.crl);
+		let pb6 = gpiob.pb6.into_floating_input(&mut gpiob.crl);
+		let pb7 = gpiob.pb7.into_floating_input(&mut gpiob.crl);
 
 		// Configure the USART
 		let gpio_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -76,7 +102,7 @@ const APP: () = {
 			dp.USART1,
 			(gpio_tx, gpio_rx),
 			&mut afio.mapr,
-			serial::Config::default().baudrate(115200.bps()),
+			serial::Config::default().baudrate(38400.bps()),
 			clocks,
 			&mut rcc.apb2
 		);
@@ -116,7 +142,7 @@ const APP: () = {
 		
 		let mut mytimer =
 			timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
-			.start_count_down(Hertz(1));
+			.start_count_down(Hertz(38400 * 3));
 		mytimer.listen(timer::Event::Update);
 
 		// USB interrupt
@@ -124,61 +150,106 @@ const APP: () = {
 
 		return init::LateResources { tx, mytimer };
 	}
-	
-	#[task(binds = TIM2, resources = [tx, mytimer],  priority=9)]
+
+	#[task(resources = [tx], priority = 8)]
+	fn byte_received(mut c: byte_received::Context) {
+		writeln!(c.resources.tx, "byte received!");
+		for i in 0..N_UART {
+			writeln!(c.resources.tx, "#{}, has_byte = {:?}", i, uart_recv_byte(i));
+		}
+		writeln!(c.resources.tx, "\n------------------\n");
+	}
+
+	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer],  priority=9)]
 	fn timer_interrupt(mut c: timer_interrupt::Context) {
+		// We have a total of 32 GPIO ports on the blue pill board, of
+		// which 2 are used for USB and 1 is used for the LED.
+		// B0-1, B3-15, A0-10, A15, C14-15
+		// we use B0, B3, B4, ..., B15 for our 14 input uarts and
+		// A0, ..., A10, A15, C14, C15 for the 14 output pins
 		static mut in_bits_old: u16 = 0;
-		static mut active: [u16; 3] = [0; 3];
-		static mut current: usize = 0;
+		static mut recv_active: [u16; 3] = [0; 3];
+		static mut phase: usize = 0;
 
-		static mut buffer: [u16; 12] = [1; 12];
-		static mut outbuffer: [u16; 12] = [0; 12];
-		static mut send_buffer: [u16; 12] = [0; 12];
+		static mut recv_workbuf: [u16; N_UART] = [RECV_BIT; N_UART];
+		static mut send_workbuf: [u16; N_UART] = [0; N_UART];
+		static mut out_bits: u16 = 0;
 
-		let next = (*current + 1) % 3;
-		
 		c.resources.mytimer.clear_update_interrupt_flag();
-		//writeln!(c.resources.tx, "Timer!");
+
+		let next_phase = (*phase + 1) % 3;
 
 		// receive
 
-		let gpiob_in = unsafe { (*stm32::GPIOB::ptr()).idr.read().bits() };
-		let in_bits: u16 = gpiob_in as u16 & 0xfff;
-		let in_edge = in_bits ^ *in_bits_old;
+		let gpiob_in = unsafe { (*stm32::GPIOB::ptr()).idr.read().bits() } as u16; // read the IO port
+		let in_bits: u16 = (gpiob_in & 0xfff8) >> 2 | (gpiob_in & 1);
+		let falling_edge = !in_bits & *in_bits_old;
 		*in_bits_old = in_bits;
 		
-		let active_total = active[0] | active[1] | active[2];
-		let start_of_transmission = !active_total & in_edge;
-
-		active[next] |= start_of_transmission;
+		let active_total = recv_active[0] | recv_active[1] | recv_active[2];
+		let start_of_transmission = !active_total & falling_edge;
+		recv_active[next_phase] |= start_of_transmission;
 
 		let mut finished = 0;
-
-		for i in 0..12 {
+		for i in 0..N_UART {
 			let mask = 1 << i;
-			
-			if active[*current] & mask != 0 {
-				/*let mut dings = 0;
+		
+			// TODO try moving this variable out of the loop. does this avoid unneeded reads / array bound checks?
+			if recv_active[*phase] & mask != 0 { // this is the thirdclock where uart #i can read stable data?
+				/*let mut recv_bit = 0;
 				if in_bits & mask != 0 {
-					dings = 1;
+					recv_bit = RECV_BIT;
 				}*/
-				let mut dings = if in_bits & mask == 0 { 0 } else { 1 };
+				let recv_bit = if in_bits & mask == 0 { 0 } else { RECV_BIT };
 
-				buffer[i] = (buffer[i] << 1) | dings;
+				recv_workbuf[i] = (recv_workbuf[i] >> 1) | recv_bit;
 
-				if buffer[i] & (1 << 11) != 0 {
-					outbuffer[i] = (buffer[i] >> 1) & 0xFF;
-					buffer[i] = 1;
+				if recv_workbuf[i] & 1 != 0 { // we received 10 bits, i.e. the marker bit is now the LSB?
+					unsafe { write_volatile(&mut uart_recv[i], recv_workbuf[i]); } // publish the received uart frame.
+					recv_workbuf[i] = RECV_BIT;
 					finished |= mask;
 				}
 			}
 		}
+		recv_active[*phase] &= !finished;
+		if finished != 0 {
+			c.spawn.byte_received();
+		}
 
-		active[*current] &= !finished;
+		// send
+		const SEND_BATCHSIZE: usize = 6;
+		let first = *phase * SEND_BATCHSIZE;
+		for i in first .. core::cmp::min(first + SEND_BATCHSIZE, N_UART) {
+			if send_workbuf[i] == 0 {
+				unsafe { // STM32 reads and writes u16s atomically
+					send_workbuf[i] = read_volatile(&uart_send[i]);
+					write_volatile(&mut uart_send[i], UART_SEND_IDLE);
+				}
+			}
+			
+			*out_bits |= (send_workbuf[i] & 1) << i;
+			send_workbuf[i] >>= 1;
+		}
 
-		*current = next;
+		if *phase == 2 { // in the last thirdclock, actually set the output ports.
+			const MASK_A: u32 = 0x87FF | 0x87FF << 16;
+			const MASK_C: u32 = 0xC000 | 0xC000 << 16;
+			let bits_a = (*out_bits & 0x7FF) | ((*out_bits & 0x800) << 4);
+			let bits_c = (*out_bits & 0x3000) << 2;
+			let brr_a = (bits_a as u32 | ((!bits_a as u32) << 16)) | MASK_A;
+			let brr_c = (bits_c as u32 | ((!bits_c as u32) << 16)) | MASK_C;
 
-		//writeln!(c.resources.tx, "{}", o);
+			unsafe { (*stm32::GPIOA::ptr()).brr.write(|w| w.bits(brr_a)); }; // we ensure to only access pins
+			unsafe { (*stm32::GPIOC::ptr()).brr.write(|w| w.bits(brr_c)); }; // we own (using MASK_A / MASK_C)
+
+			*out_bits = 0;
+		}
+
+		*phase = next_phase;
 	}
+
+	extern "C" {
+		fn EXTI0();
+    }
 
 };

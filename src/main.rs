@@ -86,6 +86,7 @@ const APP: () = {
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
 
+		let pa0 = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
 		let pb0 = gpiob.pb0.into_floating_input(&mut gpiob.crl);
 		let pb1 = gpiob.pb1.into_floating_input(&mut gpiob.crl);
 		let pb2 = gpiob.pb2.into_floating_input(&mut gpiob.crl);
@@ -154,6 +155,9 @@ const APP: () = {
 	#[task(resources = [tx], priority = 8)]
 	fn byte_received(mut c: byte_received::Context) {
 		writeln!(c.resources.tx, "byte received!");
+		writeln!(c.resources.tx, "clear to send 0 is {}", uart_clear_to_send(0));
+		uart_send_byte(0, 97);
+		writeln!(c.resources.tx, "byte sent!");
 		for i in 0..N_UART {
 			writeln!(c.resources.tx, "#{}, has_byte = {:?}", i, uart_recv_byte(i));
 		}
@@ -179,9 +183,30 @@ const APP: () = {
 
 		let next_phase = (*phase + 1) % 3;
 
-		// receive
 
+		// actual I/O is done at the very beginning to minimize jitter
+
+		// input
 		let gpiob_in = unsafe { (*stm32::GPIOB::ptr()).idr.read().bits() } as u16; // read the IO port
+
+		// output: *out_bits have been set in the last three thirdclocks.
+		if *phase == 0 {
+			const MASK_A: u32 = 0x87FF87FF;
+			const MASK_C: u32 = 0xC000C000;
+			let bits_a = (*out_bits & 0x7FF) | ((*out_bits & 0x800) << 4);
+			let bits_c = (*out_bits & 0x3000) << 2;
+			let bsrr_a = (bits_a as u32 | ((!bits_a as u32) << 16)) | MASK_A;
+			let bsrr_c = (bits_c as u32 | ((!bits_c as u32) << 16)) | MASK_C;
+
+			unsafe { (*stm32::GPIOA::ptr()).bsrr.write(|w| w.bits(bsrr_a)); }; // we ensure to only access pins
+			unsafe { (*stm32::GPIOC::ptr()).bsrr.write(|w| w.bits(bsrr_c)); }; // we own (using MASK_A / MASK_C)
+
+			*out_bits = 0;
+		}
+
+
+		// handle the received bits
+
 		let in_bits: u16 = (gpiob_in & 0xfff8) >> 2 | (gpiob_in & 1);
 		let falling_edge = !in_bits & *in_bits_old;
 		*in_bits_old = in_bits;
@@ -216,8 +241,8 @@ const APP: () = {
 			c.spawn.byte_received();
 		}
 
-		// send
-		const SEND_BATCHSIZE: usize = 6;
+		// handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
+		const SEND_BATCHSIZE: usize = (N_UART+2) / 3;
 		let first = *phase * SEND_BATCHSIZE;
 		for i in first .. core::cmp::min(first + SEND_BATCHSIZE, N_UART) {
 			if send_workbuf[i] == 0 {
@@ -231,19 +256,7 @@ const APP: () = {
 			send_workbuf[i] >>= 1;
 		}
 
-		if *phase == 2 { // in the last thirdclock, actually set the output ports.
-			const MASK_A: u32 = 0x87FF | 0x87FF << 16;
-			const MASK_C: u32 = 0xC000 | 0xC000 << 16;
-			let bits_a = (*out_bits & 0x7FF) | ((*out_bits & 0x800) << 4);
-			let bits_c = (*out_bits & 0x3000) << 2;
-			let brr_a = (bits_a as u32 | ((!bits_a as u32) << 16)) | MASK_A;
-			let brr_c = (bits_c as u32 | ((!bits_c as u32) << 16)) | MASK_C;
-
-			unsafe { (*stm32::GPIOA::ptr()).brr.write(|w| w.bits(brr_a)); }; // we ensure to only access pins
-			unsafe { (*stm32::GPIOC::ptr()).brr.write(|w| w.bits(brr_c)); }; // we own (using MASK_A / MASK_C)
-
-			*out_bits = 0;
-		}
+		// at the begin of phase 0, output ports are set.
 
 		*phase = next_phase;
 	}

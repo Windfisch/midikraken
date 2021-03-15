@@ -113,11 +113,6 @@ const APP: () = {
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		writeln!(tx, "========================================================\n").ok();
 		
-		let b = unsafe {
-			let x = stm32::GPIOA::ptr();
-			(*x).idr.read().bits()
-		};
-
 		/*
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
@@ -157,7 +152,15 @@ const APP: () = {
 		writeln!(c.resources.tx, "byte received!");
 		writeln!(c.resources.tx, "clear to send 0 is {}", uart_clear_to_send(0));
 		uart_send_byte(0, 97);
+		while !uart_clear_to_send(0) {}
+		uart_send_byte(0, 98);
+		while !uart_clear_to_send(0) {}
+		uart_send_byte(0, 99);
+		while !uart_clear_to_send(0) {}
+		uart_send_byte(0, 100);
+		while !uart_clear_to_send(0) {}
 		writeln!(c.resources.tx, "byte sent!");
+		writeln!(c.resources.tx, "clear to send 0 is {}", uart_clear_to_send(0));
 		for i in 0..N_UART {
 			writeln!(c.resources.tx, "#{}, has_byte = {:?}", i, uart_recv_byte(i));
 		}
@@ -195,8 +198,8 @@ const APP: () = {
 			const MASK_C: u32 = 0xC000C000;
 			let bits_a = (*out_bits & 0x7FF) | ((*out_bits & 0x800) << 4);
 			let bits_c = (*out_bits & 0x3000) << 2;
-			let bsrr_a = (bits_a as u32 | ((!bits_a as u32) << 16)) | MASK_A;
-			let bsrr_c = (bits_c as u32 | ((!bits_c as u32) << 16)) | MASK_C;
+			let bsrr_a = (bits_a as u32 | ((!bits_a as u32) << 16)) & MASK_A;
+			let bsrr_c = (bits_c as u32 | ((!bits_c as u32) << 16)) & MASK_C;
 
 			unsafe { (*stm32::GPIOA::ptr()).bsrr.write(|w| w.bits(bsrr_a)); }; // we ensure to only access pins
 			unsafe { (*stm32::GPIOC::ptr()).bsrr.write(|w| w.bits(bsrr_c)); }; // we own (using MASK_A / MASK_C)

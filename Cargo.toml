@@ -8,7 +8,7 @@ edition = "2018"
 cortex-m = "0.6.7"
 cortex-m-rt = ">=0.6"
 cortex-m-rtic = ">=0.5"
-stm32f1xx-hal = { version = "0.5.3",  features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
+stm32f1xx-hal = { features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 panic-semihosting = ">=0.5"
 
 #usb-device = ">=0.2.1"
@@ -23,13 +23,15 @@ embedded-hal = ">=0.2.3"
 [build-dependencies]
 vergen = "3"
 
+[patch.crates-io]
+stm32f1xx-hal = { git = "https://github.com/Windfisch/stm32f1xx-hal", branch="timer_additions" }
 
 [profile.dev]
 opt-level = "z"
 debug = true
 lto = true
 [profile.release]
-opt-level = "z"
+opt-level = 3
 codegen-units = 1
 debug = true
 lto = true

@@ -14,6 +14,9 @@ use stm32f1xx_hal::{prelude::*, stm32, gpio::*, serial, timer, spi};
 use core::fmt::Write;
 
 use stm32f1xx_hal::time::Hertz;
+
+use stm32f1xx_hal::rcc::Enable;
+
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 const N_UART: usize = 12;
@@ -22,7 +25,26 @@ const RECV_BIT: u16 = 1 << 10; // we need 11 bits for marker (10) + start (9) + 
 static UART_READ_BUFFER: [u16; N_UART] = [42; N_UART];
 static mut uart_send: [u16; N_UART] = [0; N_UART];
 static mut uart_recv: [u16; N_UART] = [0; N_UART];
+static mut uart_benchmark: i8 = -1;
+static mut benchmark_cycles: u16 = 0;
 const UART_SEND_IDLE: u16 = 1;
+
+fn benchmark(cycle: i8) -> u16 {
+	if cycle < 0 || cycle >= 3 {
+		return 0;
+	}
+
+	unsafe {
+		write_volatile(&mut benchmark_cycles, 0);
+		write_volatile(&mut uart_benchmark, cycle);
+		loop {
+			let result = read_volatile(&benchmark_cycles);
+			if result != 0 {
+				return result;
+			}
+		}
+	}
+}
 
 fn uart_clear_to_send(index: usize) -> bool {
 	unsafe {
@@ -54,10 +76,11 @@ fn uart_recv_byte(index: usize) -> Option<u8> {
 const APP: () = {
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
-		mytimer: timer::CountDownTimer<stm32::TIM2>
+		mytimer: timer::CountDownTimer<stm32::TIM2>,
+		bench_timer: timer::CountDownTimer<stm32::TIM1>
 	}
 
-	#[init]
+	#[init(spawn=[benchmark_task])]
 	fn init(mut cx : init::Context) -> init::LateResources {
 		//static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<MyUsbBus>> = None;
 
@@ -71,6 +94,7 @@ const APP: () = {
 			.use_hse(8.mhz())
 			.sysclk(SYSCLK)
 			.pclk1(36.mhz())
+			.pclk2(72.mhz())
 			.freeze(&mut flash.acr);
 
 		assert!(clocks.usbclk_valid());
@@ -112,7 +136,7 @@ const APP: () = {
 		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		writeln!(tx, "========================================================\n").ok();
-		
+
 		/*
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
@@ -141,10 +165,16 @@ const APP: () = {
 			.start_count_down(Hertz(38400 * 3));
 		mytimer.listen(timer::Event::Update);
 
+		let mut bench_timer =
+			timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
+			.start_raw(0, 0xFFFF);
+
 		// USB interrupt
 		//stm32::NVIC::unmask(stm32::Interrupt::USB_LP_CAN_RX0);
 
-		return init::LateResources { tx, mytimer };
+		cx.spawn.benchmark_task();
+
+		return init::LateResources { tx, mytimer, bench_timer };
 	}
 
 	#[task(resources = [tx], priority = 8)]
@@ -167,7 +197,22 @@ const APP: () = {
 		writeln!(c.resources.tx, "\n------------------\n");
 	}
 
-	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer],  priority=9)]
+	#[task(resources = [tx], priority = 3)]
+	fn benchmark_task(mut c: benchmark_task::Context) {
+		c.resources.tx.lock(|tx| {
+			writeln!(tx, "Benchmarking...");
+			for i in 0..3 {
+				write!(tx, "  cycle# {} ->", i);
+				for _ in 0..20 {
+					write!(tx, " {}", benchmark(i));
+				}
+				writeln!(tx, "");
+			}
+			writeln!(tx, "Done!");
+		});
+	}
+
+	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer],  priority=9)]
 	fn timer_interrupt(mut c: timer_interrupt::Context) {
 		// We have a total of 32 GPIO ports on the blue pill board, of
 		// which 2 are used for USB and 1 is used for the LED.
@@ -181,6 +226,18 @@ const APP: () = {
 		static mut recv_workbuf: [u16; N_UART] = [RECV_BIT; N_UART];
 		static mut send_workbuf: [u16; N_UART] = [0; N_UART];
 		static mut out_bits: u16 = 0;
+
+		let do_benchmark = *phase as i8 == unsafe { read_volatile(&uart_benchmark) };
+		if do_benchmark {
+			recv_active[*phase] = 0xFFFF;
+			for i in 0..N_UART {
+				recv_workbuf[i] = 2; // this will be the last bit received, causing additional work to happen
+				unsafe { write_volatile(&mut uart_send[i], (0xFF << 1) | (1<<9)); }
+				send_workbuf[i] = 0; // force an (expensive) reload to happen
+			}
+			unsafe { write_volatile(&mut uart_benchmark, -1); }
+		}
+		let start_time = c.resources.bench_timer.cnt();
 
 		c.resources.mytimer.clear_update_interrupt_flag();
 
@@ -262,10 +319,18 @@ const APP: () = {
 		// at the begin of phase 0, output ports are set.
 
 		*phase = next_phase;
+
+		let stop_time = c.resources.bench_timer.cnt();
+		unsafe {
+			if do_benchmark && read_volatile(&benchmark_cycles) == 0 {
+				write_volatile(&mut benchmark_cycles, stop_time.wrapping_sub(start_time));
+			}
+		}
 	}
 
 	extern "C" {
 		fn EXTI0();
+		fn EXTI1();
     }
 
 };

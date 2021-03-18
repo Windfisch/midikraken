@@ -86,6 +86,7 @@ const APP: () = {
 
 		let dp = stm32::Peripherals::take().unwrap();
 
+
 		// Clock configuration
 		let mut flash = dp.FLASH.constrain();
 		let mut rcc = dp.RCC.constrain();
@@ -165,9 +166,23 @@ const APP: () = {
 			.start_count_down(Hertz(38400 * 3));
 		mytimer.listen(timer::Event::Update);
 
-		let mut bench_timer =
+		let bench_timer =
 			timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
 			.start_raw(0, 0xFFFF);
+
+		let start_100 = bench_timer.cnt();
+		cortex_m::asm::delay(100);
+		let stop_100 = bench_timer.cnt();
+		let start_40000 = bench_timer.cnt();
+		cortex_m::asm::delay(40000);
+		let stop_40000 = bench_timer.cnt();
+		writeln!(tx, "delay for 100 cycles took from cpu cycle {} to {}", start_100, stop_100);
+		writeln!(tx, "delay for 40000 took from cpu cycle {} to {}", start_40000, stop_40000);
+		writeln!(tx, "sleep(1 second)");
+		cortex_m::asm::delay(72000000);
+		writeln!(tx, "sleep(1 second)");
+		cortex_m::asm::delay(72000000);
+		writeln!(tx, "done");
 
 		// USB interrupt
 		//stm32::NVIC::unmask(stm32::Interrupt::USB_LP_CAN_RX0);

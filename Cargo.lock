@@ -318,6 +318,7 @@ dependencies = [
  "cortex-m-rt",
  "cortex-m-rtic",
  "embedded-hal",
+ "heapless 0.6.1",
  "panic-semihosting",
  "stm32f1xx-hal",
  "vergen",

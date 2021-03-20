@@ -10,6 +10,7 @@ cortex-m-rt = ">=0.6"
 cortex-m-rtic = ">=0.5"
 stm32f1xx-hal = { features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 panic-semihosting = ">=0.5"
+heapless = "0.6"
 
 #usb-device = ">=0.2.1"
 #usbd-serial = ">=0.1"

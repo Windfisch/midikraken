@@ -17,6 +17,8 @@ use stm32f1xx_hal::time::Hertz;
 
 use stm32f1xx_hal::rcc::Enable;
 
+use heapless::spsc::Queue;
+
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 const N_UART: usize = 12;
@@ -28,6 +30,7 @@ static mut uart_recv: [u16; N_UART] = [0; N_UART];
 static mut uart_benchmark: i8 = -1;
 static mut benchmark_cycles: u16 = 0;
 const UART_SEND_IDLE: u16 = 1;
+
 
 fn benchmark(cycle: i8) -> u16 {
 	if cycle < 0 || cycle >= 3 {
@@ -77,7 +80,8 @@ const APP: () = {
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
 		mytimer: timer::CountDownTimer<stm32::TIM2>,
-		bench_timer: timer::CountDownTimer<stm32::TIM1>
+		bench_timer: timer::CountDownTimer<stm32::TIM1>,
+		queue: Queue<u8, heapless::consts::U200, u16, heapless::spsc::SingleCore>
 	}
 
 	#[init(spawn=[benchmark_task])]
@@ -187,29 +191,29 @@ const APP: () = {
 		// USB interrupt
 		//stm32::NVIC::unmask(stm32::Interrupt::USB_LP_CAN_RX0);
 
+		let queue: Queue<u8, heapless::consts::U200, _, heapless::spsc::SingleCore> = unsafe { Queue::u16_sc() };
+
 		cx.spawn.benchmark_task();
 
-		return init::LateResources { tx, mytimer, bench_timer };
+		return init::LateResources { tx, mytimer, bench_timer, queue };
 	}
 
-	#[task(resources = [tx], priority = 8)]
+	#[task(resources = [queue], spawn = [dump_bytes], priority = 8)]
 	fn byte_received(mut c: byte_received::Context) {
-		writeln!(c.resources.tx, "byte received!");
-		writeln!(c.resources.tx, "clear to send 0 is {}", uart_clear_to_send(0));
-		uart_send_byte(0, 97);
-		while !uart_clear_to_send(0) {}
-		uart_send_byte(0, 98);
-		while !uart_clear_to_send(0) {}
-		uart_send_byte(0, 99);
-		while !uart_clear_to_send(0) {}
-		uart_send_byte(0, 100);
-		while !uart_clear_to_send(0) {}
-		writeln!(c.resources.tx, "byte sent!");
-		writeln!(c.resources.tx, "clear to send 0 is {}", uart_clear_to_send(0));
+		let mut producer = c.resources.queue.split().0;
 		for i in 0..N_UART {
-			writeln!(c.resources.tx, "#{}, has_byte = {:?}", i, uart_recv_byte(i));
+			if let Some(byte) = uart_recv_byte(i) {
+				producer.enqueue(byte);
+			}
 		}
-		writeln!(c.resources.tx, "\n------------------\n");
+		c.spawn.dump_bytes();
+	}
+
+	#[task(resources = [tx, queue], priority = 7)]
+	fn dump_bytes(mut c: dump_bytes::Context) {
+		while let Some(byte) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
+			write!(c.resources.tx, "{:X} ", byte);
+		}
 	}
 
 	#[task(resources = [tx], priority = 3)]
@@ -346,6 +350,7 @@ const APP: () = {
 	extern "C" {
 		fn EXTI0();
 		fn EXTI1();
+		fn EXTI2();
     }
 
 };

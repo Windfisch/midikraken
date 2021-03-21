@@ -13,7 +13,7 @@ panic-semihosting = ">=0.5"
 heapless = "0.6"
 
 usb-device = ">=0.2.1"
-usbd-midi = { git = "https://github.com/btrepp/usbd-midi", branch="master" }
+usbd-midi = { path="lib/usbd-midi" }
 embedded-hal = ">=0.2.3"
 
 [build-dependencies]

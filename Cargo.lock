@@ -598,7 +598,6 @@ checksum = "6be90410d4772074ea49525e2e753b65920b94b57eee21a6ef7b6a6fe6296245"
 [[package]]
 name = "usbd-midi"
 version = "0.2.0"
-source = "git+https://github.com/btrepp/usbd-midi?branch=master#49484f0b157c61818149fe6ef17ea5183dddef04"
 dependencies = [
  "embedded-hal",
  "nb 1.0.0",

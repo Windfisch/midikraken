@@ -19,6 +19,13 @@ use stm32f1xx_hal::rcc::Enable;
 
 use heapless::spsc::Queue;
 
+use usb_device::bus;
+use usb_device::prelude::*;
+use stm32f1xx_hal::usb::{UsbBus, Peripheral, UsbBusType};
+
+type MyUsbPins = (stm32f1xx_hal::gpio::gpioa::PA11<stm32f1xx_hal::gpio::Input<stm32f1xx_hal::gpio::Floating>>, stm32f1xx_hal::gpio::gpioa::PA12<stm32f1xx_hal::gpio::Input<stm32f1xx_hal::gpio::Floating>>);
+type MyUsbBus = UsbBus<MyUsbPins>;
+
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 const N_UART: usize = 12;
@@ -81,12 +88,15 @@ const APP: () = {
 		tx: serial::Tx<stm32::USART1>,
 		mytimer: timer::CountDownTimer<stm32::TIM2>,
 		bench_timer: timer::CountDownTimer<stm32::TIM1>,
-		queue: Queue<u8, heapless::consts::U200, u16, heapless::spsc::SingleCore>
+		queue: Queue<u8, heapless::consts::U200, u16, heapless::spsc::SingleCore>,
+
+		usb_dev: UsbDevice<'static, UsbBusType>,
+		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>
 	}
 
 	#[init(spawn=[benchmark_task])]
 	fn init(mut cx : init::Context) -> init::LateResources {
-		//static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<MyUsbBus>> = None;
+		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
 
 		let dp = stm32::Peripherals::take().unwrap();
 
@@ -142,28 +152,33 @@ const APP: () = {
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		writeln!(tx, "========================================================\n").ok();
 
-		/*
+		
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
 		// Pull the D+ pin down to send a RESET condition to the USB bus.
 		let mut usb_dp = gpioa.pa12.into_push_pull_output(&mut gpioa.crh);
 		usb_dp.set_low().ok();
-		delay(clocks.sysclk().0 / 100);
+		cortex_m::asm::delay(clocks.sysclk().0 / 100);
 		
 		let usb_dm = gpioa.pa11;
 		let usb_dp = usb_dp.into_floating_input(&mut gpioa.crh);
 
-		*USB_BUS = Some( UsbBus::new(dp.USB, (usb_dm, usb_dp)) );
+		let usb_pins = Peripheral {
+			usb: dp.USB,
+			pin_dm: usb_dm,
+			pin_dp: usb_dp
+		};
+		*USB_BUS = Some( UsbBus::new(usb_pins) );
 		let usb_bus = USB_BUS.as_ref().unwrap();
 
-		let mut midi = usbd_midi::MidiClass::new(usb_bus);
-		let mut usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
-			.manufacturer("Fake company")
-			.product("Serial port")
+		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus);
+		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
+			.manufacturer("Windfisch")
+			.product("Midikraken 4")
 			.serial_number("TEST")
-			.device_class(usbd_midi::USB_CLASS_NONE)
+			.device_class(usbd_midi::data::usb::constants::USB_CLASS_NONE)
 			.build();
-		*/
+	
 		
 		let mut mytimer =
 			timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
@@ -174,7 +189,7 @@ const APP: () = {
 			timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
 			.start_raw(0, 0xFFFF);
 
-		let start_100 = bench_timer.cnt();
+		/*let start_100 = bench_timer.cnt();
 		cortex_m::asm::delay(100);
 		let stop_100 = bench_timer.cnt();
 		let start_40000 = bench_timer.cnt();
@@ -187,15 +202,23 @@ const APP: () = {
 		writeln!(tx, "sleep(1 second)");
 		cortex_m::asm::delay(72000000);
 		writeln!(tx, "done");
-
-		// USB interrupt
-		//stm32::NVIC::unmask(stm32::Interrupt::USB_LP_CAN_RX0);
+		*/
 
 		let queue: Queue<u8, heapless::consts::U200, _, heapless::spsc::SingleCore> = unsafe { Queue::u16_sc() };
 
 		cx.spawn.benchmark_task();
 
-		return init::LateResources { tx, mytimer, bench_timer, queue };
+		return init::LateResources { tx, mytimer, bench_timer, queue, usb_dev, midi };
+	}
+
+	#[task(binds = USB_HP_CAN_TX, resources = [usb_dev, midi], priority = 50)]
+	fn usb_tx(mut cx: usb_tx::Context) {
+		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi);
+	}
+
+	#[task(binds = USB_LP_CAN_RX0, resources = [usb_dev, midi], priority = 50)]
+	fn usb_rx0(mut cx: usb_rx0::Context) {
+		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi);
 	}
 
 	#[task(resources = [queue], spawn = [dump_bytes], priority = 8)]
@@ -235,7 +258,7 @@ const APP: () = {
 		});
 	}
 
-	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer],  priority=9)]
+	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer],  priority=100)]
 	fn timer_interrupt(mut c: timer_interrupt::Context) {
 		// We have a total of 32 GPIO ports on the blue pill board, of
 		// which 2 are used for USB and 1 is used for the LED.
@@ -358,3 +381,9 @@ const APP: () = {
     }
 
 };
+
+fn usb_poll<B: bus::UsbBus>(usb_dev: &mut UsbDevice<'static, B>, midi: &mut usbd_midi::midi_device::MidiClass<'static, B>) {
+	if !usb_dev.poll(&mut [midi]) {
+		return;
+	}
+}

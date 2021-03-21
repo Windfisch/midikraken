@@ -12,14 +12,9 @@ stm32f1xx-hal = { features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 panic-semihosting = ">=0.5"
 heapless = "0.6"
 
-#usb-device = ">=0.2.1"
-#usbd-serial = ">=0.1"
-#stm32-usbd = { version = ">=0.5.1" }
-#usbd-midi = { git="https://github.com/btrepp/usbd-midi" }
+usb-device = ">=0.2.1"
+usbd-midi = { git = "https://github.com/btrepp/usbd-midi", branch="master" }
 embedded-hal = ">=0.2.3"
-#libm = ">=0.1.4"
-
-#stm32f1 = { version="0.11", features = ["stm32f103", "rt"] }
 
 [build-dependencies]
 vergen = "3"

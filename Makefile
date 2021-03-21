@@ -4,7 +4,7 @@ all: debug.bin release.bin
 	arm-none-eabi-objcopy -O binary $< $@
 
 flash.%: %.bin
-	stm32flash /dev/ttyUSB1 -b115200 -w $<
+	stm32flash /dev/ttyUSB0 -b115200 -w $<
 
 .PHONY: target/thumbv7m-none-eabi/debug/midikraken
 .PHONY: target/thumbv7m-none-eabi/release/midikraken

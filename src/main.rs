@@ -167,7 +167,7 @@ const APP: () = {
 		
 		let mut mytimer =
 			timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
-			.start_count_down(Hertz(38400 * 3));
+			.start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
 		let bench_timer =
@@ -212,7 +212,11 @@ const APP: () = {
 	#[task(resources = [tx, queue], priority = 7)]
 	fn dump_bytes(mut c: dump_bytes::Context) {
 		while let Some(byte) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
-			write!(c.resources.tx, "{:X} ", byte);
+			if byte & 0x80 != 0 {
+				write!(c.resources.tx, "\n");
+			}
+
+			write!(c.resources.tx, "{:02X} ", byte);
 		}
 	}
 

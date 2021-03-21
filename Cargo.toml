@@ -12,7 +12,7 @@ stm32f1xx-hal = { features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 panic-semihosting = ">=0.5"
 heapless = "0.6"
 
-usb-device = ">=0.2.1"
+usb-device = { version = ">=0.2.1", features = ["control-buffer-256"] }
 usbd-midi = { path="lib/usbd-midi" }
 embedded-hal = ">=0.2.3"
 

@@ -171,7 +171,7 @@ const APP: () = {
 		*USB_BUS = Some( UsbBus::new(usb_pins) );
 		let usb_bus = USB_BUS.as_ref().unwrap();
 
-		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus);
+		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, 4, 4).unwrap();
 		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
 			.manufacturer("Windfisch")
 			.product("Midikraken 4")

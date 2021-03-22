@@ -88,10 +88,12 @@ const APP: () = {
 		tx: serial::Tx<stm32::USART1>,
 		mytimer: timer::CountDownTimer<stm32::TIM2>,
 		bench_timer: timer::CountDownTimer<stm32::TIM1>,
-		queue: Queue<u8, heapless::consts::U200, u16, heapless::spsc::SingleCore>,
+		queue: Queue<(u8,u8), heapless::consts::U200, u16, heapless::spsc::SingleCore>,
 
 		usb_dev: UsbDevice<'static, UsbBusType>,
-		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>
+		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
+
+		midi_parsers: [MidiToUsbParser; 16]
 	}
 
 	#[init(spawn=[benchmark_task])]
@@ -204,11 +206,29 @@ const APP: () = {
 		writeln!(tx, "done");
 		*/
 
-		let queue: Queue<u8, heapless::consts::U200, _, heapless::spsc::SingleCore> = unsafe { Queue::u16_sc() };
+		let queue = unsafe { Queue::u16_sc() };
 
 		cx.spawn.benchmark_task();
 
-		return init::LateResources { tx, mytimer, bench_timer, queue, usb_dev, midi };
+		return init::LateResources { tx, mytimer, bench_timer, queue, usb_dev, midi, 
+			midi_parsers: [
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+				MidiToUsbParser::new(),
+			] };
 	}
 
 	#[task(binds = USB_HP_CAN_TX, resources = [usb_dev, midi], priority = 50)]
@@ -226,20 +246,19 @@ const APP: () = {
 		let mut producer = c.resources.queue.split().0;
 		for i in 0..N_UART {
 			if let Some(byte) = uart_recv_byte(i) {
-				producer.enqueue(byte);
+				producer.enqueue((i as u8, byte));
 			}
 		}
 		c.spawn.dump_bytes();
 	}
 
-	#[task(resources = [tx, queue], priority = 7)]
+	#[task(resources = [tx, queue, midi_parsers], priority = 7)]
 	fn dump_bytes(mut c: dump_bytes::Context) {
-		while let Some(byte) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
-			if byte & 0x80 != 0 {
-				write!(c.resources.tx, "\n");
+		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
+			write!(c.resources.tx, "({},{:02X}) ", cable, byte);
+			if let Some(usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
+				write!(c.resources.tx, "\n>>> {:02X?}\n", usb_message);
 			}
-
-			write!(c.resources.tx, "{:02X} ", byte);
 		}
 	}
 
@@ -385,5 +404,132 @@ const APP: () = {
 fn usb_poll<B: bus::UsbBus>(usb_dev: &mut UsbDevice<'static, B>, midi: &mut usbd_midi::midi_device::MidiClass<'static, B>) {
 	if !usb_dev.poll(&mut [midi]) {
 		return;
+	}
+}
+
+fn is_realtime(byte: u8) -> bool {
+	return byte & 0xF8 == 0xF8;
+}
+fn is_system_common(byte: u8) -> bool {
+	return byte & 0xF8 == 0xF0 && byte != 0xF0;
+}
+fn is_start_of_sysex(byte: u8) -> bool {
+	return byte == 0xF0;
+}
+fn is_channel(byte: u8) -> bool {
+	return is_status(byte) && byte & 0xF0 != 0xF0;
+}
+fn is_status(byte: u8) -> bool {
+	return byte & 0x80 != 0;
+}
+fn status_length(status: u8) -> u8 {
+	let high = status & 0xF0;
+	let low = status & 0x0F;
+	if high == 0x80 || high == 0x90 || high == 0xA0 || high == 0xB0 || high ==0xE0 { return 3; }
+	if high == 0xC0 || high == 0xD0 { return 2; }
+	if high == 0xF0 {
+		if low == 1 || low == 3 { return 2; }
+		if low == 4 || low == 5 { return 3; } // not really defined in the standard but let's handle these nicely.
+		if low == 2 { return 3; }
+		if low == 6 || low == 7 { return 1; }
+	}
+	if status == 0xF0 { // sysex
+		return 3;
+	}
+	return 1;
+}
+
+fn cin_byte(status: u8, datalen: u8, sysex_ends: bool) -> u8 {
+	if is_start_of_sysex(status) && sysex_ends {
+		match datalen {
+			1 => 0x5,
+			2 => 0x6,
+			3 => 0x7,
+			_ => panic!()
+		}
+	}
+	else if is_start_of_sysex(status) && !sysex_ends {
+		assert!(datalen == 3);
+		0x4
+	}
+	else if is_system_common(status) {
+		match datalen {
+			1 => 0xF,
+			2 => 0x2,
+			3 => 0x3,
+			_ => panic!()
+		}
+	}
+	else if is_realtime(status) {
+		assert!(datalen == 1);
+		0xF
+	}
+	else if is_channel(status) {
+		(status & 0xF0) >> 4
+	}
+	else {
+		panic!()
+	}
+}
+
+pub struct MidiToUsbParser {
+	status: u8,
+	data: [u8; 3],
+	datalen: u8
+}
+
+impl MidiToUsbParser {
+	pub fn new() -> MidiToUsbParser {
+		MidiToUsbParser {
+			status: 0,
+			data: [0; 3],
+			datalen: 0
+		}
+	}
+	pub fn push(&mut self, byte: u8) -> Option<[u8; 4]> {
+		let mut result = None;
+
+		if is_status(byte) {
+			if is_realtime(byte) || byte == 0xF6 { // hack: tune request (0xF6) is handled like realtime messages for simplicity
+				return Some([0xF0, byte, 0, 0]);
+			}
+			else {
+				if self.status == 0xF0 { // a sysex has ended
+					debug_assert!(self.datalen < 3);
+					self.data[self.datalen as usize] = 0xF7; // insert end-of-sysex, regardless of whether this was an EOX or a different status byte
+					self.datalen += 1;
+					result = Some([cin_byte(self.status, self.datalen, true), self.data[0], self.data[1], self.data[2]]);
+				}
+
+				self.status = byte;
+				self.data = [0; 3];
+				self.datalen = 1;
+				self.data[0] = byte;
+			}
+		}
+		else {
+			if self.datalen == 0 { // running status?
+				self.data[0] = self.status;
+				self.datalen = 1;
+			}
+			self.data[self.datalen as usize] = byte;
+			self.datalen += 1;
+		}
+		
+		if self.status == 0 { // initial condition
+			self.datalen = 0;
+			self.data = [0; 3];
+			return None;
+		}
+
+		debug_assert!(status_length(self.status) >= 2);
+		if self.datalen >= status_length(self.status) {
+			if self.status != 0xF7 { // we do not send out end-of-sysex (EOX) single byte messages; they have been handled as last byte of the last sysex message already.
+				result = Some([cin_byte(self.status, self.datalen, false), self.data[0], self.data[1], self.data[2]]);
+			}
+			self.datalen = 0;
+			self.data = [0; 3];
+		}
+		return result;
 	}
 }

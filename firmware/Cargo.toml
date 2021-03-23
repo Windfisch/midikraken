@@ -11,6 +11,7 @@ cortex-m-rtic = ">=0.5"
 stm32f1xx-hal = { features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 panic-semihosting = ">=0.5"
 heapless = "0.6"
+parse_midi = { path = "../lib/parse_midi" }
 
 usb-device = { version = ">=0.2.1", features = ["control-buffer-512"] }
 usbd-midi = { path="../lib/usbd-midi" }

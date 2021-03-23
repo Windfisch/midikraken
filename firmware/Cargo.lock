@@ -331,6 +331,7 @@ dependencies = [
  "embedded-hal",
  "heapless 0.6.1",
  "panic-semihosting",
+ "parse_midi",
  "stm32f1xx-hal",
  "usb-device",
  "usbd-midi",
@@ -401,6 +402,10 @@ dependencies = [
  "cortex-m 0.7.2",
  "cortex-m-semihosting",
 ]
+
+[[package]]
+name = "parse_midi"
+version = "0.1.0"
 
 [[package]]
 name = "pest"

@@ -13,7 +13,7 @@ panic-semihosting = ">=0.5"
 heapless = "0.6"
 
 usb-device = { version = ">=0.2.1", features = ["control-buffer-512"] }
-usbd-midi = { path="lib/usbd-midi" }
+usbd-midi = { path="../lib/usbd-midi" }
 embedded-hal = ">=0.2.3"
 
 [build-dependencies]

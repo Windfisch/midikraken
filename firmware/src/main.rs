@@ -4,7 +4,6 @@
 #![feature(asm)]
 
 use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::digital::v2::InputPin;
 
 use core::ptr::{read_volatile, write_volatile};
 
@@ -84,6 +83,20 @@ fn uart_recv_byte(index: usize) -> Option<u8> {
 	}
 }
 
+pub struct MidiOutQueue {
+	realtime: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
+	normal: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
+}
+
+impl Default for MidiOutQueue {
+	fn default() -> MidiOutQueue {
+		MidiOutQueue {
+			realtime: unsafe { Queue::u16_sc() },
+			normal: unsafe { Queue::u16_sc() }
+		}
+	}
+}
+
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
 	struct Resources {
@@ -95,10 +108,11 @@ const APP: () = {
 		usb_dev: UsbDevice<'static, UsbBusType>,
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
 
-		midi_parsers: [MidiToUsbParser; 16]
+		midi_parsers: [MidiToUsbParser; 16],
+		midi_out_queues: [MidiOutQueue; 16]
 	}
 
-	#[init(spawn=[benchmark_task])]
+	#[init(spawn=[benchmark_task, mainloop])]
 	fn init(mut cx : init::Context) -> init::LateResources {
 		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
 
@@ -210,9 +224,12 @@ const APP: () = {
 
 		let queue = unsafe { Queue::u16_sc() };
 
-		cx.spawn.benchmark_task();
+		//cx.spawn.benchmark_task();
+		cx.spawn.mainloop();
 
-		return init::LateResources { tx, mytimer, bench_timer, queue, usb_dev, midi, 
+		let midi_out_queues: [MidiOutQueue; 16] = Default::default();
+
+		return init::LateResources { tx, mytimer, bench_timer, queue, usb_dev, midi, midi_out_queues,
 			midi_parsers: [
 				MidiToUsbParser::new(),
 				MidiToUsbParser::new(),
@@ -233,38 +250,61 @@ const APP: () = {
 			] };
 	}
 
-	#[task(binds = USB_HP_CAN_TX, resources = [usb_dev, midi], priority = 50)]
+	/*#[task(binds = USB_HP_CAN_TX, resources = [usb_dev, midi, midi_out_queues, queue], priority = 50)]
 	fn usb_tx(mut cx: usb_tx::Context) {
-		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi);
+		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi, &mut cx.resources.midi_out_queues, &mut cx.resources.queue);
 	}
 
-	#[task(binds = USB_LP_CAN_RX0, resources = [usb_dev, midi], priority = 50)]
+	#[task(binds = USB_LP_CAN_RX0, resources = [usb_dev, midi, midi_out_queues, queue], priority = 50)]
 	fn usb_rx0(mut cx: usb_rx0::Context) {
-		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi);
-	}
+		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi, &mut cx.resources.midi_out_queues, &mut cx.resources.queue);
+	}*/
 
-	#[task(resources = [queue], spawn = [dump_bytes], priority = 8)]
+	#[task(resources = [queue], priority = 8)]
 	fn byte_received(mut c: byte_received::Context) {
-		let mut producer = c.resources.queue.split().0;
 		for i in 0..N_UART {
 			if let Some(byte) = uart_recv_byte(i) {
-				producer.enqueue((i as u8, byte));
-			}
-		}
-		c.spawn.dump_bytes();
-	}
-
-	#[task(resources = [tx, queue, midi_parsers], priority = 7)]
-	fn dump_bytes(mut c: dump_bytes::Context) {
-		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
-			write!(c.resources.tx, "({},{:02X}) ", cable, byte);
-			if let Some(usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
-				write!(c.resources.tx, "\n>>> {:02X?}\n", usb_message);
+				c.resources.queue.enqueue((i as u8, byte));
 			}
 		}
 	}
 
-	#[task(resources = [tx], priority = 3)]
+	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi], priority = 2)]
+	fn mainloop(mut c: mainloop::Context) {
+		loop {
+			if is_any_queue_full(c.resources.midi_out_queues) {
+				write!(c.resources.tx, "!");
+			}
+
+			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues);
+
+			for cable in 0..N_UART {
+				if uart_clear_to_send(cable) {
+					if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
+						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte);
+						uart_send_byte(cable, byte);
+					}
+					else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
+						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte);
+						uart_send_byte(cable, byte);
+					}
+				}
+			}
+
+			while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
+				//write!(c.resources.tx, "({},{:02X}) ", cable, byte);
+				if let Some(usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
+					write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message);
+					match c.resources.midi.send_bytes(usb_message) {
+						Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size); }
+						Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error); }
+					}
+				}
+			}
+		}
+	}
+
+	#[task(resources = [tx], priority = 1)]
 	fn benchmark_task(mut c: benchmark_task::Context) {
 		c.resources.tx.lock(|tx| {
 			writeln!(tx, "Benchmarking...");
@@ -403,8 +443,39 @@ const APP: () = {
 
 };
 
-fn usb_poll<B: bus::UsbBus>(usb_dev: &mut UsbDevice<'static, B>, midi: &mut usbd_midi::midi_device::MidiClass<'static, B>) {
+fn is_any_queue_full(midi_out_queues: &[MidiOutQueue]) -> bool {
+	midi_out_queues.iter().any(|qs| qs.realtime.len()+1 > qs.realtime.capacity() || qs.normal.len()+3 > qs.normal.capacity()-4)
+}
+
+fn usb_poll<B: bus::UsbBus>(
+	usb_dev: &mut UsbDevice<'static, B>,
+	midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
+	midi_out_queues: &mut [MidiOutQueue; 16],
+) {
 	if !usb_dev.poll(&mut [midi]) {
 		return;
+	}
+
+	//while !is_any_queue_full(midi_out_queues) {
+	loop {
+		let mut buffer = [0u8;4];
+		if let Ok(len) = midi.read(&mut buffer) {
+			if len == 4 { // every packet should have length 4
+				let cable = (buffer[0] & 0xF0) >> 4;
+				let is_realtime = buffer[1] & 0xF8 == 0xF8;
+
+				if is_realtime {
+					midi_out_queues[cable as usize].realtime.split().0.enqueue(buffer[1]);
+				}
+				else {
+					for i in 0..parse_midi::payload_length(buffer[0]) {
+						midi_out_queues[cable as usize].normal.split().0.enqueue(buffer[1+i as usize]);
+					}
+				}
+			}
+		}
+		else {
+			break;
+		}
 	}
 }

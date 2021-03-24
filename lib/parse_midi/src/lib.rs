@@ -66,6 +66,16 @@ fn cin_byte(status: u8, datalen: u8, sysex_ends: bool) -> u8 {
 	}
 }
 
+pub fn payload_length(firstbyte: u8) -> u8 {
+	match firstbyte & 0x0F {
+		0x0 | 0x1 => 0, // not in the standard
+		0x5 | 0xF => 1,
+		0x2 | 0x6 | 0xC | 0xD => 2,
+		0x3 | 0x4 | 0x7 | 0x8 | 0x9 | 0xA | 0xB | 0xE => 3,
+		_ => unreachable!()
+	}
+}
+
 pub struct MidiToUsbParser {
 	status: u8,
 	data: [u8; 3],

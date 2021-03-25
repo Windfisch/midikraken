@@ -458,18 +458,20 @@ fn usb_poll<B: bus::UsbBus>(
 
 	//while !is_any_queue_full(midi_out_queues) {
 	loop {
-		let mut buffer = [0u8;4];
+		let mut buffer = [0u8;128]; // FIXME magic size.
 		if let Ok(len) = midi.read(&mut buffer) {
-			if len == 4 { // every packet should have length 4
-				let cable = (buffer[0] & 0xF0) >> 4;
-				let is_realtime = buffer[1] & 0xF8 == 0xF8;
+			if len % 4 == 0 { // every packet should have length 4
+				for message in buffer[0..len].chunks(4) {
+					let cable = (message[0] & 0xF0) >> 4;
+					let is_realtime = message[1] & 0xF8 == 0xF8;
 
-				if is_realtime {
-					midi_out_queues[cable as usize].realtime.split().0.enqueue(buffer[1]);
-				}
-				else {
-					for i in 0..parse_midi::payload_length(buffer[0]) {
-						midi_out_queues[cable as usize].normal.split().0.enqueue(buffer[1+i as usize]);
+					if is_realtime {
+						midi_out_queues[cable as usize].realtime.split().0.enqueue(message[1]);
+					}
+					else {
+						for i in 0..parse_midi::payload_length(message[0]) {
+							midi_out_queues[cable as usize].normal.split().0.enqueue(message[1+i as usize]);
+						}
 					}
 				}
 			}

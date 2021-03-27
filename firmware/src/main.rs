@@ -144,6 +144,9 @@ const APP: () = {
 		led.set_high().ok(); // Turn off
 
 		let pa0 = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
+		let pa1 = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
+		let pa2 = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
+		let pa3 = gpioa.pa3.into_push_pull_output(&mut gpioa.crl);
 		let pb0 = gpiob.pb0.into_floating_input(&mut gpiob.crl);
 		let pb1 = gpiob.pb1.into_floating_input(&mut gpiob.crl);
 		let pb2 = gpiob.pb2.into_floating_input(&mut gpiob.crl);
@@ -152,6 +155,7 @@ const APP: () = {
 		let pb5 = gpiob.pb5.into_floating_input(&mut gpiob.crl);
 		let pb6 = gpiob.pb6.into_floating_input(&mut gpiob.crl);
 		let pb7 = gpiob.pb7.into_floating_input(&mut gpiob.crl);
+		let pb8 = gpiob.pb8.into_floating_input(&mut gpiob.crh);
 
 		// Configure the USART
 		let gpio_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);

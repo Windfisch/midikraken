@@ -456,8 +456,7 @@ fn usb_poll<B: bus::UsbBus>(
 		return;
 	}
 
-	//while !is_any_queue_full(midi_out_queues) {
-	loop {
+	while !is_any_queue_full(midi_out_queues) {
 		let mut buffer = [0u8;128]; // FIXME magic size.
 		if let Ok(len) = midi.read(&mut buffer) {
 			if len % 4 == 0 { // every packet should have length 4

@@ -147,11 +147,6 @@ const APP: () = {
 		let pa1 = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
 		let pa2 = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
 		let pa3 = gpioa.pa3.into_push_pull_output(&mut gpioa.crl);
-		let pb0 = gpiob.pb0.into_floating_input(&mut gpiob.crl);
-		let pb1 = gpiob.pb1.into_floating_input(&mut gpiob.crl);
-		let pb2 = gpiob.pb2.into_floating_input(&mut gpiob.crl);
-		//let pb3 = gpiob.pb3.into_floating_input(&mut gpiob.crl);
-		//let pb4 = gpiob.pb4.into_floating_input(&mut gpiob.crl);
 		let pb5 = gpiob.pb5.into_floating_input(&mut gpiob.crl);
 		let pb6 = gpiob.pb6.into_floating_input(&mut gpiob.crl);
 		let pb7 = gpiob.pb7.into_floating_input(&mut gpiob.crl);
@@ -193,7 +188,7 @@ const APP: () = {
 		*USB_BUS = Some( UsbBus::new(usb_pins) );
 		let usb_bus = USB_BUS.as_ref().unwrap();
 
-		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, 16, 16).unwrap();
+		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, 4, 4).unwrap();
 		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
 			.manufacturer("Windfisch")
 			.product("Midikraken x16")
@@ -297,8 +292,9 @@ const APP: () = {
 
 			while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
 				//write!(c.resources.tx, "({},{:02X}) ", cable, byte);
-				if let Some(usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
+				if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
 					write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message);
+					usb_message[0] |= cable << 4;
 					match c.resources.midi.send_bytes(usb_message) {
 						Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size); }
 						Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error); }
@@ -378,7 +374,7 @@ const APP: () = {
 
 		// handle the received bits
 
-		let in_bits: u16 = (gpiob_in & 0xfff8) >> 2 | (gpiob_in & 1);
+		let in_bits: u16 = (gpiob_in >> 5) & 0x000F;
 		let falling_edge = !in_bits & *in_bits_old;
 		*in_bits_old = in_bits;
 		

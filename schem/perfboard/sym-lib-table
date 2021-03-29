@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name bluepill)(type Legacy)(uri /home/flo/midikraken/schem/lib/bluepill.lib)(options "")(descr ""))
+)

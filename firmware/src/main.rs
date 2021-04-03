@@ -14,8 +14,6 @@ use core::fmt::Write;
 
 use stm32f1xx_hal::time::Hertz;
 
-use stm32f1xx_hal::rcc::Enable;
-
 use heapless::spsc::Queue;
 
 use usb_device::bus;
@@ -35,11 +33,14 @@ const RECV_BIT: u16 = 1 << 10; // we need 11 bits for marker (10) + start (9) + 
 static UART_READ_BUFFER: [u16; N_UART] = [42; N_UART];
 static mut uart_send: [u16; N_UART] = [0; N_UART];
 static mut uart_recv: [u16; N_UART] = [0; N_UART];
-static mut uart_benchmark: i8 = -1;
-static mut benchmark_cycles: u16 = 0;
 const UART_SEND_IDLE: u16 = 1;
 
+#[cfg(feature = "benchmark")]
+static mut uart_benchmark: i8 = -1;
+#[cfg(feature = "benchmark")]
+static mut benchmark_cycles: u16 = 0;
 
+#[cfg(feature = "benchmark")]
 fn benchmark(cycle: i8) -> u16 {
 	if cycle < 0 || cycle >= 3 {
 		return 0;
@@ -102,7 +103,10 @@ const APP: () = {
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
 		mytimer: timer::CountDownTimer<stm32::TIM2>,
+
+		#[cfg(feature = "benchmark")]
 		bench_timer: timer::CountDownTimer<stm32::TIM1>,
+
 		queue: Queue<(u8,u8), heapless::consts::U200, u16, heapless::spsc::SingleCore>,
 
 		usb_dev: UsbDevice<'static, UsbBusType>,
@@ -202,33 +206,38 @@ const APP: () = {
 			.start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
+		#[cfg(feature = "benchmark")]
 		let bench_timer =
 			timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
 			.start_raw(0, 0xFFFF);
 
-		/*let start_100 = bench_timer.cnt();
-		cortex_m::asm::delay(100);
-		let stop_100 = bench_timer.cnt();
-		let start_40000 = bench_timer.cnt();
-		cortex_m::asm::delay(40000);
-		let stop_40000 = bench_timer.cnt();
-		writeln!(tx, "delay for 100 cycles took from cpu cycle {} to {}", start_100, stop_100);
-		writeln!(tx, "delay for 40000 took from cpu cycle {} to {}", start_40000, stop_40000);
-		writeln!(tx, "sleep(1 second)");
-		cortex_m::asm::delay(72000000);
-		writeln!(tx, "sleep(1 second)");
-		cortex_m::asm::delay(72000000);
-		writeln!(tx, "done");
-		*/
+		#[cfg(feature = "benchmark")]
+		{
+			let start_100 = bench_timer.cnt();
+			cortex_m::asm::delay(100);
+			let stop_100 = bench_timer.cnt();
+			let start_40000 = bench_timer.cnt();
+			cortex_m::asm::delay(40000);
+			let stop_40000 = bench_timer.cnt();
+			writeln!(tx, "delay for 100 cycles took from cpu cycle {} to {}", start_100, stop_100);
+			writeln!(tx, "delay for 40000 took from cpu cycle {} to {}", start_40000, stop_40000);
+			writeln!(tx, "sleep(1 second)");
+			cortex_m::asm::delay(72000000);
+			writeln!(tx, "sleep(1 second)");
+			cortex_m::asm::delay(72000000);
+			writeln!(tx, "done");
+			
+			cx.spawn.benchmark_task();
+		}
+		
 
 		let queue = unsafe { Queue::u16_sc() };
 
-		//cx.spawn.benchmark_task();
 		cx.spawn.mainloop();
 
 		let midi_out_queues: [MidiOutQueue; 16] = Default::default();
 
-		return init::LateResources { tx, mytimer, bench_timer, queue, usb_dev, midi, midi_out_queues,
+		return init::LateResources { tx, mytimer, queue, usb_dev, midi, midi_out_queues,
 			midi_parsers: [
 				MidiToUsbParser::new(),
 				MidiToUsbParser::new(),
@@ -246,18 +255,11 @@ const APP: () = {
 				MidiToUsbParser::new(),
 				MidiToUsbParser::new(),
 				MidiToUsbParser::new(),
-			] };
+			],
+			#[cfg(feature = "benchmark")]
+			bench_timer
+		};
 	}
-
-	/*#[task(binds = USB_HP_CAN_TX, resources = [usb_dev, midi, midi_out_queues, queue], priority = 50)]
-	fn usb_tx(mut cx: usb_tx::Context) {
-		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi, &mut cx.resources.midi_out_queues, &mut cx.resources.queue);
-	}
-
-	#[task(binds = USB_LP_CAN_RX0, resources = [usb_dev, midi, midi_out_queues, queue], priority = 50)]
-	fn usb_rx0(mut cx: usb_rx0::Context) {
-		usb_poll(&mut cx.resources.usb_dev, &mut cx.resources.midi, &mut cx.resources.midi_out_queues, &mut cx.resources.queue);
-	}*/
 
 	#[task(resources = [queue], priority = 8)]
 	fn byte_received(mut c: byte_received::Context) {
@@ -304,6 +306,7 @@ const APP: () = {
 		}
 	}
 
+	#[cfg(feature = "benchmark")]
 	#[task(resources = [tx], priority = 1)]
 	fn benchmark_task(mut c: benchmark_task::Context) {
 		c.resources.tx.lock(|tx| {
@@ -320,7 +323,7 @@ const APP: () = {
 	}
 
 	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer],  priority=100)]
-	fn timer_interrupt(mut c: timer_interrupt::Context) {
+	fn timer_interrupt(c: timer_interrupt::Context) {
 		// We have a total of 32 GPIO ports on the blue pill board, of
 		// which 2 are used for USB and 1 is used for the LED.
 		// B0-1, B3-15, A0-10, A15, C14-15
@@ -334,7 +337,9 @@ const APP: () = {
 		static mut send_workbuf: [u16; N_UART] = [0; N_UART];
 		static mut out_bits: u16 = 0;
 
+		#[cfg(feature = "benchmark")]
 		let do_benchmark = *phase as i8 == unsafe { read_volatile(&uart_benchmark) };
+		#[cfg(feature = "benchmark")]
 		if do_benchmark {
 			recv_active[*phase] = 0xFFFF;
 			for i in 0..N_UART {
@@ -344,6 +349,7 @@ const APP: () = {
 			}
 			unsafe { write_volatile(&mut uart_benchmark, -1); }
 		}
+		#[cfg(feature = "benchmark")]
 		let start_time = c.resources.bench_timer.cnt();
 
 		c.resources.mytimer.clear_update_interrupt_flag();
@@ -427,10 +433,13 @@ const APP: () = {
 
 		*phase = next_phase;
 
-		let stop_time = c.resources.bench_timer.cnt();
-		unsafe {
-			if do_benchmark && read_volatile(&benchmark_cycles) == 0 {
-				write_volatile(&mut benchmark_cycles, stop_time.wrapping_sub(start_time));
+		#[cfg(feature = "benchmark")]
+		{
+			let stop_time = c.resources.bench_timer.cnt();
+			unsafe {
+				if do_benchmark && read_volatile(&benchmark_cycles) == 0 {
+					write_volatile(&mut benchmark_cycles, stop_time.wrapping_sub(start_time));
+				}
 			}
 		}
 	}

@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Florian Jung <flo@windfis.ch>"]
 edition = "2018"
 
+[features]
+benchmark = []
+
 [dependencies]
 cortex-m = "0.6.7"
 cortex-m-rt = ">=0.6"

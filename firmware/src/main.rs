@@ -9,7 +9,7 @@ use core::ptr::{read_volatile, write_volatile};
 
 use rtic::app;
 use panic_semihosting as _;
-use stm32f1xx_hal::{prelude::*, stm32, gpio::*, serial, timer, spi};
+use stm32f1xx_hal::{prelude::*, stm32, serial, timer};
 use core::fmt::Write;
 
 use stm32f1xx_hal::time::Hertz;
@@ -22,15 +22,11 @@ use stm32f1xx_hal::usb::{UsbBus, Peripheral, UsbBusType};
 
 use parse_midi::MidiToUsbParser;
 
-type MyUsbPins = (stm32f1xx_hal::gpio::gpioa::PA11<stm32f1xx_hal::gpio::Input<stm32f1xx_hal::gpio::Floating>>, stm32f1xx_hal::gpio::gpioa::PA12<stm32f1xx_hal::gpio::Input<stm32f1xx_hal::gpio::Floating>>);
-type MyUsbBus = UsbBus<MyUsbPins>;
-
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 const N_UART: usize = 12;
 
 const RECV_BIT: u16 = 1 << 10; // we need 11 bits for marker (10) + start (9) + 8x data (8-1) + stop (0) (marker is not actually transmitted over the line)
-static UART_READ_BUFFER: [u16; N_UART] = [42; N_UART];
 static mut uart_send: [u16; N_UART] = [0; N_UART];
 static mut uart_recv: [u16; N_UART] = [0; N_UART];
 const UART_SEND_IDLE: u16 = 1;
@@ -117,7 +113,7 @@ const APP: () = {
 	}
 
 	#[init(spawn=[benchmark_task, mainloop])]
-	fn init(mut cx : init::Context) -> init::LateResources {
+	fn init(cx : init::Context) -> init::LateResources {
 		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
 
 		let dp = stm32::Peripherals::take().unwrap();
@@ -147,14 +143,14 @@ const APP: () = {
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
 
-		let pa0 = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
-		let pa1 = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
-		let pa2 = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
-		let pa3 = gpioa.pa3.into_push_pull_output(&mut gpioa.crl);
-		let pb5 = gpiob.pb5.into_floating_input(&mut gpiob.crl);
-		let pb6 = gpiob.pb6.into_floating_input(&mut gpiob.crl);
-		let pb7 = gpiob.pb7.into_floating_input(&mut gpiob.crl);
-		let pb8 = gpiob.pb8.into_floating_input(&mut gpiob.crh);
+		let _pa0 = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
+		let _pa1 = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
+		let _pa2 = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
+		let _pa3 = gpioa.pa3.into_push_pull_output(&mut gpioa.crl);
+		let _pb5 = gpiob.pb5.into_floating_input(&mut gpiob.crl);
+		let _pb6 = gpiob.pb6.into_floating_input(&mut gpiob.crl);
+		let _pb7 = gpiob.pb7.into_floating_input(&mut gpiob.crl);
+		let _pb8 = gpiob.pb8.into_floating_input(&mut gpiob.crh);
 
 		// Configure the USART
 		let gpio_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -219,21 +215,21 @@ const APP: () = {
 			let start_40000 = bench_timer.cnt();
 			cortex_m::asm::delay(40000);
 			let stop_40000 = bench_timer.cnt();
-			writeln!(tx, "delay for 100 cycles took from cpu cycle {} to {}", start_100, stop_100);
-			writeln!(tx, "delay for 40000 took from cpu cycle {} to {}", start_40000, stop_40000);
-			writeln!(tx, "sleep(1 second)");
+			writeln!(tx, "delay for 100 cycles took from cpu cycle {} to {}", start_100, stop_100).ok();
+			writeln!(tx, "delay for 40000 took from cpu cycle {} to {}", start_40000, stop_40000).ok();
+			writeln!(tx, "sleep(1 second)").ok();
 			cortex_m::asm::delay(72000000);
-			writeln!(tx, "sleep(1 second)");
+			writeln!(tx, "sleep(1 second)").ok();
 			cortex_m::asm::delay(72000000);
-			writeln!(tx, "done");
+			writeln!(tx, "done").ok();
 			
-			cx.spawn.benchmark_task();
+			cx.spawn.benchmark_task().unwrap();
 		}
 		
 
 		let queue = unsafe { Queue::u16_sc() };
 
-		cx.spawn.mainloop();
+		cx.spawn.mainloop().unwrap();
 
 		let midi_out_queues: [MidiOutQueue; 16] = Default::default();
 
@@ -262,7 +258,7 @@ const APP: () = {
 	}
 
 	#[task(resources = [queue], priority = 8)]
-	fn byte_received(mut c: byte_received::Context) {
+	fn byte_received(c: byte_received::Context) {
 		for i in 0..N_UART {
 			if let Some(byte) = uart_recv_byte(i) {
 				c.resources.queue.enqueue((i as u8, byte));
@@ -274,7 +270,7 @@ const APP: () = {
 	fn mainloop(mut c: mainloop::Context) {
 		loop {
 			if is_any_queue_full(c.resources.midi_out_queues) {
-				write!(c.resources.tx, "!");
+				write!(c.resources.tx, "!").ok();
 			}
 
 			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues);
@@ -282,24 +278,24 @@ const APP: () = {
 			for cable in 0..N_UART {
 				if uart_clear_to_send(cable) {
 					if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
-						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte);
+						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
 						uart_send_byte(cable, byte);
 					}
 					else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
-						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte);
+						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
 						uart_send_byte(cable, byte);
 					}
 				}
 			}
 
-			while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.split().1.dequeue() }) {
-				//write!(c.resources.tx, "({},{:02X}) ", cable, byte);
+			while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
+				//write!(c.resources.tx, "({},{:02X}) ", cable, byte).ok();
 				if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
-					write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message);
+					write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok();
 					usb_message[0] |= cable << 4;
 					match c.resources.midi.send_bytes(usb_message) {
-						Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size); }
-						Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error); }
+						Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size).ok(); }
+						Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error).ok(); }
 					}
 				}
 			}
@@ -310,15 +306,15 @@ const APP: () = {
 	#[task(resources = [tx], priority = 1)]
 	fn benchmark_task(mut c: benchmark_task::Context) {
 		c.resources.tx.lock(|tx| {
-			writeln!(tx, "Benchmarking...");
+			writeln!(tx, "Benchmarking...").ok();
 			for i in 0..3 {
-				write!(tx, "  cycle# {} ->", i);
+				write!(tx, "  cycle# {} ->", i).ok();
 				for _ in 0..20 {
-					write!(tx, " {}", benchmark(i));
+					write!(tx, " {}", benchmark(i)).ok();
 				}
-				writeln!(tx, "");
+				writeln!(tx, "").ok();
 			}
-			writeln!(tx, "Done!");
+			writeln!(tx, "Done!").ok();
 		});
 	}
 
@@ -411,7 +407,7 @@ const APP: () = {
 		}
 		recv_active[*phase] &= !finished;
 		if finished != 0 {
-			c.spawn.byte_received();
+			c.spawn.byte_received().ok();
 		}
 
 		// handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
@@ -453,7 +449,7 @@ const APP: () = {
 };
 
 fn is_any_queue_full(midi_out_queues: &[MidiOutQueue]) -> bool {
-	midi_out_queues.iter().any(|qs| qs.realtime.len()+1 > qs.realtime.capacity() || qs.normal.len()+3 > qs.normal.capacity()-4)
+	midi_out_queues.iter().any(|qs| qs.realtime.len()+1 > qs.realtime.capacity() || qs.normal.len()+3 > qs.normal.capacity())
 }
 
 fn usb_poll<B: bus::UsbBus>(
@@ -474,11 +470,11 @@ fn usb_poll<B: bus::UsbBus>(
 					let is_realtime = message[1] & 0xF8 == 0xF8;
 
 					if is_realtime {
-						midi_out_queues[cable as usize].realtime.split().0.enqueue(message[1]);
+						midi_out_queues[cable as usize].realtime.enqueue(message[1]).unwrap();
 					}
 					else {
 						for i in 0..parse_midi::payload_length(message[0]) {
-							midi_out_queues[cable as usize].normal.split().0.enqueue(message[1+i as usize]);
+							midi_out_queues[cable as usize].normal.enqueue(message[1+i as usize]).unwrap();
 						}
 					}
 				}

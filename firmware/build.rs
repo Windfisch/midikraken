@@ -15,6 +15,6 @@ fn main() {
     println!("cargo:rustc-link-search={}", out_dir.display());
     println!("cargo:rerun-if-changed=memory.x");
 
-    let mut flags = ConstantsFlags::BUILD_TIMESTAMP | ConstantsFlags::SHA;
+    let flags = ConstantsFlags::BUILD_TIMESTAMP | ConstantsFlags::SHA;
     generate_cargo_keys(flags).expect("Unable to generate the cargo keys!");
 }

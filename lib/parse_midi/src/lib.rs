@@ -82,6 +82,10 @@ pub struct MidiToUsbParser {
 	datalen: u8
 }
 
+impl Default for MidiToUsbParser {
+	fn default() -> MidiToUsbParser { MidiToUsbParser::new() }
+}
+
 impl MidiToUsbParser {
 	pub fn new() -> MidiToUsbParser {
 		MidiToUsbParser {

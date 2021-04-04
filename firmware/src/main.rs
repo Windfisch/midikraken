@@ -5,7 +5,8 @@
 
 use embedded_hal::digital::v2::OutputPin;
 
-use core::ptr::{read_volatile, write_volatile};
+mod software_uart;
+use software_uart::*;
 
 use rtic::app;
 use panic_semihosting as _;
@@ -24,12 +25,6 @@ use parse_midi::MidiToUsbParser;
 
 const SYSCLK : Hertz = Hertz(72_000_000);
 
-const N_UART: usize = 12;
-
-const RECV_BIT: u16 = 1 << 10; // we need 11 bits for marker (10) + start (9) + 8x data (8-1) + stop (0) (marker is not actually transmitted over the line)
-static mut uart_send: [u16; N_UART] = [0; N_UART];
-static mut uart_recv: [u16; N_UART] = [0; N_UART];
-const UART_SEND_IDLE: u16 = 1;
 
 #[cfg(feature = "benchmark")]
 static mut uart_benchmark: i8 = -1;
@@ -38,6 +33,7 @@ static mut benchmark_cycles: u16 = 0;
 
 #[cfg(feature = "benchmark")]
 fn benchmark(cycle: i8) -> u16 {
+	use core::ptr::{read_volatile, write_volatile};
 	if cycle < 0 || cycle >= 3 {
 		return 0;
 	}
@@ -50,32 +46,6 @@ fn benchmark(cycle: i8) -> u16 {
 			if result != 0 {
 				return result;
 			}
-		}
-	}
-}
-
-fn uart_clear_to_send(index: usize) -> bool {
-	unsafe {
-		return read_volatile(&uart_send[index]) == UART_SEND_IDLE;
-	}
-}
-
-fn uart_send_byte(index: usize, data: u8) {
-	unsafe {
-		write_volatile(&mut uart_send[index], ((data as u16) << 1) | (1 << 9));
-	}
-}
-
-fn uart_recv_byte(index: usize) -> Option<u8> {
-	unsafe {
-		let data = read_volatile(&uart_recv[index]);
-		write_volatile(&mut uart_recv[index], 0);
-
-		if data != 0 {
-			return Some(((data >> 2) & 0xFF) as u8); // shift out the marker bit and the start bit. then AND out the stop bit
-		}
-		else {
-			return None;
 		}
 	}
 }
@@ -109,12 +79,20 @@ const APP: () = {
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
 
 		midi_parsers: [MidiToUsbParser; 16],
-		midi_out_queues: [MidiOutQueue; 16]
+		midi_out_queues: [MidiOutQueue; 16],
+
+		sw_uart_rx: SoftwareUartRx<'static>,
+		sw_uart_tx: SoftwareUartTx<'static>,
+		sw_uart_isr: SoftwareUartIsr<'static>,
 	}
 
 	#[init(spawn=[benchmark_task, mainloop])]
 	fn init(cx : init::Context) -> init::LateResources {
 		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
+		static mut SOFTWARE_UART: Option<SoftwareUart> = None;
+
+		*SOFTWARE_UART = Some(SoftwareUart::new());
+		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = (*SOFTWARE_UART).as_mut().unwrap().split();
 
 		let dp = stm32::Peripherals::take().unwrap();
 
@@ -231,42 +209,25 @@ const APP: () = {
 
 		cx.spawn.mainloop().unwrap();
 
-		let midi_out_queues: [MidiOutQueue; 16] = Default::default();
-
-		return init::LateResources { tx, mytimer, queue, usb_dev, midi, midi_out_queues,
-			midi_parsers: [
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-				MidiToUsbParser::new(),
-			],
+		return init::LateResources { tx, mytimer, queue, usb_dev, midi,
+			sw_uart_tx, sw_uart_rx, sw_uart_isr,
+			midi_out_queues: Default::default(),
+			midi_parsers: Default::default(),
 			#[cfg(feature = "benchmark")]
-			bench_timer
+			bench_timer,
 		};
 	}
 
-	#[task(resources = [queue], priority = 8)]
+	#[task(resources = [queue, sw_uart_rx], priority = 8)]
 	fn byte_received(c: byte_received::Context) {
 		for i in 0..N_UART {
-			if let Some(byte) = uart_recv_byte(i) {
+			if let Some(byte) = c.resources.sw_uart_rx.recv_byte(i) {
 				c.resources.queue.enqueue((i as u8, byte));
 			}
 		}
 	}
 
-	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi], priority = 2)]
+	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx], priority = 2)]
 	fn mainloop(mut c: mainloop::Context) {
 		loop {
 			if is_any_queue_full(c.resources.midi_out_queues) {
@@ -276,14 +237,14 @@ const APP: () = {
 			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues);
 
 			for cable in 0..N_UART {
-				if uart_clear_to_send(cable) {
+				if c.resources.sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
 						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-						uart_send_byte(cable, byte);
+						c.resources.sw_uart_tx.send_byte(cable, byte);
 					}
 					else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
 						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-						uart_send_byte(cable, byte);
+						c.resources.sw_uart_tx.send_byte(cable, byte);
 					}
 				}
 			}
@@ -318,20 +279,13 @@ const APP: () = {
 		});
 	}
 
-	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer],  priority=100)]
+	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr],  priority=100)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
 		// We have a total of 32 GPIO ports on the blue pill board, of
 		// which 2 are used for USB and 1 is used for the LED.
 		// B0-1, B3-15, A0-10, A15, C14-15
 		// we use B0, B3, B4, ..., B15 for our 14 input uarts and
 		// A0, ..., A10, A15, C14, C15 for the 14 output pins
-		static mut in_bits_old: u16 = 0;
-		static mut recv_active: [u16; 3] = [0; 3];
-		static mut phase: usize = 0;
-
-		static mut recv_workbuf: [u16; N_UART] = [RECV_BIT; N_UART];
-		static mut send_workbuf: [u16; N_UART] = [0; N_UART];
-		static mut out_bits: u16 = 0;
 
 		#[cfg(feature = "benchmark")]
 		let do_benchmark = *phase as i8 == unsafe { read_volatile(&uart_benchmark) };
@@ -350,84 +304,28 @@ const APP: () = {
 
 		c.resources.mytimer.clear_update_interrupt_flag();
 
-		let next_phase = (*phase + 1) % 3;
-
-
 		// actual I/O is done at the very beginning to minimize jitter
 
 		// input
 		let gpiob_in = unsafe { (*stm32::GPIOB::ptr()).idr.read().bits() } as u16; // read the IO port
-
+		let in_bits: u16 = (gpiob_in >> 5) & 0x000F;
+		
 		// output: *out_bits have been set in the last three thirdclocks.
-		if *phase == 0 {
+		if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
 			const MASK_A: u32 = 0x87FF87FF;
 			const MASK_C: u32 = 0xC000C000;
-			let bits_a = (*out_bits & 0x7FF) | ((*out_bits & 0x800) << 4);
-			let bits_c = (*out_bits & 0x3000) << 2;
+			let bits_a = (out_bits & 0x7FF) | ((out_bits & 0x800) << 4);
+			let bits_c = (out_bits & 0x3000) << 2;
 			let bsrr_a = (bits_a as u32 | ((!bits_a as u32) << 16)) & MASK_A;
 			let bsrr_c = (bits_c as u32 | ((!bits_c as u32) << 16)) & MASK_C;
 
 			unsafe { (*stm32::GPIOA::ptr()).bsrr.write(|w| w.bits(bsrr_a)); }; // we ensure to only access pins
 			unsafe { (*stm32::GPIOC::ptr()).bsrr.write(|w| w.bits(bsrr_c)); }; // we own (using MASK_A / MASK_C)
-
-			*out_bits = 0;
 		}
 
-
-		// handle the received bits
-
-		let in_bits: u16 = (gpiob_in >> 5) & 0x000F;
-		let falling_edge = !in_bits & *in_bits_old;
-		*in_bits_old = in_bits;
-		
-		let active_total = recv_active[0] | recv_active[1] | recv_active[2];
-		let start_of_transmission = !active_total & falling_edge;
-		recv_active[next_phase] |= start_of_transmission;
-
-		let mut finished = 0;
-		for i in 0..N_UART {
-			let mask = 1 << i;
-		
-			// TODO try moving this variable out of the loop. does this avoid unneeded reads / array bound checks?
-			if recv_active[*phase] & mask != 0 { // this is the thirdclock where uart #i can read stable data?
-				/*let mut recv_bit = 0;
-				if in_bits & mask != 0 {
-					recv_bit = RECV_BIT;
-				}*/
-				let recv_bit = if in_bits & mask == 0 { 0 } else { RECV_BIT };
-
-				recv_workbuf[i] = (recv_workbuf[i] >> 1) | recv_bit;
-
-				if recv_workbuf[i] & 1 != 0 { // we received 10 bits, i.e. the marker bit is now the LSB?
-					unsafe { write_volatile(&mut uart_recv[i], recv_workbuf[i]); } // publish the received uart frame.
-					recv_workbuf[i] = RECV_BIT;
-					finished |= mask;
-				}
-			}
-		}
-		recv_active[*phase] &= !finished;
-		if finished != 0 {
+		if c.resources.sw_uart_isr.process(in_bits) != 0 {
 			c.spawn.byte_received().ok();
 		}
-
-		// handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
-		const SEND_BATCHSIZE: usize = (N_UART+2) / 3;
-		let first = *phase * SEND_BATCHSIZE;
-		for i in first .. core::cmp::min(first + SEND_BATCHSIZE, N_UART) {
-			if send_workbuf[i] == 0 {
-				unsafe { // STM32 reads and writes u16s atomically
-					send_workbuf[i] = read_volatile(&uart_send[i]);
-					write_volatile(&mut uart_send[i], UART_SEND_IDLE);
-				}
-			}
-			
-			*out_bits |= (send_workbuf[i] & 1) << i;
-			send_workbuf[i] >>= 1;
-		}
-
-		// at the begin of phase 0, output ports are set.
-
-		*phase = next_phase;
 
 		#[cfg(feature = "benchmark")]
 		{

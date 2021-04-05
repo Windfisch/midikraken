@@ -67,8 +67,8 @@ const APP: () = {
   * ```
   */
 pub struct SoftwareUart {
-	uart_send: [u16; N_UART],
-	uart_recv: [u16; N_UART],
+	send_buffers: [u16; N_UART],
+	recv_buffers: [u16; N_UART],
 }
 
 /** The timer interrupt handler part of the software uart. */
@@ -104,8 +104,8 @@ unsafe impl<'a> Send for SoftwareUartTx<'a> {}
 impl SoftwareUart {
 	pub fn new() -> SoftwareUart {
 		SoftwareUart {
-			uart_send: [UART_SEND_IDLE; N_UART],
-			uart_recv: [0; N_UART],
+			send_buffers: [UART_SEND_IDLE; N_UART],
+			recv_buffers: [0; N_UART],
 		}
 	}
 
@@ -132,7 +132,7 @@ impl<'a> SoftwareUartTx<'a> {
 		without overwriting the byte scheduled before. */
 	pub fn clear_to_send(&self, index: usize) -> bool {
 		unsafe {
-			return read_volatile(addr_of!((*self.registers).uart_send[index])) == UART_SEND_IDLE;
+			return read_volatile(addr_of!((*self.registers).send_buffers[index])) == UART_SEND_IDLE;
 		}
 	}
 
@@ -142,7 +142,7 @@ impl<'a> SoftwareUartTx<'a> {
 		the previously buffered byte is lost. */
 	pub fn send_byte(&mut self, index: usize, data: u8) {
 		unsafe {
-			write_volatile(addr_of_mut!((*self.registers).uart_send[index]), ((data as u16) << 1) | (1 << 9));
+			write_volatile(addr_of_mut!((*self.registers).send_buffers[index]), ((data as u16) << 1) | (1 << 9));
 		}
 	}
 }
@@ -153,8 +153,8 @@ impl<'a> SoftwareUartRx<'a> {
 		called in time, data is lost. */
 	pub fn recv_byte(&mut self, index: usize) -> Option<u8> {
 		unsafe {
-			let data = read_volatile(addr_of!((*self.registers).uart_recv[index]));
-			write_volatile(addr_of_mut!((*self.registers).uart_recv[index]), 0);
+			let data = read_volatile(addr_of!((*self.registers).recv_buffers[index]));
+			write_volatile(addr_of_mut!((*self.registers).recv_buffers[index]), 0);
 
 			if data != 0 {
 				return Some(((data >> 2) & 0xFF) as u8); // shift out the marker bit and the start bit. then AND out the stop bit
@@ -177,6 +177,24 @@ impl<'a> SoftwareUartIsr<'a> {
 		}
 		else {
 			return None;
+		}
+	}
+
+	/** Sets the internal state to benchmarking mode if the current phase is `phase`.
+	  * Return whether benchmarking was initiated.
+	  * Note: garbage will be sent and received during benchmarking. */
+	pub fn setup_benchmark(&mut self, benchmark_phase: i8) -> bool {
+		if self.phase as i8 == benchmark_phase {
+			self.recv_active[self.phase] = 0xFFFF;
+			for i in 0..N_UART {
+				self.recv_workbuf[i] = 2; // this will be the last bit received, causing additional work to happen
+				unsafe { write_volatile(addr_of_mut!((*self.registers).send_buffers[i]), (0xFF << 1) | (1<<9)); }
+				self.send_workbuf[i] = 0; // force an (expensive) reload to happen
+			}
+			return true;
+		}
+		else {
+			return false;
 		}
 	}
 
@@ -210,7 +228,7 @@ impl<'a> SoftwareUartIsr<'a> {
 				self.recv_workbuf[i] = (self.recv_workbuf[i] >> 1) | recv_bit;
 
 				if self.recv_workbuf[i] & 1 != 0 { // we received 10 bits, i.e. the marker bit is now the LSB?
-					unsafe { write_volatile(addr_of_mut!((*self.registers).uart_recv[i]), self.recv_workbuf[i]); } // publish the received uart frame.
+					unsafe { write_volatile(addr_of_mut!((*self.registers).recv_buffers[i]), self.recv_workbuf[i]); } // publish the received uart frame.
 					self.recv_workbuf[i] = RECV_BIT;
 					recv_finished |= mask;
 				}
@@ -224,8 +242,8 @@ impl<'a> SoftwareUartIsr<'a> {
 		for i in first .. core::cmp::min(first + SEND_BATCHSIZE, N_UART) {
 			if self.send_workbuf[i] == 0 {
 				unsafe { // STM32 reads and writes u16s atomically
-					self.send_workbuf[i] = read_volatile(addr_of!((*self.registers).uart_send[i]));
-					write_volatile(addr_of_mut!((*self.registers).uart_send[i]), UART_SEND_IDLE);
+					self.send_workbuf[i] = read_volatile(addr_of!((*self.registers).send_buffers[i]));
+					write_volatile(addr_of_mut!((*self.registers).send_buffers[i]), UART_SEND_IDLE);
 				}
 			}
 			

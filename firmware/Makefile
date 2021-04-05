@@ -9,9 +9,9 @@ flash.%: %.bin
 .PHONY: target/thumbv7m-none-eabi/debug/midikraken
 .PHONY: target/thumbv7m-none-eabi/release/midikraken
 target/thumbv7m-none-eabi/debug/midikraken:
-	cargo build --target=thumbv7m-none-eabi
+	cargo build --target=thumbv7m-none-eabi --features=benchmark
 target/thumbv7m-none-eabi/release/midikraken:
-	cargo build --release --target=thumbv7m-none-eabi
+	cargo build --release --target=thumbv7m-none-eabi --features=benchmark
 
 tty:
 	python /usr/lib/python3.9/site-packages/serial/tools/miniterm.py /dev/ttyUSB0 115200

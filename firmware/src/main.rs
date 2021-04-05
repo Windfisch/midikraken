@@ -27,22 +27,21 @@ const SYSCLK : Hertz = Hertz(72_000_000);
 
 
 #[cfg(feature = "benchmark")]
-static mut uart_benchmark: i8 = -1;
+static mut BENCHMARK_CYCLES: u16 = 0;
 #[cfg(feature = "benchmark")]
-static mut benchmark_cycles: u16 = 0;
+static mut BENCHMARK_PHASE: i8 = -1;
 
 #[cfg(feature = "benchmark")]
-fn benchmark(cycle: i8) -> u16 {
-	use core::ptr::{read_volatile, write_volatile};
-	if cycle < 0 || cycle >= 3 {
+fn benchmark(phase: i8) -> u16 {
+	if phase < 0 || phase >= 3 {
 		return 0;
 	}
 
 	unsafe {
-		write_volatile(&mut benchmark_cycles, 0);
-		write_volatile(&mut uart_benchmark, cycle);
+		core::ptr::write_volatile(&mut BENCHMARK_CYCLES, 0);
+		core::ptr::write_volatile(&mut BENCHMARK_PHASE, phase);
 		loop {
-			let result = read_volatile(&benchmark_cycles);
+			let result = core::ptr::read_volatile(&BENCHMARK_CYCLES);
 			if result != 0 {
 				return result;
 			}
@@ -180,6 +179,8 @@ const APP: () = {
 			.start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
+		let queue = unsafe { Queue::u16_sc() };
+		
 		#[cfg(feature = "benchmark")]
 		let bench_timer =
 			timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
@@ -202,11 +203,10 @@ const APP: () = {
 			writeln!(tx, "done").ok();
 			
 			cx.spawn.benchmark_task().unwrap();
+			writeln!(tx, "spawned").ok();
 		}
-		
 
-		let queue = unsafe { Queue::u16_sc() };
-
+		#[cfg(not(feature = "benchmark"))]
 		cx.spawn.mainloop().unwrap();
 
 		return init::LateResources { tx, mytimer, queue, usb_dev, midi,
@@ -264,7 +264,7 @@ const APP: () = {
 	}
 
 	#[cfg(feature = "benchmark")]
-	#[task(resources = [tx], priority = 1)]
+	#[task(resources = [tx, sw_uart_tx], priority = 1)]
 	fn benchmark_task(mut c: benchmark_task::Context) {
 		c.resources.tx.lock(|tx| {
 			writeln!(tx, "Benchmarking...").ok();
@@ -288,17 +288,7 @@ const APP: () = {
 		// A0, ..., A10, A15, C14, C15 for the 14 output pins
 
 		#[cfg(feature = "benchmark")]
-		let do_benchmark = *phase as i8 == unsafe { read_volatile(&uart_benchmark) };
-		#[cfg(feature = "benchmark")]
-		if do_benchmark {
-			recv_active[*phase] = 0xFFFF;
-			for i in 0..N_UART {
-				recv_workbuf[i] = 2; // this will be the last bit received, causing additional work to happen
-				unsafe { write_volatile(&mut uart_send[i], (0xFF << 1) | (1<<9)); }
-				send_workbuf[i] = 0; // force an (expensive) reload to happen
-			}
-			unsafe { write_volatile(&mut uart_benchmark, -1); }
-		}
+		let do_benchmark = c.resources.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
 		#[cfg(feature = "benchmark")]
 		let start_time = c.resources.bench_timer.cnt();
 
@@ -331,8 +321,9 @@ const APP: () = {
 		{
 			let stop_time = c.resources.bench_timer.cnt();
 			unsafe {
-				if do_benchmark && read_volatile(&benchmark_cycles) == 0 {
-					write_volatile(&mut benchmark_cycles, stop_time.wrapping_sub(start_time));
+				if do_benchmark {
+					core::ptr::write_volatile(&mut BENCHMARK_PHASE, -1);
+					core::ptr::write_volatile(&mut BENCHMARK_CYCLES, stop_time.wrapping_sub(start_time));
 				}
 			}
 		}
@@ -343,7 +334,6 @@ const APP: () = {
 		fn EXTI1();
 		fn EXTI2();
     }
-
 };
 
 fn is_any_queue_full(midi_out_queues: &[MidiOutQueue]) -> bool {

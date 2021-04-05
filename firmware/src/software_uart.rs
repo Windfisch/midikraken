@@ -214,6 +214,7 @@ impl<'a> SoftwareUartIsr<'a> {
 		self.recv_active[next_phase] |= start_of_transmission;
 
 		let mut recv_finished = 0;
+		let recv_buffers = unsafe { addr_of_mut!((*self.registers).recv_buffers) };
 		for i in 0..N_UART {
 			let mask = 1 << i;
 		
@@ -228,7 +229,7 @@ impl<'a> SoftwareUartIsr<'a> {
 				self.recv_workbuf[i] = (self.recv_workbuf[i] >> 1) | recv_bit;
 
 				if self.recv_workbuf[i] & 1 != 0 { // we received 10 bits, i.e. the marker bit is now the LSB?
-					unsafe { write_volatile(addr_of_mut!((*self.registers).recv_buffers[i]), self.recv_workbuf[i]); } // publish the received uart frame.
+					unsafe { write_volatile(addr_of_mut!((*recv_buffers)[i]), self.recv_workbuf[i]); } // publish the received uart frame.
 					self.recv_workbuf[i] = RECV_BIT;
 					recv_finished |= mask;
 				}

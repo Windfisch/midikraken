@@ -239,12 +239,13 @@ impl<'a> SoftwareUartIsr<'a> {
 
 		// handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
 		const SEND_BATCHSIZE: usize = (N_UART+2) / 3;
+		let send_buffers = unsafe { addr_of_mut!((*self.registers).send_buffers) };
 		let first = self.phase * SEND_BATCHSIZE;
 		for i in first .. core::cmp::min(first + SEND_BATCHSIZE, N_UART) {
 			if self.send_workbuf[i] == 0 {
 				unsafe { // STM32 reads and writes u16s atomically
-					self.send_workbuf[i] = read_volatile(addr_of!((*self.registers).send_buffers[i]));
-					write_volatile(addr_of_mut!((*self.registers).send_buffers[i]), UART_SEND_IDLE);
+					self.send_workbuf[i] = read_volatile(addr_of!((*send_buffers)[i]));
+					write_volatile(addr_of_mut!((*send_buffers)[i]), UART_SEND_IDLE);
 				}
 			}
 			

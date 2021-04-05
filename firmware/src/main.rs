@@ -206,6 +206,7 @@ const APP: () = {
 			.start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
+		writeln!(tx, "========================================================\n").ok();
 		#[cfg(feature = "benchmark")]
 		let bench_timer =
 			timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
@@ -229,10 +230,12 @@ const APP: () = {
 			
 			cx.spawn.benchmark_task();
 		}
+		writeln!(tx, "after benchmark").ok();
 		
 
 		let queue = unsafe { Queue::u16_sc() };
 
+		#[cfg(not(feature = "benchmark"))]
 		cx.spawn.mainloop();
 
 		let midi_out_queues: [MidiOutQueue; 16] = Default::default();

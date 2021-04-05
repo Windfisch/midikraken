@@ -242,15 +242,16 @@ impl<'a> SoftwareUartIsr<'a> {
 		let send_buffers = unsafe { addr_of_mut!((*self.registers).send_buffers) };
 		let first = self.phase * SEND_BATCHSIZE;
 		for i in first .. core::cmp::min(first + SEND_BATCHSIZE, N_UART) {
-			if self.send_workbuf[i] == 0 {
+			let mut workbuf = self.send_workbuf[i];
+			if workbuf == 0 {
 				unsafe { // STM32 reads and writes u16s atomically
-					self.send_workbuf[i] = read_volatile(addr_of!((*send_buffers)[i]));
+					workbuf = read_volatile(addr_of!((*send_buffers)[i]));
 					write_volatile(addr_of_mut!((*send_buffers)[i]), UART_SEND_IDLE);
 				}
 			}
 			
-			self.out_bits |= (self.send_workbuf[i] & 1) << i;
-			self.send_workbuf[i] >>= 1;
+			self.out_bits |= (workbuf & 1) << i;
+			self.send_workbuf[i] = workbuf >> 1;
 		}
 
 		self.phase = next_phase;

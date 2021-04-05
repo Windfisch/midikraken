@@ -215,11 +215,11 @@ impl<'a> SoftwareUartIsr<'a> {
 
 		let mut recv_finished = 0;
 		let recv_buffers = unsafe { addr_of_mut!((*self.registers).recv_buffers) };
+		let recv_active = self.recv_active[self.phase];
 		for i in 0..N_UART {
 			let mask = 1 << i;
 		
-			// TODO try moving this variable out of the loop. does this avoid unneeded reads / array bound checks?
-			if self.recv_active[self.phase] & mask != 0 { // this is the thirdclock where uart #i can read stable data?
+			if recv_active & mask != 0 { // this is the thirdclock where uart #i can read stable data?
 				/*let mut recv_bit = 0;
 				if in_bits & mask != 0 {
 					recv_bit = RECV_BIT;

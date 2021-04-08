@@ -23,8 +23,12 @@ use stm32f1xx_hal::usb::{UsbBus, Peripheral, UsbBusType};
 
 use parse_midi::MidiToUsbParser;
 
+use software_uart::typenum::Unsigned;
+
 const SYSCLK : Hertz = Hertz(72_000_000);
 
+
+type NumUarts = software_uart::typenum::U12;
 
 #[cfg(feature = "benchmark")]
 static mut BENCHMARK_CYCLES: u16 = 0;
@@ -80,15 +84,15 @@ const APP: () = {
 		midi_parsers: [MidiToUsbParser; 16],
 		midi_out_queues: [MidiOutQueue; 16],
 
-		sw_uart_rx: SoftwareUartRx<'static>,
-		sw_uart_tx: SoftwareUartTx<'static>,
-		sw_uart_isr: SoftwareUartIsr<'static>,
+		sw_uart_rx: SoftwareUartRx<'static, NumUarts>,
+		sw_uart_tx: SoftwareUartTx<'static, NumUarts>,
+		sw_uart_isr: SoftwareUartIsr<'static, NumUarts>,
 	}
 
 	#[init(spawn=[benchmark_task, mainloop])]
 	fn init(cx : init::Context) -> init::LateResources {
 		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
-		static mut SOFTWARE_UART: Option<SoftwareUart> = None;
+		static mut SOFTWARE_UART: Option<SoftwareUart<NumUarts>> = None;
 
 		*SOFTWARE_UART = Some(SoftwareUart::new());
 		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = (*SOFTWARE_UART).as_mut().unwrap().split();
@@ -220,7 +224,7 @@ const APP: () = {
 
 	#[task(resources = [queue, sw_uart_rx], priority = 8)]
 	fn byte_received(c: byte_received::Context) {
-		for i in 0..N_UART {
+		for i in 0..NumUarts::USIZE {
 			if let Some(byte) = c.resources.sw_uart_rx.recv_byte(i) {
 				c.resources.queue.enqueue((i as u8, byte));
 			}
@@ -236,7 +240,7 @@ const APP: () = {
 
 			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues);
 
-			for cable in 0..N_UART {
+			for cable in 0..NumUarts::USIZE {
 				if c.resources.sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
 						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();

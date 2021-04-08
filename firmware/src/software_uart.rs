@@ -1,7 +1,9 @@
 use core::ptr::{read_volatile, write_volatile, addr_of_mut, addr_of};
 use core::marker::PhantomData;
+use generic_array::typenum::Unsigned;
+use generic_array::{GenericArray, ArrayLength};
 
-pub const N_UART: usize = 12;
+pub use generic_array::typenum;
 
 const RECV_BIT: u16 = 1 << 10; // we need 11 bits for marker (10) + start (9) + 8x data (8-1) + stop (0) (marker is not actually transmitted over the line)
 const UART_SEND_IDLE: u16 = 1;
@@ -66,50 +68,54 @@ const APP: () = {
 	// TODO FIXME: finish the example
   * ```
   */
-pub struct SoftwareUart {
-	send_buffers: [u16; N_UART],
-	recv_buffers: [u16; N_UART],
+pub struct SoftwareUart<NumUarts: Unsigned + ArrayLength<u16>> {
+	send_buffers: GenericArray<u16, NumUarts>,
+	recv_buffers: GenericArray<u16, NumUarts>,
 }
 
 /** The timer interrupt handler part of the software uart. */
-pub struct SoftwareUartIsr<'a> {
+pub struct SoftwareUartIsr<'a, NumUarts: Unsigned + ArrayLength<u16>> {
 	in_bits_old: u16,
 	recv_active: [u16; 3],
 	phase: usize,
 
-	recv_workbuf: [u16; N_UART],
-	send_workbuf: [u16; N_UART],
+	recv_workbuf: GenericArray<u16, NumUarts>,
+	send_workbuf: GenericArray<u16, NumUarts>,
 	out_bits: u16,
 
-	registers: *mut SoftwareUart,
+	registers: *mut SoftwareUart<NumUarts>,
 	_marker: PhantomData<&'a ()>
 }
 
 /** The transmit half of the software uart's frontend. */
-pub struct SoftwareUartTx<'a> {
-	registers: *mut SoftwareUart,
+pub struct SoftwareUartTx<'a, NumUarts: Unsigned + ArrayLength<u16>> {
+	registers: *mut SoftwareUart<NumUarts>,
 	_marker: PhantomData<&'a ()>
 }
 
 /** The receive half of the software uart's frontend. */
-pub struct SoftwareUartRx<'a> {
-	registers: *mut SoftwareUart,
+pub struct SoftwareUartRx<'a, NumUarts: Unsigned + ArrayLength<u16>> {
+	registers: *mut SoftwareUart<NumUarts>,
 	_marker: PhantomData<&'a ()>
 }
 
-unsafe impl<'a> Send for SoftwareUartIsr<'a> {}
-unsafe impl<'a> Send for SoftwareUartRx<'a> {}
-unsafe impl<'a> Send for SoftwareUartTx<'a> {}
+unsafe impl<'a, NumUarts: Unsigned + ArrayLength<u16>> Send for SoftwareUartIsr<'a, NumUarts> {}
+unsafe impl<'a, NumUarts: Unsigned + ArrayLength<u16>> Send for SoftwareUartRx<'a, NumUarts> {}
+unsafe impl<'a, NumUarts: Unsigned + ArrayLength<u16>> Send for SoftwareUartTx<'a, NumUarts> {}
 
-impl SoftwareUart {
-	pub fn new() -> SoftwareUart {
+fn make_array<N: Unsigned + ArrayLength<T>, T: Clone>(init_value: T) -> GenericArray<T, N> {
+	GenericArray::from_exact_iter(core::iter::repeat(init_value).take(N::USIZE)).unwrap()
+}
+
+impl<NumUarts: Unsigned + ArrayLength<u16>> SoftwareUart<NumUarts> {
+	pub fn new() -> SoftwareUart<NumUarts> {
 		SoftwareUart {
-			send_buffers: [UART_SEND_IDLE; N_UART],
-			recv_buffers: [0; N_UART],
+			send_buffers: make_array(UART_SEND_IDLE),
+			recv_buffers: make_array(0),
 		}
 	}
 
-	pub fn split(&mut self) -> (SoftwareUartTx, SoftwareUartRx, SoftwareUartIsr) {
+	pub fn split(&mut self) -> (SoftwareUartTx<NumUarts>, SoftwareUartRx<NumUarts>, SoftwareUartIsr<NumUarts>) {
 		return (
 			SoftwareUartTx { registers: self, _marker: PhantomData },
 			SoftwareUartRx { registers: self, _marker: PhantomData },
@@ -118,8 +124,8 @@ impl SoftwareUart {
 				in_bits_old: 0,
 				recv_active: [0; 3],
 				phase: 0,
-				recv_workbuf: [RECV_BIT; N_UART],
-				send_workbuf: [0; N_UART],
+				recv_workbuf: make_array(RECV_BIT),
+				send_workbuf: make_array(0),
 				out_bits: 0,
 				_marker: PhantomData
 			}
@@ -127,7 +133,7 @@ impl SoftwareUart {
 	}
 }
 
-impl<'a> SoftwareUartTx<'a> {
+impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartTx<'a, NumUarts> {
 	/** Returns whether the specified UART is ready to accept another byte to be sent via `send_byte()`
 		without overwriting the byte scheduled before. */
 	pub fn clear_to_send(&self, index: usize) -> bool {
@@ -147,7 +153,7 @@ impl<'a> SoftwareUartTx<'a> {
 	}
 }
 
-impl<'a> SoftwareUartRx<'a> {
+impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartRx<'a, NumUarts> {
 	/** Retrieves the last byte received on the specified UART, or `None`.
 		Note: Only the last received byte is buffered, so if `recv_byte` is not
 		called in time, data is lost. */
@@ -166,7 +172,7 @@ impl<'a> SoftwareUartRx<'a> {
 	}
 }
 
-impl<'a> SoftwareUartIsr<'a> {
+impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 	/** Returns the output bits in every phase 0, or None otherwise.
 		Should be called before `process()` to minimize jitter. */
 	pub fn out_bits(&mut self) -> Option<u16> {
@@ -186,7 +192,7 @@ impl<'a> SoftwareUartIsr<'a> {
 	pub fn setup_benchmark(&mut self, benchmark_phase: i8) -> bool {
 		if self.phase as i8 == benchmark_phase {
 			self.recv_active[self.phase] = 0xFFFF;
-			for i in 0..N_UART {
+			for i in 0..NumUarts::USIZE {
 				self.recv_workbuf[i] = 2; // this will be the last bit received, causing additional work to happen
 				unsafe { write_volatile(addr_of_mut!((*self.registers).send_buffers[i]), (0xFF << 1) | (1<<9)); }
 				self.send_workbuf[i] = 0; // force an (expensive) reload to happen
@@ -216,7 +222,7 @@ impl<'a> SoftwareUartIsr<'a> {
 		let mut recv_finished = 0;
 		let recv_buffers = unsafe { addr_of_mut!((*self.registers).recv_buffers) };
 		let recv_active = self.recv_active[self.phase];
-		for i in 0..N_UART {
+		for i in 0..NumUarts::USIZE {
 			let mask = 1 << i;
 		
 			if recv_active & mask != 0 { // this is the thirdclock where uart #i can read stable data?
@@ -238,10 +244,10 @@ impl<'a> SoftwareUartIsr<'a> {
 		self.recv_active[self.phase] &= !recv_finished;
 
 		// handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
-		const SEND_BATCHSIZE: usize = (N_UART+2) / 3;
+		let send_batchsize: usize = (NumUarts::USIZE+2) / 3;
 		let send_buffers = unsafe { addr_of_mut!((*self.registers).send_buffers) };
-		let first = self.phase * SEND_BATCHSIZE;
-		for i in first .. core::cmp::min(first + SEND_BATCHSIZE, N_UART) {
+		let first = self.phase * send_batchsize;
+		for i in first .. core::cmp::min(first + send_batchsize, NumUarts::USIZE) {
 			let mut workbuf = self.send_workbuf[i];
 			if workbuf == 0 {
 				unsafe { // STM32 reads and writes u16s atomically

@@ -30,17 +30,18 @@ type NumUarts = software_uart::typenum::U12;
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
+	use core::mem::MaybeUninit;
 	cortex_m::interrupt::disable();
 
-	let mut tx: serial::Tx<stm32::USART1> = unsafe { core::mem::uninitialized() };
+	let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
 
 	writeln!(tx, "Panic!").ok();
 	writeln!(tx, "{}", info).ok();
 
 
 	use stm32f1xx_hal::gpio::{Input, Floating};
-	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { core::mem::uninitialized() };
-	let mut reg = unsafe { core::mem::uninitialized() };
+	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
+	let mut reg = unsafe { MaybeUninit::uninit().assume_init() };
 	let mut led = led.into_push_pull_output(&mut reg);
 	loop {
 		let mut blink_thrice = |delay: u32| {

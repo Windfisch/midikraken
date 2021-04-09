@@ -267,6 +267,7 @@ const APP: () = {
 	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer], priority = 2)]
 	fn mainloop(mut c: mainloop::Context) {
 		loop {
+			#[cfg(feature = "debugprint")]
 			if is_any_queue_full(c.resources.midi_out_queues) {
 				write!(c.resources.tx, "!").ok();
 			}
@@ -276,11 +277,11 @@ const APP: () = {
 			for cable in 0..NumUarts::USIZE {
 				if c.resources.sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
-						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+						#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
 						c.resources.sw_uart_tx.send_byte(cable, byte);
 					}
 					else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
-						write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+						#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
 						c.resources.sw_uart_tx.send_byte(cable, byte);
 					}
 				}
@@ -289,9 +290,12 @@ const APP: () = {
 			while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
 				//write!(c.resources.tx, "({},{:02X}) ", cable, byte).ok();
 				if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
-					write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok();
+					#[cfg(feature = "debugprint")] write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok();
 					usb_message[0] |= cable << 4;
-					match c.resources.midi.send_bytes(usb_message) {
+					let ret = c.resources.midi.send_bytes(usb_message);
+
+					#[cfg(feature = "debugprint")]
+					match ret {
 						Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size).ok(); }
 						Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error).ok(); }
 					}

@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 benchmark = []
+debugprint = []
 
 [dependencies]
 cortex-m = "0.6.7"

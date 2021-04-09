@@ -25,7 +25,7 @@ use software_uart::typenum::Unsigned;
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 
-type NumUarts = software_uart::typenum::U12;
+type NumUarts = software_uart::typenum::U4;
 
 
 #[panic_handler]
@@ -204,7 +204,7 @@ const APP: () = {
 		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, 4, 4).unwrap();
 		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
 			.manufacturer("Windfisch")
-			.product("Midikraken x16")
+			.product("Midikraken x4")
 			.serial_number("TEST")
 			.device_class(usbd_midi::data::usb::constants::USB_CLASS_NONE)
 			.build();

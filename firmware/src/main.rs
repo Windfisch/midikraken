@@ -1,15 +1,12 @@
 #![no_main]
 #![no_std]
 
-#![feature(asm)]
-
 use embedded_hal::digital::v2::OutputPin;
 
 mod software_uart;
 use software_uart::*;
 
 use rtic::app;
-use panic_semihosting as _;
 use stm32f1xx_hal::{prelude::*, stm32, serial, timer};
 use core::fmt::Write;
 
@@ -29,6 +26,39 @@ const SYSCLK : Hertz = Hertz(72_000_000);
 
 
 type NumUarts = software_uart::typenum::U12;
+
+
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+	cortex_m::interrupt::disable();
+
+	let mut tx: serial::Tx<stm32::USART1> = unsafe { core::mem::uninitialized() };
+
+	writeln!(tx, "Panic!").ok();
+	writeln!(tx, "{}", info).ok();
+
+
+	use stm32f1xx_hal::gpio::{Input, Floating};
+	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { core::mem::uninitialized() };
+	let mut reg = unsafe { core::mem::uninitialized() };
+	let mut led = led.into_push_pull_output(&mut reg);
+	loop {
+		let mut blink_thrice = |delay: u32| {
+			for _ in 0..3 {
+				led.set_low().ok();
+				cortex_m::asm::delay(5000000*delay);
+				led.set_high().ok();
+				cortex_m::asm::delay(10000000);
+			}
+			cortex_m::asm::delay(10000000);
+		};
+		blink_thrice(1);
+		blink_thrice(4);
+		blink_thrice(1);
+		cortex_m::asm::delay(10000000);
+	}
+}
+
 
 #[cfg(feature = "benchmark")]
 static mut BENCHMARK_CYCLES: u16 = 0;

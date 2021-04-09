@@ -117,6 +117,8 @@ const APP: () = {
 		sw_uart_rx: SoftwareUartRx<'static, NumUarts>,
 		sw_uart_tx: SoftwareUartTx<'static, NumUarts>,
 		sw_uart_isr: SoftwareUartIsr<'static, NumUarts>,
+	
+		usb_midi_buffer: UsbMidiBuffer,
 	}
 
 	#[init(spawn=[benchmark_task, mainloop])]
@@ -180,7 +182,6 @@ const APP: () = {
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		writeln!(tx, "========================================================\n").ok();
 
-		
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
 		// Pull the D+ pin down to send a RESET condition to the USB bus.
@@ -249,6 +250,7 @@ const APP: () = {
 			midi_parsers: Default::default(),
 			#[cfg(feature = "benchmark")]
 			bench_timer,
+			usb_midi_buffer: UsbMidiBuffer::new()
 		};
 	}
 
@@ -256,19 +258,19 @@ const APP: () = {
 	fn byte_received(c: byte_received::Context) {
 		for i in 0..NumUarts::USIZE {
 			if let Some(byte) = c.resources.sw_uart_rx.recv_byte(i) {
-				c.resources.queue.enqueue((i as u8, byte));
+				c.resources.queue.enqueue((i as u8, byte)).ok(); // we can't do anything about this failing
 			}
 		}
 	}
 
-	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx], priority = 2)]
+	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer], priority = 2)]
 	fn mainloop(mut c: mainloop::Context) {
 		loop {
 			if is_any_queue_full(c.resources.midi_out_queues) {
 				write!(c.resources.tx, "!").ok();
 			}
 
-			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues);
+			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer);
 
 			for cable in 0..NumUarts::USIZE {
 				if c.resources.sw_uart_tx.clear_to_send(cable) {
@@ -371,39 +373,72 @@ const APP: () = {
 };
 
 fn is_any_queue_full(midi_out_queues: &[MidiOutQueue]) -> bool {
-	midi_out_queues.iter().any(|qs| qs.realtime.len()+1 > qs.realtime.capacity() || qs.normal.len()+3 > qs.normal.capacity())
+	midi_out_queues.iter().any(|qs| qs.realtime.len()+1 >= qs.realtime.capacity() || qs.normal.len()+3 >= qs.normal.capacity())
+}
+
+pub struct UsbMidiBuffer {
+	buffer: [u8; 128],
+	head: usize,
+	tail: usize,
+}
+
+impl UsbMidiBuffer {
+	pub fn new() -> UsbMidiBuffer {
+		UsbMidiBuffer { buffer: [0; 128], head: 0, tail: 0 }
+	}
+	pub fn peek<B: bus::UsbBus>(&mut self, midi: &mut usbd_midi::midi_device::MidiClass<'static, B>) -> Option<[u8; 4]> {
+		use core::convert::TryInto;
+
+		if self.head == self.tail {
+			if let Ok(len) = midi.read(&mut self.buffer) {
+				self.head = 0;
+				self.tail = len;
+				assert!(self.tail <= 128);
+			}
+		}
+		if self.head != self.tail {
+			assert!(self.tail >= self.head+4);
+			return Some(self.buffer[self.head..self.head+4].try_into().unwrap());
+		}
+		None
+	}
+	pub fn acknowledge(&mut self) {
+		self.head += 4;
+	}
 }
 
 fn usb_poll<B: bus::UsbBus>(
 	usb_dev: &mut UsbDevice<'static, B>,
 	midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
 	midi_out_queues: &mut [MidiOutQueue; 16],
+	buffer: &mut UsbMidiBuffer,
 ) {
-	if !usb_dev.poll(&mut [midi]) {
-		return;
-	}
+	usb_dev.poll(&mut [midi]);
 
-	while !is_any_queue_full(midi_out_queues) {
-		let mut buffer = [0u8;128]; // FIXME magic size.
-		if let Ok(len) = midi.read(&mut buffer) {
-			if len % 4 == 0 { // every packet should have length 4
-				for message in buffer[0..len].chunks(4) {
-					let cable = (message[0] & 0xF0) >> 4;
-					let is_realtime = message[1] & 0xF8 == 0xF8;
+	while let Some(message) = buffer.peek(midi) {
+		let cable = (message[0] & 0xF0) >> 4;
+		let is_realtime = message[1] & 0xF8 == 0xF8;
 
-					if is_realtime {
-						midi_out_queues[cable as usize].realtime.enqueue(message[1]).unwrap();
-					}
-					else {
-						for i in 0..parse_midi::payload_length(message[0]) {
-							midi_out_queues[cable as usize].normal.enqueue(message[1+i as usize]).unwrap();
-						}
-					}
-				}
+		if is_realtime {
+			if midi_out_queues[cable as usize].realtime.enqueue(message[1]).is_ok() {
+				buffer.acknowledge();
+			}
+			else {
+				break;
 			}
 		}
 		else {
-			break;
-		}
+			let queue = &mut midi_out_queues[cable as usize].normal;
+			let len = parse_midi::payload_length(message[0]);
+			if queue.len() + len as u16 <= queue.capacity() {
+				for i in 0..len {
+					queue.enqueue(message[1+i as usize]).unwrap();
+				}
+				buffer.acknowledge();
+			}
+			else {
+				break;
+			}
+		};
 	}
 }

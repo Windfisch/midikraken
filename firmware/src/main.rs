@@ -322,12 +322,6 @@ const APP: () = {
 
 	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr],  priority=100)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
-		// We have a total of 32 GPIO ports on the blue pill board, of
-		// which 2 are used for USB and 1 is used for the LED.
-		// B0-1, B3-15, A0-10, A15, C14-15
-		// we use B0, B3, B4, ..., B15 for our 14 input uarts and
-		// A0, ..., A10, A15, C14, C15 for the 14 output pins
-
 		#[cfg(feature = "benchmark")]
 		let do_benchmark = c.resources.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
 		#[cfg(feature = "benchmark")]
@@ -376,10 +370,6 @@ const APP: () = {
 		fn EXTI2();
     }
 };
-
-fn is_any_queue_full(midi_out_queues: &[MidiOutQueue]) -> bool {
-	midi_out_queues.iter().any(|qs| qs.realtime.len()+1 >= qs.realtime.capacity() || qs.normal.len()+3 >= qs.normal.capacity())
-}
 
 pub struct UsbMidiBuffer {
 	buffer: [u8; 128],

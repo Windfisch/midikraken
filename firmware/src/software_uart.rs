@@ -126,7 +126,7 @@ impl<NumUarts: Unsigned + ArrayLength<u16>> SoftwareUart<NumUarts> {
 				phase: 0,
 				recv_workbuf: make_array(RECV_BIT),
 				send_workbuf: make_array(0),
-				out_bits: 0,
+				out_bits: 0xFFFF,
 				_marker: PhantomData
 			}
 		);

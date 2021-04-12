@@ -157,10 +157,10 @@ const APP: () = {
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
 
-		let _pa0 = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
-		let _pa1 = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
-		let _pa2 = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
-		let _pa3 = gpioa.pa3.into_push_pull_output(&mut gpioa.crl);
+		gpioa.pa0.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
+		gpioa.pa1.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
+		gpioa.pa2.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
+		gpioa.pa3.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
 		let _pb5 = gpiob.pb5.into_floating_input(&mut gpiob.crl);
 		let _pb6 = gpiob.pb6.into_floating_input(&mut gpiob.crl);
 		let _pb7 = gpiob.pb7.into_floating_input(&mut gpiob.crl);

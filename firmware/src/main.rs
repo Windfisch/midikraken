@@ -25,7 +25,7 @@ use software_uart::typenum::Unsigned;
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 
-type NumUarts = software_uart::typenum::U4;
+type NumPortPairs = software_uart::typenum::U4;
 
 
 #[panic_handler]
@@ -115,9 +115,9 @@ const APP: () = {
 		midi_parsers: [MidiToUsbParser; 16],
 		midi_out_queues: [MidiOutQueue; 16],
 
-		sw_uart_rx: SoftwareUartRx<'static, NumUarts>,
-		sw_uart_tx: SoftwareUartTx<'static, NumUarts>,
-		sw_uart_isr: SoftwareUartIsr<'static, NumUarts>,
+		sw_uart_rx: SoftwareUartRx<'static, NumPortPairs>,
+		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>,
+		sw_uart_isr: SoftwareUartIsr<'static, NumPortPairs>,
 	
 		usb_midi_buffer: UsbMidiBuffer,
 	}
@@ -125,7 +125,7 @@ const APP: () = {
 	#[init(spawn=[benchmark_task, mainloop])]
 	fn init(cx : init::Context) -> init::LateResources {
 		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
-		static mut SOFTWARE_UART: Option<SoftwareUart<NumUarts>> = None;
+		static mut SOFTWARE_UART: Option<SoftwareUart<NumPortPairs>> = None;
 
 		*SOFTWARE_UART = Some(SoftwareUart::new());
 		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = (*SOFTWARE_UART).as_mut().unwrap().split();
@@ -201,7 +201,7 @@ const APP: () = {
 		*USB_BUS = Some( UsbBus::new(usb_pins) );
 		let usb_bus = USB_BUS.as_ref().unwrap();
 
-		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, 4, 4).unwrap();
+		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, NumPortPairs::U8, NumPortPairs::U8).unwrap();
 		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
 			.manufacturer("Windfisch")
 			.product("Midikraken x4")
@@ -257,7 +257,7 @@ const APP: () = {
 
 	#[task(resources = [queue, sw_uart_rx], priority = 8)]
 	fn byte_received(c: byte_received::Context) {
-		for i in 0..NumUarts::USIZE {
+		for i in 0..NumPortPairs::USIZE {
 			if let Some(byte) = c.resources.sw_uart_rx.recv_byte(i) {
 				c.resources.queue.enqueue((i as u8, byte)).ok(); // we can't do anything about this failing
 			}
@@ -274,7 +274,7 @@ const APP: () = {
 
 			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer);
 
-			for cable in 0..NumUarts::USIZE {
+			for cable in 0..NumPortPairs::USIZE {
 				if c.resources.sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
 						#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();

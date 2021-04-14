@@ -28,6 +28,16 @@ const SYSCLK : Hertz = Hertz(72_000_000);
 type NumPortPairs = software_uart::typenum::U4;
 
 
+unsafe fn reset_mcu() {
+	(*stm32::SCB::ptr()).aircr.write(0x05FA0004);
+}
+
+unsafe fn reset_to_bootloader() {
+	const BOOTKEY_ADDR: *mut u32 = 0x20003000 as *mut u32;
+	core::ptr::write_volatile(BOOTKEY_ADDR, 0x157F32D4);
+	reset_mcu();
+}
+
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
 	use core::mem::MaybeUninit;
@@ -89,6 +99,38 @@ pub struct MidiOutQueue {
 	normal: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
 }
 
+pub struct BootloaderSysexStatemachine {
+	index: usize
+}
+
+impl BootloaderSysexStatemachine {
+	pub fn new() -> BootloaderSysexStatemachine {
+		BootloaderSysexStatemachine { index: 0 }
+	}
+
+	pub fn push(&mut self, byte: u8) {
+		let sysex = [0xF0u8, 0x13, 0x37, 0x47, 0x11];
+	
+		use core::mem::MaybeUninit;
+		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
+		writeln!(tx, "got byte {}, expected {} at position {}", byte as u32, sysex[self.index] as u32, self.index).ok();
+
+		if byte == sysex[self.index] {
+			self.index += 1;
+
+			if self.index == sysex.len() {
+				writeln!(tx, "resetting...").ok();
+				unsafe {
+					reset_to_bootloader();
+				}
+			}
+		}
+		else {
+			self.index = 0;
+		}
+	}
+}
+
 impl Default for MidiOutQueue {
 	fn default() -> MidiOutQueue {
 		MidiOutQueue {
@@ -108,6 +150,7 @@ const APP: () = {
 		bench_timer: timer::CountDownTimer<stm32::TIM1>,
 
 		queue: Queue<(u8,u8), heapless::consts::U200, u16, heapless::spsc::SingleCore>,
+		bootloader_sysex_statemachine: BootloaderSysexStatemachine,
 
 		usb_dev: UsbDevice<'static, UsbBusType>,
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
@@ -251,7 +294,8 @@ const APP: () = {
 			midi_parsers: Default::default(),
 			#[cfg(feature = "benchmark")]
 			bench_timer,
-			usb_midi_buffer: UsbMidiBuffer::new()
+			usb_midi_buffer: UsbMidiBuffer::new(),
+			bootloader_sysex_statemachine: BootloaderSysexStatemachine::new()
 		};
 	}
 
@@ -264,7 +308,7 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer], priority = 2)]
+	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer, bootloader_sysex_statemachine], priority = 2)]
 	fn mainloop(mut c: mainloop::Context) {
 		loop {
 			#[cfg(feature = "debugprint")]
@@ -272,7 +316,7 @@ const APP: () = {
 				write!(c.resources.tx, "!").ok();
 			}
 
-			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer);
+			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
 
 			for cable in 0..NumPortPairs::USIZE {
 				if c.resources.sw_uart_tx.clear_to_send(cable) {
@@ -407,6 +451,7 @@ fn usb_poll<B: bus::UsbBus>(
 	midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
 	midi_out_queues: &mut [MidiOutQueue; 16],
 	buffer: &mut UsbMidiBuffer,
+	bootloader_sysex_statemachine: &mut BootloaderSysexStatemachine
 ) {
 	usb_dev.poll(&mut [midi]);
 
@@ -429,10 +474,17 @@ fn usb_poll<B: bus::UsbBus>(
 				for i in 0..len {
 					queue.enqueue(message[1+i as usize]).unwrap();
 				}
-				buffer.acknowledge();
 			}
 			else {
 				break;
+			}
+
+			buffer.acknowledge();
+
+			if cable == 0 {
+				for i in 0..len {
+					bootloader_sysex_statemachine.push(message[1+i as usize]);
+				}
 			}
 		};
 	}

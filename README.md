@@ -23,12 +23,42 @@ with thrice the baudrate in order to always read a stable bit at a non-edge.
 (Guaranteed 1/3 * bit time distance from any edge, so the signal should be quite
 stable until then.)
 
-Flashing
---------
+Flashing without a bootloader
+-----------------------------
 
   - Connect RX/TX of your uart/usb-adapter to PA9/PA8.
+  - Put the STM32 into download mode by setting BOOT0 high and resetting.
   - `cd firmware`
-  - `make flash.release` (assuming that `ttyUSB0` is your uart adapter)
+  - `make flash.bare.release` (assuming that `ttyUSB0` is your uart adapter)
+
+Flashing and using a bootloader
+-------------------------------
+
+### Preparing the bootloader
+
+Building with the `--features=bootloader` flag enabled will relocate the
+program entry point to `FLASH + 0x2000`, allowing to use a bootloader.
+
+Clone the [sboot_stm32](https://github.com/dmitrystu/sboot_stm32) bootloader's
+repository, `cd` to it and run:
+
+```
+make DFU_USER_CONFIG=/path/to/midikraken/firmware/sboot/userconfig.h stm32f103x8
+```
+
+Then flash the resulting `build/firmware.bin` to your microcontroller e.g. using `stm32flash`.
+
+You only need to perform this step once.
+
+### Flashing the firmware
+
+  - Connect the Midikraken to USB
+  - `cd firmware`
+  - Enter bootloader mode by sending the `firmware/sboot/bootloader.syx` sysex to
+    the zeroth output of the midikraken (e.g. using `amidi -p hw:1,0,0 -s bootloader.syx`).
+  - If that does not work (e.g. because the firmware is not present or corrupt), pull
+    PA1 low and reset.
+  - `make flash.dfu.release`
 
 Hardware
 --------

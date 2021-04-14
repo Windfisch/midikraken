@@ -174,8 +174,7 @@ const APP: () = {
 		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = (*SOFTWARE_UART).as_mut().unwrap().split();
 
 		let dp = stm32::Peripherals::take().unwrap();
-
-
+		
 		// Clock configuration
 		let mut flash = dp.FLASH.constrain();
 		let mut rcc = dp.RCC.constrain();
@@ -224,6 +223,8 @@ const APP: () = {
 		writeln!(tx, "========================================================").ok();
 		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
+		#[cfg(bootloader)]
+		writeln!(tx, "      bootloader enabled").ok();
 		writeln!(tx, "========================================================\n").ok();
 
 		// Configure USB

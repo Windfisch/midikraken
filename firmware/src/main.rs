@@ -110,16 +110,11 @@ impl BootloaderSysexStatemachine {
 
 	pub fn push(&mut self, byte: u8) {
 		let sysex = [0xF0u8, 0x00, 0x37, 0x64, 0x00, 0x00, 0x7f, 0x1e, 0x3a, 0x62];
-	
-		use core::mem::MaybeUninit;
-		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
-		writeln!(tx, "got byte {}, expected {} at position {}", byte as u32, sysex[self.index] as u32, self.index).ok();
 
 		if byte == sysex[self.index] {
 			self.index += 1;
 
 			if self.index == sysex.len() {
-				writeln!(tx, "resetting...").ok();
 				unsafe {
 					reset_to_bootloader();
 				}

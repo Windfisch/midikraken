@@ -19,8 +19,11 @@ debug.dfu.bin:
 flash.bare.%: %.bare.bin
 	stm32flash /dev/ttyUSB0 -b115200 -w $<
 
-flash.dfu.%: %.dfu.bin
-	dfu-util -U $@
+flash.dfu.%: %.dfu.bin reboot
+	dfu-util -R -D $<
+
+reboot: sboot/bootloader.syx
+	bash -c 'PORT=`amidi -l | grep "Midikraken.*" | head -n 1 | grep -o "hw:\S*"`; if [ x$$PORT != x ]; then amidi -p $$PORT -s $<; sleep 1.5; echo "Ok"; else echo "No device connected"; fi'
 
 .PHONY: debug.bare.bin debug.dfu.bin release.bare.bin release.dfu.bin
 

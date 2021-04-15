@@ -109,7 +109,7 @@ impl BootloaderSysexStatemachine {
 	}
 
 	pub fn push(&mut self, byte: u8) {
-		let sysex = [0xF0u8, 0x13, 0x37, 0x47, 0x11];
+		let sysex = [0xF0u8, 0x00, 0x37, 0x64, 0x00, 0x00, 0x7f, 0x1e, 0x3a, 0x62];
 	
 		use core::mem::MaybeUninit;
 		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };

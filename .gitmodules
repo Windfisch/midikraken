@@ -1,3 +1,6 @@
 [submodule "lib/usbd-midi"]
 	path = lib/usbd-midi
 	url = git@github.com:Windfisch/usbd-midi.git
+[submodule "firmware/sboot/sboot_stm32"]
+	path = firmware/sboot/sboot_stm32
+	url = https://github.com/dmitrystu/sboot_stm32

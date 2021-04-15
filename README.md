@@ -39,26 +39,21 @@ Flashing and using a bootloader
 Building with the `--features=bootloader` flag enabled will relocate the
 program entry point to `FLASH + 0x2000`, allowing to use a bootloader.
 
-Clone the [sboot_stm32](https://github.com/dmitrystu/sboot_stm32) bootloader's
-repository, `cd` to it and run:
-
-```
-make DFU_USER_CONFIG=/path/to/midikraken/firmware/sboot/userconfig.h stm32f103x8
-```
-
-Then flash the resulting `build/firmware.bin` to your microcontroller e.g. using `stm32flash`.
-
-You only need to perform this step once.
+Follow [these steps](firmware/sboot/README.md) in order to build and
+initially flash the bootloader. You only need to perform this once.
 
 ### Flashing the firmware
 
+Bootloader mode can be entered by sending the `firmware/sboot/bootloader.syx` sysex to
+the zeroth output of the midikraken (e.g. using `amidi -p hw:1,0,0 -s bootloader.syx`).
+
+If that does not work (e.g. because the firmware is not present or corrupt), pull
+PB12 low and reset.
+
   - Connect the Midikraken to USB
+  - (in case of a defective firmware, pull PB12 low and reset)
   - `cd firmware`
-  - Enter bootloader mode by sending the `firmware/sboot/bootloader.syx` sysex to
-    the zeroth output of the midikraken (e.g. using `amidi -p hw:1,0,0 -s bootloader.syx`).
-  - If that does not work (e.g. because the firmware is not present or corrupt), pull
-    PA1 low and reset.
-  - `make flash.dfu.release`
+  - `make flash.dfu.release` (will send the reset sysex automatically)
 
 Hardware
 --------
@@ -72,7 +67,7 @@ designed in FreeCAD and resides in [cad/](cad/).
 Debugging
 ---------
 
-printf-debugging can be seen on PA9/PA8 with 38400 baud. In the default
+printf-debugging can be seen on PA9/PA10 with 38400 baud. In the default
 configuration, you should see only
 
 ```

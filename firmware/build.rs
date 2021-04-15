@@ -20,7 +20,7 @@ fn main() {
         )
         .unwrap();
     println!("cargo:rustc-link-search={}", out_dir.display());
-    println!("cargo:rerun-if-changed=memory.x");
+    println!("cargo:rerun-if-changed=memory-nobootloader.x");
     println!("cargo:rerun-if-changed=memory-bootloader.x");
 
 

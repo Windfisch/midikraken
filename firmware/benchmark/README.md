@@ -126,6 +126,13 @@ did not change anything, as expected:
 ...
 ```
 
+The remaining difference to the baseline (with rather ugly code tightly coupled to
+the rest of the program) is only a few dozen cycles. These can be explained by the
+additional indirections caused by moving the software UART behind a method and
+moving its variables behind a `registers` pointer. This difference seems to be
+a rather constant offset (up to noise) from the baseline; both seem to scale
+equally well with increasing number of software UARTs.
+
 **In conclusion**, it seems that Rust is very well-suited for writing *very* performance-critical code at a
 high language level. Best results require some tweaking of the code, e.g. by manually introducing temporary
 variables, and you won't get a way without having to read some of the generated assembly code. But Rust

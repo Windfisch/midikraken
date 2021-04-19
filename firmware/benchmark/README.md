@@ -1,5 +1,15 @@
 # Manual optimization and benchmarking results
 
+Since the `TIM2` timer interrupt has to fire with 3 * 31250 Hz, we have only
+768 cpu cycles in between two interrupts at a CPU frequency of 72MHz. This makes
+it important to have very efficient code in the software UART processing code.
+
+While one would normally resort to inline assembly, I tried writing this code
+in Rust instead and was quite surprised about the very usable results.
+
+The below diagram shows the number of cycles used for different numbers of
+software UARTs, and for different code variants.
+
 ![graph](graph.png)
 
 **baseline**: The (mostly unoptimized) software UART was written in Rust and
@@ -17,10 +27,6 @@ be avoided by keeping values in the registers.
 **1: cache recv_buffers**: Precalculating the array address had no positive effect
 
 ```diff
-diff --git a/firmware/src/software_uart.rs b/firmware/src/software_uart.rs
-index 473ed1b..7e7f1da 100644
---- a/firmware/src/software_uart.rs
-+++ b/firmware/src/software_uart.rs
 @@ -214,6 +214,7 @@ impl<'a> SoftwareUartIsr<'a> {
                 self.recv_active[next_phase] |= start_of_transmission;
  
@@ -43,10 +49,6 @@ index 473ed1b..7e7f1da 100644
 pointer in every loop iteration.
 
 ```diff
-diff --git a/firmware/src/software_uart.rs b/firmware/src/software_uart.rs
-index 7e7f1da..da5c8d7 100644
---- a/firmware/src/software_uart.rs
-+++ b/firmware/src/software_uart.rs
 @@ -239,12 +239,13 @@ impl<'a> SoftwareUartIsr<'a> {
  
                 // handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
@@ -67,10 +69,6 @@ index 7e7f1da..da5c8d7 100644
 **3: cache recv_active** further improved performance by avoiding repeated reads of `recv_active[phase]`:
 
 ```diff
-diff --git a/firmware/src/software_uart.rs b/firmware/src/software_uart.rs
-index da5c8d7..bae34fd 100644
---- a/firmware/src/software_uart.rs
-+++ b/firmware/src/software_uart.rs
 @@ -215,11 +215,11 @@ impl<'a> SoftwareUartIsr<'a> {
  
                 let mut recv_finished = 0;
@@ -79,7 +77,6 @@ index da5c8d7..bae34fd 100644
                 for i in 0..N_UART {
                         let mask = 1 << i;
 
--                       // TODO try moving this variable out of the loop. does this avoid unneeded reads / array bound checks?
 -                       if self.recv_active[self.phase] & mask != 0 { // this is the thirdclock where uart #i can read stable data?
 +                       if recv_active & mask != 0 { // this is the thirdclock where uart #i can read stable data?
                                 /*let mut recv_bit = 0;
@@ -91,10 +88,6 @@ index da5c8d7..bae34fd 100644
 on that variable and only writing back the value at the end, more read/write cycles could be saved:
 
 ```diff
-diff --git a/firmware/src/software_uart.rs b/firmware/src/software_uart.rs
-index bae34fd..4864266 100644
---- a/firmware/src/software_uart.rs
-+++ b/firmware/src/software_uart.rs
 @@ -242,15 +242,16 @@ impl<'a> SoftwareUartIsr<'a> {
                 let send_buffers = unsafe { addr_of_mut!((*self.registers).send_buffers) };
                 let first = self.phase * SEND_BATCHSIZE;
@@ -122,14 +115,7 @@ index bae34fd..4864266 100644
 did not change anything, as expected:
 
 ```diff
-diff --git a/firmware/src/software_uart.rs b/firmware/src/software_uart.rs
-index 4864266..e890dc8 100644
---- a/firmware/src/software_uart.rs
-+++ b/firmware/src/software_uart.rs
 @@ -66,50 +68,54 @@ const APP: () = {
-        // TODO FIXME: finish the example
-   * ```
-   */
 -pub struct SoftwareUart {
 -       send_buffers: [u16; N_UART],
 -       recv_buffers: [u16; N_UART],
@@ -139,3 +125,9 @@ index 4864266..e890dc8 100644
  }
 ...
 ```
+
+**In conclusion**, it seems that Rust is very well-suited for writing *very* performance-critical code at a
+high language level. Best results require some tweaking of the code, e.g. by manually introducing temporary
+variables, and you won't get a way without having to read some of the generated assembly code. But Rust
+already allows writing highly optimized code without having to resort to inline-assembly or compiler intrinsics.
+

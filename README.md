@@ -23,6 +23,10 @@ with thrice the baudrate in order to always read a stable bit at a non-edge.
 (Guaranteed 1/3 * bit time distance from any edge, so the signal should be quite
 stable until then.)
 
+[Benchmarks show](firmware/benchmark/README.md) that this can be done fast
+enough for up to 16 software UARTs (and likely even more), while leaving
+plenty of cpu cycles (25% for 16 UARTs) free for other work.
+
 Flashing without a bootloader
 -----------------------------
 

@@ -6,6 +6,13 @@ use std::path::PathBuf;
 use vergen::{ConstantsFlags, generate_cargo_keys};
 
 fn main() {
+    cc::Build::new()
+        .file("src/software_uart.c")
+        .compile("software_uart");
+    println!("cargo:rerun-if-changed=src/software_uart.c");
+
+
+
     // Put the linker script somewhere the linker can find it
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     fs::File::create(out_dir.join("memory.x"))

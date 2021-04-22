@@ -24,6 +24,7 @@ embedded-hal = ">=0.2.3"
 
 [build-dependencies]
 vergen = "3"
+cc = "1.0"
 
 [patch.crates-io]
 stm32f1xx-hal = { git = "https://github.com/Windfisch/stm32f1xx-hal", branch="timer_additions" }

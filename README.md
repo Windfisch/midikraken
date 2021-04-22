@@ -1,3 +1,9 @@
+C implementation for comparison
+===============================
+
+build using `CC=clang cargo build --release -vv` to see the compiler call
+(leave out `CC=clang` for gcc).
+
 Midikraken
 ==========
 

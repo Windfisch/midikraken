@@ -27,15 +27,15 @@ static uint16_t out_bits_buf = 0xFFFF;
 //				recv_workbuf: make_array(RECV_BIT),
 //				send_workbuf: make_array(0),
 
-int swu_clear_to_send(int index) {
+uint8_t swu_clear_to_send(uint32_t index) {
 	return send_buffers[index] == UART_SEND_IDLE;
 }
 
-void swu_send_byte(int index, uint8_t data) {
+void swu_send_byte(uint32_t index, uint8_t data) {
 	send_buffers[index] = (data << 1) | (1<<9);
 }
 
-uint16_t swu_recv_byte(int index) {
+uint16_t swu_recv_byte(uint32_t index) {
 	uint16_t data = recv_buffers[index];
 	recv_buffers[index] = 0;
 
@@ -56,7 +56,7 @@ uint32_t swu_out_bits() {
 	}
 }
 
-int swu_setup_benchmark(int benchmark_phase) {
+uint8_t swu_setup_benchmark(uint32_t benchmark_phase) {
 	if (phase == benchmark_phase) {
 		recv_active[phase] = 0xFFFF;
 		for (int i=0; i<N_UARTS; i++) {

@@ -27,6 +27,15 @@ const SYSCLK : Hertz = Hertz(72_000_000);
 
 type NumPortPairs = software_uart::typenum::U4;
 
+extern "C" {
+	fn swu_clear_to_send(x: u32) -> u8;
+	fn swu_send_byte(index: u32, data: u8);
+	fn swu_recv_byte(index: u32) -> u16;
+	fn swu_out_bits() -> u32;
+	fn swu_setup_benchmark(phase: u32) -> u8;
+	fn swu_process(in_bits: u16) -> u16;
+}
+
 
 unsafe fn reset_mcu() {
 	(*stm32::SCB::ptr()).aircr.write(0x05FA0004);
@@ -363,7 +372,7 @@ const APP: () = {
 	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr],  priority=100)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
 		#[cfg(feature = "benchmark")]
-		let do_benchmark = c.resources.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
+		let do_benchmark = unsafe { swu_setup_benchmark(core::ptr::read_volatile(&BENCHMARK_PHASE)) };
 		#[cfg(feature = "benchmark")]
 		let start_time = c.resources.bench_timer.cnt();
 
@@ -376,7 +385,9 @@ const APP: () = {
 		let in_bits: u16 = (gpiob_in >> 5) & 0x000F;
 		
 		// output: *out_bits have been set in the last three thirdclocks.
-		if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
+		let out_bits_raw = unsafe { swu_out_bits() };
+		if out_bits_raw == 0xFFFFFFFF {
+			let out_bits = (out_bits_raw & 0xFFFF) as u16;
 			const MASK_A: u32 = 0x87FF87FF;
 			const MASK_C: u32 = 0xC000C000;
 			let bits_a = (out_bits & 0x7FF) | ((out_bits & 0x800) << 4);
@@ -388,7 +399,7 @@ const APP: () = {
 			unsafe { (*stm32::GPIOC::ptr()).bsrr.write(|w| w.bits(bsrr_c)); }; // we own (using MASK_A / MASK_C)
 		}
 
-		if c.resources.sw_uart_isr.process(in_bits) != 0 {
+		if unsafe { swu_process(in_bits) } != 0 {
 			c.spawn.byte_received().ok();
 		}
 

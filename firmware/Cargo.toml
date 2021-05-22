@@ -27,7 +27,7 @@ vergen = "3"
 
 [patch.crates-io]
 stm32f1xx-hal = { git = "https://github.com/Windfisch/stm32f1xx-hal", branch="timer_additions" }
-usb-device = { git = "https://github.com/Windfisch/usb-device", branch = "merged" }
+usb-device = { git = "https://github.com/Windfisch/usb-device", branch = "descriptor-writer-updates-and-buffer-sizes" }
 
 [profile.dev]
 opt-level = "z"

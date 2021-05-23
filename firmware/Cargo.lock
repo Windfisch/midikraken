@@ -523,7 +523,7 @@ dependencies = [
 [[package]]
 name = "stm32f1xx-hal"
 version = "0.7.0"
-source = "git+https://github.com/Windfisch/stm32f1xx-hal?branch=timer_additions#6a76ebdd6469badac5258632b07a49c233687549"
+source = "git+https://github.com/Windfisch/stm32f1xx-hal?branch=spi_dma_rx_pr#e6796e07056fa898cfc73f46d38363a794ced4cd"
 dependencies = [
  "bxcan",
  "cast",

@@ -7,7 +7,7 @@ mod software_uart;
 use software_uart::*;
 
 use rtic::app;
-use stm32f1xx_hal::{prelude::*, stm32, serial, timer};
+use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Floating, gpioa}};
 use core::fmt::Write;
 
 use stm32f1xx_hal::time::Hertz;
@@ -49,7 +49,6 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 	writeln!(tx, "{}", info).ok();
 
 
-	use stm32f1xx_hal::gpio::{Input, Floating};
 	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
 	let mut reg = unsafe { MaybeUninit::uninit().assume_init() };
 	let mut led = led.into_push_pull_output(&mut reg);
@@ -135,6 +134,17 @@ impl Default for MidiOutQueue {
 	}
 }
 
+
+struct DmaPair {
+	transmit: [u8; 8],
+	received: [u8; 8]
+}
+impl DmaPair {
+	pub const fn zero() -> DmaPair { DmaPair { transmit: [0xFF; 8], received: [0; 8] } }
+}
+
+static mut DMA_BUFFERS: [DmaPair; 2] = [DmaPair::zero(), DmaPair::zero()];
+
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
 	struct Resources {
@@ -156,6 +166,26 @@ const APP: () = {
 		sw_uart_rx: SoftwareUartRx<'static, NumPortPairs>,
 		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>,
 		sw_uart_isr: SoftwareUartIsr<'static, NumPortPairs>,
+
+		dma_transfer: Option<dma::Transfer<
+			dma::W,
+			(&'static mut [u8; 8], &'static [u8; 8]),
+			dma::RxTxDma<
+				spi::SpiPayload<
+					stm32::SPI1,
+					spi::Spi1NoRemap,
+					(gpioa::PA5<Alternate<PushPull>>, gpioa::PA6<Input<Floating>>, gpioa::PA7<Alternate<PushPull>>)
+				>,
+				dma::dma1::C2,
+				dma::dma1::C3
+			>
+		>>,
+
+		#[init(0)]
+		currently_used_dma_buffer: usize,
+
+		#[init(0)]
+		raw_out_bits: u32,
 	
 		usb_midi_buffer: UsbMidiBuffer,
 	}
@@ -194,14 +224,15 @@ const APP: () = {
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
 
-		gpioa.pa0.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
-		gpioa.pa1.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
-		gpioa.pa2.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
-		gpioa.pa3.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High);
-		let _pb5 = gpiob.pb5.into_floating_input(&mut gpiob.crl);
-		let _pb6 = gpiob.pb6.into_floating_input(&mut gpiob.crl);
-		let _pb7 = gpiob.pb7.into_floating_input(&mut gpiob.crl);
-		let _pb8 = gpiob.pb8.into_floating_input(&mut gpiob.crh);
+		let strobe = gpioa.pa3.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High); // controls shift registers
+		let clk = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
+		let miso = gpioa.pa6.into_floating_input(&mut gpioa.crl);
+		let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
+
+		let spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks, &mut rcc.apb2);
+		let dma = dp.DMA1.split(&mut rcc.ahb);
+		let spi_dma = spi.with_rx_tx_dma(dma.2, dma.3);
+		let spi_dma_transfer = spi_dma.read_write(unsafe { &mut DMA_BUFFERS[0].received } , unsafe { &DMA_BUFFERS[0].transmit });
 
 		// Configure the USART
 		let gpio_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -291,7 +322,8 @@ const APP: () = {
 			#[cfg(feature = "benchmark")]
 			bench_timer,
 			usb_midi_buffer: UsbMidiBuffer::new(),
-			bootloader_sysex_statemachine: BootloaderSysexStatemachine::new()
+			bootloader_sysex_statemachine: BootloaderSysexStatemachine::new(),
+			dma_transfer: Some(spi_dma_transfer)
 		};
 	}
 
@@ -360,8 +392,9 @@ const APP: () = {
 		});
 	}
 
-	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr],  priority=100)]
+	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr, dma_transfer, currently_used_dma_buffer, raw_out_bits],  priority=100)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
+
 		#[cfg(feature = "benchmark")]
 		let do_benchmark = c.resources.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
 		#[cfg(feature = "benchmark")]
@@ -369,11 +402,18 @@ const APP: () = {
 
 		c.resources.mytimer.clear_update_interrupt_flag();
 
-		// actual I/O is done at the very beginning to minimize jitter
+		// handle the SPI DMA
+		let (_, spi_dma) = c.resources.dma_transfer.take().unwrap().wait();
+		let dma_idx: &mut usize = c.resources.currently_used_dma_buffer;
+		let idle_dma_buffer = unsafe { &mut DMA_BUFFERS[*dma_idx] };
+		*dma_idx = (*dma_idx + 1) % 2;
+		*c.resources.dma_transfer = Some(spi_dma.read_write(
+			unsafe { &mut DMA_BUFFERS[*dma_idx].received },
+			unsafe { &DMA_BUFFERS[*dma_idx].transmit }
+		));
 
 		// input
-		let gpiob_in = unsafe { (*stm32::GPIOB::ptr()).idr.read().bits() } as u16; // read the IO port
-		let in_bits: u16 = (gpiob_in >> 5) & 0x000F;
+		let in_bits: u16 = idle_dma_buffer.received[0] as u16 | ((idle_dma_buffer.received[1] as u16) << 8);
 		
 		// output: *out_bits have been set in the last three thirdclocks.
 		if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
@@ -391,6 +431,25 @@ const APP: () = {
 		if c.resources.sw_uart_isr.process(in_bits) != 0 {
 			c.spawn.byte_received().ok();
 		}
+
+		if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
+			let chunked_out_bits =
+				((out_bits & 0x000F) as u32) << 0 |
+				((out_bits & 0x00F0) as u32) << 4 |
+				((out_bits & 0x0F00) as u32) << 8 |
+				((out_bits & 0xF000) as u32) << 12;
+			let mask = 0xF0F0F0F0;
+			*c.resources.raw_out_bits = (chunked_out_bits | (chunked_out_bits << 4)) | mask;
+		}
+		let out_bits = *c.resources.raw_out_bits;
+		idle_dma_buffer.transmit = [
+			((out_bits & 0x000000FF) >>  0) as u8,
+			((out_bits & 0x0000FF00) >>  8) as u8,
+			((out_bits & 0x00FF0000) >> 16) as u8,
+			((out_bits & 0xFF000000) >> 24) as u8,
+			0,0,0,0
+		];
+			
 
 		#[cfg(feature = "benchmark")]
 		{

@@ -17,7 +17,7 @@ debug.dfu.bin:
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/debug/midikraken $@
 
 flash.bare.%: %.bare.bin
-	stm32flash /dev/ttyUSB0 -b115200 -w $<
+	stm32flash -R /dev/ttyUSB0 -b115200 -w $<
 
 flash.dfu.%: %.dfu.bin reboot
 	dfu-util -R -D $<
@@ -28,4 +28,4 @@ reboot: sboot/bootloader.syx
 .PHONY: debug.bare.bin debug.dfu.bin release.bare.bin release.dfu.bin
 
 tty:
-	python /usr/lib/python3.9/site-packages/serial/tools/miniterm.py /dev/ttyUSB0 115200
+	python /usr/lib/python3.9/site-packages/serial/tools/miniterm.py /dev/ttyUSB0 38400

@@ -7,7 +7,7 @@ mod software_uart;
 use software_uart::*;
 
 use rtic::app;
-use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Floating, gpioa}};
+use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, gpioa}};
 use core::fmt::Write;
 
 use stm32f1xx_hal::time::Hertz;
@@ -136,14 +136,14 @@ impl Default for MidiOutQueue {
 
 
 struct DmaPair {
-	transmit: [u8; 8],
-	received: [u8; 8]
+	transmit: [u8; 4],
+	received: [u8; 4]
 }
 impl DmaPair {
-	pub const fn zero() -> DmaPair { DmaPair { transmit: [0xFF; 8], received: [0; 8] } }
+	pub const fn zero() -> DmaPair { DmaPair { transmit: [0xFF; 4], received: [0; 4] } }
 }
 
-static mut DMA_BUFFERS: [DmaPair; 2] = [DmaPair::zero(), DmaPair::zero()];
+static mut DMA_BUFFER: DmaPair = DmaPair::zero();
 
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
@@ -167,9 +167,11 @@ const APP: () = {
 		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>,
 		sw_uart_isr: SoftwareUartIsr<'static, NumPortPairs>,
 
+		spi_strobe_pin: gpioa::PA3<Output<PushPull>>,
+
 		dma_transfer: Option<dma::Transfer<
 			dma::W,
-			(&'static mut [u8; 8], &'static [u8; 8]),
+			(&'static mut [u8; 4], &'static [u8; 4]),
 			dma::RxTxDma<
 				spi::SpiPayload<
 					stm32::SPI1,
@@ -181,12 +183,6 @@ const APP: () = {
 			>
 		>>,
 
-		#[init(0)]
-		currently_used_dma_buffer: usize,
-
-		#[init(0)]
-		raw_out_bits: u32,
-	
 		usb_midi_buffer: UsbMidiBuffer,
 	}
 
@@ -224,7 +220,7 @@ const APP: () = {
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
 
-		let strobe = gpioa.pa3.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High); // controls shift registers
+		let spi_strobe_pin = gpioa.pa3.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High); // controls shift registers
 		let clk = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
 		let miso = gpioa.pa6.into_floating_input(&mut gpioa.crl);
 		let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
@@ -232,7 +228,7 @@ const APP: () = {
 		let spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks, &mut rcc.apb2);
 		let dma = dp.DMA1.split(&mut rcc.ahb);
 		let spi_dma = spi.with_rx_tx_dma(dma.2, dma.3);
-		let spi_dma_transfer = spi_dma.read_write(unsafe { &mut DMA_BUFFERS[0].received } , unsafe { &DMA_BUFFERS[0].transmit });
+		let spi_dma_transfer = spi_dma.read_write(unsafe { &mut DMA_BUFFER.received } , unsafe { &DMA_BUFFER.transmit });
 
 		// Configure the USART
 		let gpio_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -323,7 +319,8 @@ const APP: () = {
 			bench_timer,
 			usb_midi_buffer: UsbMidiBuffer::new(),
 			bootloader_sysex_statemachine: BootloaderSysexStatemachine::new(),
-			dma_transfer: Some(spi_dma_transfer)
+			dma_transfer: Some(spi_dma_transfer),
+			spi_strobe_pin
 		};
 	}
 
@@ -339,11 +336,6 @@ const APP: () = {
 	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer, bootloader_sysex_statemachine], priority = 2)]
 	fn mainloop(mut c: mainloop::Context) {
 		loop {
-			#[cfg(feature = "debugprint")]
-			if is_any_queue_full(c.resources.midi_out_queues) {
-				write!(c.resources.tx, "!").ok();
-			}
-
 			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
 
 			for cable in 0..NumPortPairs::USIZE {
@@ -392,7 +384,7 @@ const APP: () = {
 		});
 	}
 
-	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr, dma_transfer, currently_used_dma_buffer, raw_out_bits],  priority=100)]
+	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=100)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
 
 		#[cfg(feature = "benchmark")]
@@ -404,52 +396,44 @@ const APP: () = {
 
 		// handle the SPI DMA
 		let (_, spi_dma) = c.resources.dma_transfer.take().unwrap().wait();
-		let dma_idx: &mut usize = c.resources.currently_used_dma_buffer;
-		let idle_dma_buffer = unsafe { &mut DMA_BUFFERS[*dma_idx] };
-		*dma_idx = (*dma_idx + 1) % 2;
+		c.resources.spi_strobe_pin.set_low().unwrap();
+
+		let in_bits: u32;
+		{
+			// this is safe in and only in this scope, since the DMA transfers are currently halted
+			let dma_buffer = unsafe { &mut DMA_BUFFER };
+
+			in_bits = u32::from_be_bytes(dma_buffer.received).reverse_bits();
+		
+			if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
+				// We first fill each byte with two concatenated copies of the same 4 bit block.
+				// Then, for each identical bit pair, we OR exactly one of these to always-1.
+				// For DIN-5-midi, one board contains a 8 bit shift register but only 4 ports,
+				// so we just ignore the high nibble on these boards (not wired).
+				// For TRS-midi, the lower nibble is wired to the tips and the high nibble to
+				// the rings; exactly one of these is always-high and the other carries the signal.
+				// This allows switching between TRS-A and TRS-B midi in software.
+				let chunked_out_bits =
+					((out_bits & 0x000F) as u32) << 0 |
+					((out_bits & 0x00F0) as u32) << 4 |
+					((out_bits & 0x0F00) as u32) << 8 |
+					((out_bits & 0xF000) as u32) << 12;
+				let mask = 0xF0F0F00F;
+				let raw_out_bits = (chunked_out_bits | (chunked_out_bits << 4)) | mask;
+				//dma_buffer.transmit = (out_bits as u32).reverse_bits().to_le_bytes();
+				dma_buffer.transmit = (raw_out_bits as u32).to_be_bytes();
+			}
+		}
+
+		c.resources.spi_strobe_pin.set_high().unwrap();
 		*c.resources.dma_transfer = Some(spi_dma.read_write(
-			unsafe { &mut DMA_BUFFERS[*dma_idx].received },
-			unsafe { &DMA_BUFFERS[*dma_idx].transmit }
+			unsafe { &mut DMA_BUFFER.received },
+			unsafe { &DMA_BUFFER.transmit }
 		));
 
-		// input
-		let in_bits: u16 = idle_dma_buffer.received[0] as u16 | ((idle_dma_buffer.received[1] as u16) << 8);
-		
-		// output: *out_bits have been set in the last three thirdclocks.
-		if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
-			const MASK_A: u32 = 0x87FF87FF;
-			const MASK_C: u32 = 0xC000C000;
-			let bits_a = (out_bits & 0x7FF) | ((out_bits & 0x800) << 4);
-			let bits_c = (out_bits & 0x3000) << 2;
-			let bsrr_a = (bits_a as u32 | ((!bits_a as u32) << 16)) & MASK_A;
-			let bsrr_c = (bits_c as u32 | ((!bits_c as u32) << 16)) & MASK_C;
-
-			unsafe { (*stm32::GPIOA::ptr()).bsrr.write(|w| w.bits(bsrr_a)); }; // we ensure to only access pins
-			unsafe { (*stm32::GPIOC::ptr()).bsrr.write(|w| w.bits(bsrr_c)); }; // we own (using MASK_A / MASK_C)
-		}
-
-		if c.resources.sw_uart_isr.process(in_bits) != 0 {
+		if c.resources.sw_uart_isr.process((in_bits & 0xFFFF) as u16) != 0 {
 			c.spawn.byte_received().ok();
 		}
-
-		if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
-			let chunked_out_bits =
-				((out_bits & 0x000F) as u32) << 0 |
-				((out_bits & 0x00F0) as u32) << 4 |
-				((out_bits & 0x0F00) as u32) << 8 |
-				((out_bits & 0xF000) as u32) << 12;
-			let mask = 0xF0F0F0F0;
-			*c.resources.raw_out_bits = (chunked_out_bits | (chunked_out_bits << 4)) | mask;
-		}
-		let out_bits = *c.resources.raw_out_bits;
-		idle_dma_buffer.transmit = [
-			((out_bits & 0x000000FF) >>  0) as u8,
-			((out_bits & 0x0000FF00) >>  8) as u8,
-			((out_bits & 0x00FF0000) >> 16) as u8,
-			((out_bits & 0xFF000000) >> 24) as u8,
-			0,0,0,0
-		];
-			
 
 		#[cfg(feature = "benchmark")]
 		{

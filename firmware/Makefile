@@ -1,7 +1,7 @@
 all: debug.bin release.bin
 
 release.bare.bin:
-	cargo build --target=thumbv7m-none-eabi --release
+	cargo build --target=thumbv7m-none-eabi --release --features=debugprint
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/release/midikraken $@
 
 debug.bare.bin:

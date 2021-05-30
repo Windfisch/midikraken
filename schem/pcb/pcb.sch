@@ -1,0 +1,427 @@
+EESchema Schematic File Version 4
+EELAYER 30 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 3
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L 74xx:74HC595 U104
+U 1 1 60AADCC5
+P 6725 4825
+F 0 "U104" H 6550 4475 50  0000 C CNN
+F 1 "74HC595" H 6975 4150 50  0000 C CNN
+F 2 "" H 6725 4825 50  0001 C CNN
+F 3 "http://www.ti.com/lit/ds/symlink/sn74hc595.pdf" H 6725 4825 50  0001 C CNN
+	1    6725 4825
+	1    0    0    -1  
+$EndComp
+$Comp
+L bluepill:BP U102
+U 1 1 60AAEA7D
+P 4000 3100
+F 0 "U102" H 4000 4353 60  0000 C CNN
+F 1 "BP" H 4000 4247 60  0000 C CNN
+F 2 "" H 3900 3850 60  0001 C CNN
+F 3 "" H 3900 3850 60  0001 C CNN
+	1    4000 3100
+	1    0    0    -1  
+$EndComp
+$Comp
+L 74xx:74HC245 U101
+U 1 1 60AAF7F9
+P 3575 5275
+F 0 "U101" H 3975 4700 50  0000 C CNN
+F 1 "74HCT245" H 3850 4600 50  0000 C CNN
+F 2 "" H 3575 5275 50  0001 C CNN
+F 3 "http://www.ti.com/lit/gpn/sn74HC245" H 3575 5275 50  0001 C CNN
+	1    3575 5275
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3250 3300 2825 3300
+Wire Wire Line
+	2825 3300 2825 4775
+Wire Wire Line
+	2825 4775 3075 4775
+Wire Wire Line
+	3250 3100 2750 3100
+Wire Wire Line
+	2750 3100 2750 4875
+Wire Wire Line
+	2750 4875 3075 4875
+Wire Wire Line
+	3250 2900 2675 2900
+Wire Wire Line
+	2675 2900 2675 4975
+Wire Wire Line
+	2675 4975 3075 4975
+Text GLabel 4075 4775 2    50   Input ~ 0
+MOSI_MIDI_5
+Text GLabel 4075 4875 2    50   Input ~ 0
+SCK_MIDI_5
+Text GLabel 4075 4975 2    50   Input ~ 0
+STROBE_MIDI_5
+Text GLabel 6325 4425 0    50   Input ~ 0
+MOSI_MIDI_5
+Text GLabel 6325 4625 0    50   Input ~ 0
+SCK_MIDI_5
+Text GLabel 6325 4925 0    50   Input ~ 0
+STROBE_MIDI_5
+Wire Wire Line
+	6325 4725 5775 4725
+Wire Wire Line
+	5775 4725 5775 4225
+Wire Wire Line
+	5775 4225 6725 4225
+Wire Wire Line
+	6325 5025 6325 5525
+Wire Wire Line
+	6325 5525 6725 5525
+$Comp
+L power:GND #PWR0112
+U 1 1 60B26AB2
+P 6725 5525
+F 0 "#PWR0112" H 6725 5275 50  0001 C CNN
+F 1 "GND" H 6730 5352 50  0000 C CNN
+F 2 "" H 6725 5525 50  0001 C CNN
+F 3 "" H 6725 5525 50  0001 C CNN
+	1    6725 5525
+	1    0    0    -1  
+$EndComp
+Connection ~ 6725 5525
+$Comp
+L power:+5V #PWR0111
+U 1 1 60B27D55
+P 6725 4225
+F 0 "#PWR0111" H 6725 4075 50  0001 C CNN
+F 1 "+5V" H 6740 4398 50  0000 C CNN
+F 2 "" H 6725 4225 50  0001 C CNN
+F 3 "" H 6725 4225 50  0001 C CNN
+	1    6725 4225
+	1    0    0    -1  
+$EndComp
+Connection ~ 6725 4225
+Text GLabel 6150 3125 0    50   Input ~ 0
+SCK_MIDI_5
+Text GLabel 6150 2925 0    50   Input ~ 0
+STROBE_MIDI_5
+Text GLabel 7150 1925 2    50   Input ~ 0
+MISO_MIDI
+Text GLabel 3250 3200 0    50   Input ~ 0
+MISO_MIDI
+Wire Wire Line
+	6150 3225 6150 3525
+Wire Wire Line
+	6150 3525 6650 3525
+$Comp
+L 74xx:74HC165 U103
+U 1 1 60AAE484
+P 6650 2525
+F 0 "U103" H 6775 2500 50  0000 C CNN
+F 1 "74HC165" H 6750 2350 50  0000 C CNN
+F 2 "" H 6650 2525 50  0001 C CNN
+F 3 "https://assets.nexperia.com/documents/data-sheet/74HC_HCT165.pdf" H 6650 2525 50  0001 C CNN
+	1    6650 2525
+	1    0    0    -1  
+$EndComp
+NoConn ~ 7150 2025
+$Comp
+L Connector_Generic:Conn_02x03_Counter_Clockwise J101
+U 1 1 60B33612
+P 9700 5325
+F 0 "J101" H 9750 5600 50  0000 C CNN
+F 1 "2x3 female" H 9675 5100 50  0000 C CNN
+F 2 "" H 9700 5325 50  0001 C CNN
+F 3 "~" H 9700 5325 50  0001 C CNN
+	1    9700 5325
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR0113
+U 1 1 60B34A09
+P 9500 5225
+F 0 "#PWR0113" H 9500 5075 50  0001 C CNN
+F 1 "+5V" H 9515 5398 50  0000 C CNN
+F 2 "" H 9500 5225 50  0001 C CNN
+F 3 "" H 9500 5225 50  0001 C CNN
+	1    9500 5225
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0115
+U 1 1 60B3513A
+P 10000 5425
+F 0 "#PWR0115" H 10000 5175 50  0001 C CNN
+F 1 "GND" H 10005 5252 50  0000 C CNN
+F 2 "" H 10000 5425 50  0001 C CNN
+F 3 "" H 10000 5425 50  0001 C CNN
+	1    10000 5425
+	1    0    0    -1  
+$EndComp
+Text GLabel 7125 5325 2    50   Input ~ 0
+MIDI_MOSI_CHAIN
+Text GLabel 9500 5325 0    50   Input ~ 0
+MIDI_MOSI_CHAIN
+Text GLabel 6150 1775 0    50   Input ~ 0
+MIDI_MISO_CHAIN
+$Comp
+L Device:R R101
+U 1 1 60B3B958
+P 6150 1575
+F 0 "R101" H 6220 1621 50  0000 L CNN
+F 1 "R" H 6220 1530 50  0000 L CNN
+F 2 "" V 6080 1575 50  0001 C CNN
+F 3 "~" H 6150 1575 50  0001 C CNN
+	1    6150 1575
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0108
+U 1 1 60B3D5B0
+P 6025 1425
+F 0 "#PWR0108" H 6025 1175 50  0001 C CNN
+F 1 "GND" H 6030 1252 50  0000 C CNN
+F 2 "" H 6025 1425 50  0001 C CNN
+F 3 "" H 6025 1425 50  0001 C CNN
+	1    6025 1425
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6025 1425 6150 1425
+$Comp
+L power:+5V #PWR0109
+U 1 1 60B3DFFB
+P 6650 1625
+F 0 "#PWR0109" H 6650 1475 50  0001 C CNN
+F 1 "+5V" H 6665 1798 50  0000 C CNN
+F 2 "" H 6650 1625 50  0001 C CNN
+F 3 "" H 6650 1625 50  0001 C CNN
+	1    6650 1625
+	1    0    0    -1  
+$EndComp
+Text GLabel 10000 5225 2    50   Input ~ 0
+MIDI_MISO_CHAIN
+Text GLabel 10000 5325 2    50   Input ~ 0
+STROBE_MIDI_5
+Text GLabel 9500 5425 0    50   Input ~ 0
+SCK_MIDI_5
+Text Notes 9325 5650 0    50   ~ 0
+chain to slave
+$Comp
+L Connector_Generic:Conn_02x03_Counter_Clockwise J102
+U 1 1 60B5097F
+P 9700 6050
+F 0 "J102" H 9750 6325 50  0000 C CNN
+F 1 "2x3 female" H 9675 5825 50  0000 C CNN
+F 2 "" H 9700 6050 50  0001 C CNN
+F 3 "~" H 9700 6050 50  0001 C CNN
+	1    9700 6050
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR0114
+U 1 1 60B50985
+P 9500 5950
+F 0 "#PWR0114" H 9500 5800 50  0001 C CNN
+F 1 "+5V" H 9515 6123 50  0000 C CNN
+F 2 "" H 9500 5950 50  0001 C CNN
+F 3 "" H 9500 5950 50  0001 C CNN
+	1    9500 5950
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0116
+U 1 1 60B5098B
+P 10000 6150
+F 0 "#PWR0116" H 10000 5900 50  0001 C CNN
+F 1 "GND" H 10005 5977 50  0000 C CNN
+F 2 "" H 10000 6150 50  0001 C CNN
+F 3 "" H 10000 6150 50  0001 C CNN
+	1    10000 6150
+	1    0    0    -1  
+$EndComp
+Text GLabel 10000 6050 2    50   Input ~ 0
+STROBE_MIDI_5
+Text GLabel 9500 6150 0    50   Input ~ 0
+SCK_MIDI_5
+Text Notes 9325 6375 0    50   ~ 0
+chain from master
+Text GLabel 9500 6050 0    50   Input ~ 0
+MOSI_MIDI_5
+Text GLabel 10000 5950 2    50   Input ~ 0
+MISO_MIDI
+NoConn ~ 4075 5075
+NoConn ~ 4075 5175
+NoConn ~ 4075 5275
+NoConn ~ 4075 5375
+NoConn ~ 4075 5475
+Wire Wire Line
+	3075 5075 3075 5175
+Connection ~ 3075 5175
+Wire Wire Line
+	3075 5175 3075 5275
+Connection ~ 3075 5275
+Wire Wire Line
+	3075 5275 3075 5375
+Connection ~ 3075 5375
+Wire Wire Line
+	3075 5375 3075 5475
+$Comp
+L power:GND #PWR0103
+U 1 1 60B58E68
+P 2950 5275
+F 0 "#PWR0103" H 2950 5025 50  0001 C CNN
+F 1 "GND" H 2955 5102 50  0000 C CNN
+F 2 "" H 2950 5275 50  0001 C CNN
+F 3 "" H 2950 5275 50  0001 C CNN
+	1    2950 5275
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2950 5275 3075 5275
+$Comp
+L power:+5V #PWR0104
+U 1 1 60B59BAB
+P 3575 4475
+F 0 "#PWR0104" H 3575 4325 50  0001 C CNN
+F 1 "+5V" H 3590 4648 50  0000 C CNN
+F 2 "" H 3575 4475 50  0001 C CNN
+F 3 "" H 3575 4475 50  0001 C CNN
+	1    3575 4475
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0105
+U 1 1 60B5AAA1
+P 3575 6075
+F 0 "#PWR0105" H 3575 5825 50  0001 C CNN
+F 1 "GND" H 3580 5902 50  0000 C CNN
+F 2 "" H 3575 6075 50  0001 C CNN
+F 3 "" H 3575 6075 50  0001 C CNN
+	1    3575 6075
+	1    0    0    -1  
+$EndComp
+$Comp
+L Jumper:SolderJumper_3_Bridged12 JP101
+U 1 1 60B5B580
+P 2650 5675
+F 0 "JP101" V 2604 5743 50  0000 L CNN
+F 1 "SolderJumper_3_Bridged12" V 2695 5743 50  0000 L CNN
+F 2 "" H 2650 5675 50  0001 C CNN
+F 3 "~" H 2650 5675 50  0001 C CNN
+	1    2650 5675
+	0    -1   1    0   
+$EndComp
+Wire Wire Line
+	2800 5675 3075 5675
+$Comp
+L power:GND #PWR0102
+U 1 1 60B5C692
+P 2650 5875
+F 0 "#PWR0102" H 2650 5625 50  0001 C CNN
+F 1 "GND" H 2655 5702 50  0000 C CNN
+F 2 "" H 2650 5875 50  0001 C CNN
+F 3 "" H 2650 5875 50  0001 C CNN
+	1    2650 5875
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR0101
+U 1 1 60B5C9B3
+P 2650 5475
+F 0 "#PWR0101" H 2650 5325 50  0001 C CNN
+F 1 "+5V" H 2665 5648 50  0000 C CNN
+F 2 "" H 2650 5475 50  0001 C CNN
+F 3 "" H 2650 5475 50  0001 C CNN
+	1    2650 5475
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3575 6075 3075 6075
+Wire Wire Line
+	3075 6075 3075 5775
+Connection ~ 3575 6075
+Text Notes 2625 6500 0    50   ~ 0
+72HCT245 can be replaced by 74HCT541, but\npin 1 must be tied to GND instead of +5V then.
+$Comp
+L power:+5V #PWR0106
+U 1 1 60B6270D
+P 4150 2050
+F 0 "#PWR0106" H 4150 1900 50  0001 C CNN
+F 1 "+5V" H 4165 2223 50  0000 C CNN
+F 2 "" H 4150 2050 50  0001 C CNN
+F 3 "" H 4150 2050 50  0001 C CNN
+	1    4150 2050
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0107
+U 1 1 60B639D8
+P 4150 4150
+F 0 "#PWR0107" H 4150 3900 50  0001 C CNN
+F 1 "GND" H 4155 3977 50  0000 C CNN
+F 2 "" H 4150 4150 50  0001 C CNN
+F 3 "" H 4150 4150 50  0001 C CNN
+	1    4150 4150
+	1    0    0    -1  
+$EndComp
+$Sheet
+S 5125 1975 525  800 
+U 60B37C5E
+F0 "8x TRS Midi input" 50
+F1 "trsmidi_input_8x.sch" 50
+F2 "in0" I R 5650 2025 50 
+F3 "in1" I R 5650 2125 50 
+F4 "in2" I R 5650 2225 50 
+F5 "in3" I R 5650 2325 50 
+F6 "in4" I R 5650 2425 50 
+F7 "in5" I R 5650 2525 50 
+F8 "in6" I R 5650 2625 50 
+F9 "in7" I R 5650 2725 50 
+$EndSheet
+Wire Wire Line
+	6150 1925 6150 1725
+Wire Wire Line
+	5650 2025 6150 2025
+Wire Wire Line
+	6150 2125 5650 2125
+Wire Wire Line
+	5650 2225 6150 2225
+Wire Wire Line
+	6150 2325 5650 2325
+Wire Wire Line
+	5650 2425 6150 2425
+Wire Wire Line
+	5650 2525 6150 2525
+Wire Wire Line
+	6150 2625 5650 2625
+Wire Wire Line
+	5650 2725 6150 2725
+$Comp
+L power:GND #PWR0110
+U 1 1 60C5C9F3
+P 6650 3525
+F 0 "#PWR0110" H 6650 3275 50  0001 C CNN
+F 1 "GND" H 6655 3352 50  0000 C CNN
+F 2 "" H 6650 3525 50  0001 C CNN
+F 3 "" H 6650 3525 50  0001 C CNN
+	1    6650 3525
+	1    0    0    -1  
+$EndComp
+Connection ~ 6650 3525
+$Sheet
+S 8125 2825 1150 2150
+U 60C86B49
+F0 "8x TRS Midi output" 50
+F1 "trs_midi_output_8x.sch" 50
+$EndSheet
+$EndSCHEMATC

@@ -1,4 +1,4 @@
-18930631216820788
+18916588862455788
 Battery
 BatteryHolder_Bulgin_BX0036_1xC
 Bulgin Battery Holder, BX0036, Battery Type C (https://www.bulgin.com/products/pub/media/bulgin/data/Battery_holders.pdf)
@@ -81711,75 +81711,12 @@ BLUEPILL
 40
 37
 footprints
-C_rect_smd_combo
+DIN5
 
 
 0
-4
-2
-footprints
-SSOP20_and_breakout
-
-
-0
-40
-20
-footprints
-SolderDipJumper
-
-
-0
-2
-2
-footprints
-SolderDipJumper2alt
-
-
-0
-2
-2
-footprints
-SolderDipJumper3
-
-
-0
-3
-3
-footprints
-SolderDipJumper3alt
-
-
-0
-3
-3
-footprints
-SolderDipJumper4alt
-
-
-0
-4
-4
-footprints
-TO-92_Inline_alt
-TO-92 leads in-line, narrow, oval pads, drill 0.75mm (see NXP sot054_po.pdf)
-to-92 sc-43 sc-43a sot54 PA33 transistor
-0
-3
-3
-footprints
-perfboard 3x9
-
-
-0
-27
-18
-footprints
-spitfire_logo_small
-
-
-0
-0
-0
+7
+5
 windfisch
 SolderBridge
 

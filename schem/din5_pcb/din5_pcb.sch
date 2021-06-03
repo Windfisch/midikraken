@@ -213,17 +213,6 @@ F 3 "" H 3450 2850 50  0001 C CNN
 	1    3450 2850
 	1    0    0    -1  
 $EndComp
-$Comp
-L power:+5V #PWR05
-U 1 1 60B5C9B3
-P 3450 2450
-F 0 "#PWR05" H 3450 2300 50  0001 C CNN
-F 1 "+5V" H 3465 2623 50  0000 C CNN
-F 2 "" H 3450 2450 50  0001 C CNN
-F 3 "" H 3450 2450 50  0001 C CNN
-	1    3450 2450
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	4475 2475 3975 2475
 Wire Wire Line
@@ -297,13 +286,13 @@ Text GLabel 7950 1375 2    50   Input ~ 0
 out1
 Text GLabel 7950 1575 2    50   Input ~ 0
 out3
-Text GLabel 5275 1775 2    50   Input ~ 0
+Text GLabel 5250 1975 1    50   Input ~ 0
 out0
-Text GLabel 5275 1575 2    50   Input ~ 0
+Text GLabel 5850 1775 1    50   Input ~ 0
 out2
-Text GLabel 5275 1675 2    50   Input ~ 0
+Text GLabel 5550 1875 1    50   Input ~ 0
 out1
-Text GLabel 5275 1475 2    50   Input ~ 0
+Text GLabel 6150 1675 1    50   Input ~ 0
 out3
 Wire Wire Line
 	2300 1525 3450 1525
@@ -396,50 +385,6 @@ Text GLabel 2600 2525 2    50   Input ~ 0
 in2
 Text GLabel 2600 2425 2    50   Input ~ 0
 in3
-$Comp
-L Jumper:SolderJumper_2_Open JP10
-U 1 1 60EC043C
-P 5125 1475
-F 0 "JP10" H 5575 1475 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 5125 1589 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5125 1475 50  0001 C CNN
-F 3 "~" H 5125 1475 50  0001 C CNN
-	1    5125 1475
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:SolderJumper_2_Open JP11
-U 1 1 60EC5D98
-P 5125 1575
-F 0 "JP11" H 5575 1575 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 5125 1689 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5125 1575 50  0001 C CNN
-F 3 "~" H 5125 1575 50  0001 C CNN
-	1    5125 1575
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:SolderJumper_2_Open JP12
-U 1 1 60EC62BD
-P 5125 1675
-F 0 "JP12" H 5575 1675 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 5125 1789 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5125 1675 50  0001 C CNN
-F 3 "~" H 5125 1675 50  0001 C CNN
-	1    5125 1675
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:SolderJumper_2_Open JP13
-U 1 1 60EC68B9
-P 5125 1775
-F 0 "JP13" H 5575 1775 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 5125 1889 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 5125 1775 50  0001 C CNN
-F 3 "~" H 5125 1775 50  0001 C CNN
-	1    5125 1775
-	1    0    0    -1  
-$EndComp
 $Comp
 L bluepill:BluePill A1
 U 1 1 60DBE39E
@@ -632,58 +577,14 @@ F 3 "" H 8625 6075 50  0001 C CNN
 	1    8625 6075
 	1    0    0    -1  
 $EndComp
-Text GLabel 3025 1025 2    50   Input ~ 0
-out0
-Text GLabel 3025 825  2    50   Input ~ 0
-out2
-Text GLabel 3025 925  2    50   Input ~ 0
-out1
-Text GLabel 3025 725  2    50   Input ~ 0
-out3
-$Comp
-L Jumper:SolderJumper_2_Open JP5
-U 1 1 61184BC2
-P 2875 725
-F 0 "JP5" H 3325 725 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2875 839 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2875 725 50  0001 C CNN
-F 3 "~" H 2875 725 50  0001 C CNN
-	1    2875 725 
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:SolderJumper_2_Open JP6
-U 1 1 61184BCC
-P 2875 825
-F 0 "JP6" H 3325 825 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2875 939 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2875 825 50  0001 C CNN
-F 3 "~" H 2875 825 50  0001 C CNN
-	1    2875 825 
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:SolderJumper_2_Open JP7
-U 1 1 61184BD6
-P 2875 925
-F 0 "JP7" H 3325 925 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2875 1039 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2875 925 50  0001 C CNN
-F 3 "~" H 2875 925 50  0001 C CNN
-	1    2875 925 
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:SolderJumper_2_Open JP8
-U 1 1 61184BE0
-P 2875 1025
-F 0 "JP8" H 3325 1025 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2875 1139 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2875 1025 50  0001 C CNN
-F 3 "~" H 2875 1025 50  0001 C CNN
-	1    2875 1025
-	1    0    0    -1  
-$EndComp
+Text GLabel 2725 1025 2    50   Input ~ 0
+PB6
+Text GLabel 2725 825  2    50   Input ~ 0
+PB8
+Text GLabel 2725 925  2    50   Input ~ 0
+PB7
+Text GLabel 2725 725  2    50   Input ~ 0
+PB9
 Wire Wire Line
 	2725 725  2375 725 
 Wire Wire Line
@@ -873,13 +774,13 @@ F 3 "~" H 3500 4375 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:LED D103
+L Device:LED D102
 U 1 1 60D3D13A
 P 3500 4075
-AR Path="/60D3D13A" Ref="D103"  Part="1" 
+AR Path="/60D3D13A" Ref="D102"  Part="1" 
 AR Path="/60B37C5E/60D3D13A" Ref="D?"  Part="1" 
 AR Path="/60B6A74D/60D3D13A" Ref="D?"  Part="1" 
-F 0 "D103" V 3539 3957 50  0000 R CNN
+F 0 "D102" V 3539 3957 50  0000 R CNN
 F 1 "LED" V 3448 3957 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O1.27mm_Z2.0mm" H 3500 4075 50  0001 C CNN
 F 3 "~" H 3500 4075 50  0001 C CNN
@@ -1039,13 +940,13 @@ Wire Wire Line
 Wire Wire Line
 	2450 6450 2450 6525
 $Comp
-L Device:LED D102
+L Device:LED D103
 U 1 1 60D3D18D
 P 2650 6000
-AR Path="/60D3D18D" Ref="D102"  Part="1" 
+AR Path="/60D3D18D" Ref="D103"  Part="1" 
 AR Path="/60B37C5E/60D3D18D" Ref="D?"  Part="1" 
 AR Path="/60B6A74D/60D3D18D" Ref="D?"  Part="1" 
-F 0 "D102" V 2689 5882 50  0000 R CNN
+F 0 "D103" V 2689 5882 50  0000 R CNN
 F 1 "LED" V 2598 5882 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O1.27mm_Z2.0mm" H 2650 6000 50  0001 C CNN
 F 3 "~" H 2650 6000 50  0001 C CNN
@@ -1744,6 +1645,77 @@ F 1 "VCC" H 4915 6998 50  0000 C CNN
 F 2 "" H 4900 6825 50  0001 C CNN
 F 3 "" H 4900 6825 50  0001 C CNN
 	1    4900 6825
+	1    0    0    -1  
+$EndComp
+$Comp
+L Jumper:SolderJumper_3_Open JP5
+U 1 1 60CA9C1B
+P 5100 1975
+F 0 "JP5" V 4975 1750 50  0000 L CNN
+F 1 "SolderJumper_3_Open" V 5055 2042 50  0001 L CNN
+F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 5100 1975 50  0001 C CNN
+F 3 "~" H 5100 1975 50  0001 C CNN
+	1    5100 1975
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	5100 1775 4975 1775
+$Comp
+L Jumper:SolderJumper_3_Open JP6
+U 1 1 60CD46F4
+P 5400 1875
+F 0 "JP6" V 5275 1650 50  0000 L CNN
+F 1 "SolderJumper_3_Open" V 5355 1942 50  0001 L CNN
+F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 5400 1875 50  0001 C CNN
+F 3 "~" H 5400 1875 50  0001 C CNN
+	1    5400 1875
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	5400 1675 4975 1675
+Wire Wire Line
+	5700 1575 4975 1575
+$Comp
+L Jumper:SolderJumper_3_Open JP8
+U 1 1 60CE9EC4
+P 6000 1675
+F 0 "JP8" V 5875 1450 50  0000 L CNN
+F 1 "SolderJumper_3_Open" V 5955 1742 50  0001 L CNN
+F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 6000 1675 50  0001 C CNN
+F 3 "~" H 6000 1675 50  0001 C CNN
+	1    6000 1675
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	6000 1475 4975 1475
+$Comp
+L Jumper:SolderJumper_3_Open JP7
+U 1 1 60CDFF27
+P 5700 1775
+F 0 "JP7" V 5575 1550 50  0000 L CNN
+F 1 "SolderJumper_3_Open" V 5655 1842 50  0001 L CNN
+F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 5700 1775 50  0001 C CNN
+F 3 "~" H 5700 1775 50  0001 C CNN
+	1    5700 1775
+	0    -1   -1   0   
+$EndComp
+Text GLabel 5100 2175 3    50   Input ~ 0
+PB6
+Text GLabel 5400 2075 3    50   Input ~ 0
+PB7
+Text GLabel 5700 1975 3    50   Input ~ 0
+PB8
+Text GLabel 6000 1875 3    50   Input ~ 0
+PB9
+$Comp
+L power:VCC #PWR?
+U 1 1 60D4324F
+P 3450 2450
+F 0 "#PWR?" H 3450 2300 50  0001 C CNN
+F 1 "VCC" H 3465 2623 50  0000 C CNN
+F 2 "" H 3450 2450 50  0001 C CNN
+F 3 "" H 3450 2450 50  0001 C CNN
+	1    3450 2450
 	1    0    0    -1  
 $EndComp
 $EndSCHEMATC

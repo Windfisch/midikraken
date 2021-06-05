@@ -197,7 +197,7 @@ U 1 1 60B5B580
 P 3450 2650
 F 0 "JP9" V 3404 2718 50  0000 L CNN
 F 1 "SolderJumper_3_Bridged12" V 3800 1550 50  0000 L CNN
-F 2 "Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm" H 3450 2650 50  0001 C CNN
+F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 3450 2650 50  0001 C CNN
 F 3 "~" H 3450 2650 50  0001 C CNN
 	1    3450 2650
 	0    -1   1    0   
@@ -328,7 +328,7 @@ U 1 1 60E59702
 P 2650 1850
 F 0 "J1" V 2712 1662 50  0000 R CNN
 F 1 "Conn_01x03_Male" V 2803 1662 50  0000 R CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" H 2650 1850 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Horizontal" H 2650 1850 50  0001 C CNN
 F 3 "~" H 2650 1850 50  0001 C CNN
 	1    2650 1850
 	0    -1   1    0   
@@ -391,7 +391,7 @@ U 1 1 60DBE39E
 P 1550 1925
 F 0 "A1" H 1400 950 60  0000 C CNN
 F 1 "BluePill" H 1400 825 60  0000 C CNN
-F 2 "footprints:BLUEPILL" H 1450 2675 60  0001 C CNN
+F 2 "footprints:BLUEPILL-blackpill" H 1450 2675 60  0001 C CNN
 F 3 "" H 1450 2675 60  0001 C CNN
 	1    1550 1925
 	1    0    0    -1  
@@ -539,7 +539,7 @@ U 1 1 611179CB
 P 8425 6075
 F 0 "JP14" H 8425 6188 50  0000 C CNN
 F 1 "SolderJumper_3_Bridged12" H 8425 6279 50  0000 C CNN
-F 2 "Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm" H 8425 6075 50  0001 C CNN
+F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 8425 6075 50  0001 C CNN
 F 3 "~" H 8425 6075 50  0001 C CNN
 	1    8425 6075
 	1    0    0    1   
@@ -1708,10 +1708,10 @@ PB8
 Text GLabel 6000 1875 3    50   Input ~ 0
 PB9
 $Comp
-L power:VCC #PWR?
+L power:VCC #PWR0109
 U 1 1 60D4324F
 P 3450 2450
-F 0 "#PWR?" H 3450 2300 50  0001 C CNN
+F 0 "#PWR0109" H 3450 2300 50  0001 C CNN
 F 1 "VCC" H 3465 2623 50  0000 C CNN
 F 2 "" H 3450 2450 50  0001 C CNN
 F 3 "" H 3450 2450 50  0001 C CNN

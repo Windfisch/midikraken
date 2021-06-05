@@ -1,4 +1,4 @@
-18916588862455788
+18918211706899788
 Battery
 BatteryHolder_Bulgin_BX0036_1xC
 Bulgin Battery Holder, BX0036, Battery Type C (https://www.bulgin.com/products/pub/media/bulgin/data/Battery_holders.pdf)
@@ -81705,6 +81705,13 @@ varistor SIOV
 2
 footprints
 BLUEPILL
+
+
+0
+40
+37
+footprints
+BLUEPILL-blackpill
 
 
 0

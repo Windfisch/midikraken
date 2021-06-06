@@ -1,4 +1,4 @@
-18918211706899788
+18919839890270788
 Battery
 BatteryHolder_Bulgin_BX0036_1xC
 Bulgin Battery Holder, BX0036, Battery Type C (https://www.bulgin.com/products/pub/media/bulgin/data/Battery_holders.pdf)
@@ -81716,7 +81716,7 @@ BLUEPILL-blackpill
 
 0
 40
-37
+38
 footprints
 DIN5
 
@@ -81724,6 +81724,13 @@ DIN5
 0
 7
 5
+footprints
+din5-frickel
+
+
+0
+4
+4
 windfisch
 SolderBridge
 

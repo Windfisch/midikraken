@@ -928,45 +928,45 @@ $EndComp
 $Comp
 L Jumper:SolderJumper_2_Open JP4
 U 1 1 610951DC
-P 2450 2725
-F 0 "JP4" H 2850 2725 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2450 2839 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2450 2725 50  0001 C CNN
-F 3 "~" H 2450 2725 50  0001 C CNN
-	1    2450 2725
+P 2750 2725
+F 0 "JP4" H 3150 2725 50  0000 C CNN
+F 1 "SolderJumper_2_Open" H 2750 2839 50  0001 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2750 2725 50  0001 C CNN
+F 3 "~" H 2750 2725 50  0001 C CNN
+	1    2750 2725
 	1    0    0    -1  
 $EndComp
 $Comp
 L Jumper:SolderJumper_2_Open JP3
 U 1 1 610951D2
-P 2450 2625
-F 0 "JP3" H 2850 2625 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2450 2739 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2450 2625 50  0001 C CNN
-F 3 "~" H 2450 2625 50  0001 C CNN
-	1    2450 2625
+P 2750 2625
+F 0 "JP3" H 3150 2625 50  0000 C CNN
+F 1 "SolderJumper_2_Open" H 2750 2739 50  0001 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2750 2625 50  0001 C CNN
+F 3 "~" H 2750 2625 50  0001 C CNN
+	1    2750 2625
 	1    0    0    -1  
 $EndComp
 $Comp
 L Jumper:SolderJumper_2_Open JP2
 U 1 1 610951C8
-P 2450 2525
-F 0 "JP2" H 2850 2525 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2450 2639 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2450 2525 50  0001 C CNN
-F 3 "~" H 2450 2525 50  0001 C CNN
-	1    2450 2525
+P 2750 2525
+F 0 "JP2" H 3150 2525 50  0000 C CNN
+F 1 "SolderJumper_2_Open" H 2750 2639 50  0001 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2750 2525 50  0001 C CNN
+F 3 "~" H 2750 2525 50  0001 C CNN
+	1    2750 2525
 	1    0    0    -1  
 $EndComp
 $Comp
 L Jumper:SolderJumper_2_Open JP1
 U 1 1 61094C0C
-P 2450 2425
-F 0 "JP1" H 2850 2425 50  0000 C CNN
-F 1 "SolderJumper_2_Open" H 2450 2539 50  0001 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2450 2425 50  0001 C CNN
-F 3 "~" H 2450 2425 50  0001 C CNN
-	1    2450 2425
+P 2750 2425
+F 0 "JP1" H 3150 2425 50  0000 C CNN
+F 1 "SolderJumper_2_Open" H 2750 2539 50  0001 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm" H 2750 2425 50  0001 C CNN
+F 3 "~" H 2750 2425 50  0001 C CNN
+	1    2750 2425
 	1    0    0    -1  
 $EndComp
 Text GLabel 9375 1575 0    50   Input ~ 0
@@ -1006,13 +1006,13 @@ F 3 "" H 1450 2675 60  0001 C CNN
 	1    1550 1925
 	1    0    0    -1  
 $EndComp
-Text GLabel 2600 2425 2    50   Input ~ 0
+Text GLabel 2900 2425 2    50   Input ~ 0
 in3
-Text GLabel 2600 2525 2    50   Input ~ 0
+Text GLabel 2900 2525 2    50   Input ~ 0
 in2
-Text GLabel 2600 2625 2    50   Input ~ 0
+Text GLabel 2900 2625 2    50   Input ~ 0
 in1
-Text GLabel 2600 2725 2    50   Input ~ 0
+Text GLabel 2900 2725 2    50   Input ~ 0
 in0
 Wire Wire Line
 	3150 1775 3975 1775
@@ -2120,47 +2120,163 @@ to eurorack USB-A\nsocket for host
 $Comp
 L Connector_Generic:Conn_02x03_Odd_Even J2
 U 1 1 60E04254
-P 10100 5350
-F 0 "J2" H 10150 5575 50  0000 C CNN
-F 1 "Conn_02x03_Odd_Even" H 10150 5576 50  0001 C CNN
-F 2 "Connector_PinSocket_2.54mm:PinSocket_2x03_P2.54mm_Vertical" H 10100 5350 50  0001 C CNN
-F 3 "~" H 10100 5350 50  0001 C CNN
-	1    10100 5350
-	-1   0    0    -1  
+P 10000 5350
+F 0 "J2" H 10050 5575 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10050 5576 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 10000 5350 50  0001 C CNN
+F 3 "~" H 10000 5350 50  0001 C CNN
+	1    10000 5350
+	1    0    0    -1  
 $EndComp
 $Comp
 L Connector_Generic:Conn_02x03_Odd_Even J3
 U 1 1 60E118D4
-P 10100 6075
-F 0 "J3" H 10150 6300 50  0000 C CNN
-F 1 "Conn_02x03_Odd_Even" H 10150 6301 50  0001 C CNN
-F 2 "Connector_PinSocket_2.54mm:PinSocket_2x03_P2.54mm_Vertical" H 10100 6075 50  0001 C CNN
-F 3 "~" H 10100 6075 50  0001 C CNN
-	1    10100 6075
-	-1   0    0    -1  
+P 10000 6075
+F 0 "J3" H 10050 6300 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10050 6301 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 10000 6075 50  0001 C CNN
+F 3 "~" H 10000 6075 50  0001 C CNN
+	1    10000 6075
+	1    0    0    -1  
 $EndComp
 $Comp
 L Connector_Generic:Conn_02x02_Odd_Even J7
 U 1 1 60E1FECA
-P 8375 5200
-F 0 "J7" H 8425 5325 50  0000 C CNN
-F 1 "Conn_02x02_Odd_Even" H 8425 5326 50  0001 C CNN
-F 2 "Connector_PinSocket_2.54mm:PinSocket_2x02_P2.54mm_Vertical" H 8375 5200 50  0001 C CNN
-F 3 "~" H 8375 5200 50  0001 C CNN
-	1    8375 5200
-	-1   0    0    -1  
-$EndComp
-$Comp
-L Connector_Generic:Conn_02x02_Odd_Even J6
-U 1 1 60E2ACED
-P 8700 3675
-F 0 "J6" H 8750 3800 50  0000 C CNN
-F 1 "Conn_02x02_Odd_Even" H 8750 3801 50  0001 C CNN
-F 2 "Connector_PinSocket_2.54mm:PinSocket_2x02_P2.54mm_Vertical" H 8700 3675 50  0001 C CNN
-F 3 "~" H 8700 3675 50  0001 C CNN
-	1    8700 3675
-	-1   0    0    -1  
+P 8275 5200
+F 0 "J7" H 8325 5325 50  0000 C CNN
+F 1 "Conn_02x02_Odd_Even" H 8325 5326 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical" H 8275 5200 50  0001 C CNN
+F 3 "~" H 8275 5200 50  0001 C CNN
+	1    8275 5200
+	1    0    0    -1  
 $EndComp
 Connection ~ 8075 5200
 Connection ~ 8575 5300
+$Comp
+L Connector_Generic:Conn_02x02_Odd_Even J6
+U 1 1 60E2ACED
+P 8600 3675
+F 0 "J6" H 8650 3800 50  0000 C CNN
+F 1 "Conn_02x02_Odd_Even" H 8650 3801 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical" H 8600 3675 50  0001 C CNN
+F 3 "~" H 8600 3675 50  0001 C CNN
+	1    8600 3675
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:Rotary_Encoder_Switch SW1
+U 1 1 60F5FE54
+P 10325 3900
+F 0 "SW1" H 10325 4267 50  0000 C CNN
+F 1 "Rotary_Encoder_Switch" H 10325 4176 50  0000 C CNN
+F 2 "Rotary_Encoder:RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm" H 10175 4060 50  0001 C CNN
+F 3 "~" H 10325 4160 50  0001 C CNN
+	1    10325 3900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	10025 3900 9775 3900
+Wire Wire Line
+	9775 3900 9775 4200
+Wire Wire Line
+	9775 4200 10325 4200
+Wire Wire Line
+	10800 4200 10800 4000
+Wire Wire Line
+	10800 4000 10625 4000
+$Comp
+L power:GND #PWR024
+U 1 1 60F9A317
+P 10325 4200
+F 0 "#PWR024" H 10325 3950 50  0001 C CNN
+F 1 "GND" H 10330 4027 50  0000 C CNN
+F 2 "" H 10325 4200 50  0001 C CNN
+F 3 "" H 10325 4200 50  0001 C CNN
+	1    10325 4200
+	1    0    0    -1  
+$EndComp
+Connection ~ 10325 4200
+Wire Wire Line
+	10325 4200 10800 4200
+Text GLabel 10025 3800 0    50   Input ~ 0
+PB6
+Text GLabel 10025 4000 0    50   Input ~ 0
+PB7
+Text GLabel 10625 3800 2    50   Input ~ 0
+PC15
+Text GLabel 800  1325 0    50   Input ~ 0
+PC15
+$Comp
+L Connector_Generic:Conn_01x07 J8
+U 1 1 60FCFEC2
+P 9100 4400
+F 0 "J8" V 9018 4012 50  0000 R CNN
+F 1 "Conn_01x07" V 8973 4012 50  0001 R CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical" H 9100 4400 50  0001 C CNN
+F 3 "~" H 9100 4400 50  0001 C CNN
+	1    9100 4400
+	0    -1   -1   0   
+$EndComp
+Text GLabel 2350 2800 3    50   Input ~ 0
+PB13
+Wire Wire Line
+	2300 2425 2550 2425
+Wire Wire Line
+	2600 2625 2350 2625
+Wire Wire Line
+	2300 2725 2600 2725
+Wire Wire Line
+	2350 2800 2350 2625
+Connection ~ 2350 2625
+Wire Wire Line
+	2350 2625 2300 2625
+Text GLabel 2550 2800 3    50   Input ~ 0
+PB15
+Wire Wire Line
+	2550 2800 2550 2425
+Connection ~ 2550 2425
+Wire Wire Line
+	2550 2425 2600 2425
+Text GLabel 9000 4600 3    50   Input ~ 0
+PB13
+Text GLabel 9100 4600 3    50   Input ~ 0
+PB15
+$Comp
+L power:GND #PWR023
+U 1 1 6105C50C
+P 8800 4600
+F 0 "#PWR023" H 8800 4350 50  0001 C CNN
+F 1 "GND" H 8805 4427 50  0000 C CNN
+F 2 "" H 8800 4600 50  0001 C CNN
+F 3 "" H 8800 4600 50  0001 C CNN
+	1    8800 4600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8900 4600 8900 4875
+Wire Wire Line
+	8900 4875 8675 4875
+Wire Wire Line
+	8675 4875 8675 4650
+$Comp
+L power:+5V #PWR05
+U 1 1 6106B5E8
+P 8675 4650
+F 0 "#PWR05" H 8675 4500 50  0001 C CNN
+F 1 "+5V" H 8525 4725 50  0000 C CNN
+F 2 "" H 8675 4650 50  0001 C CNN
+F 3 "" H 8675 4650 50  0001 C CNN
+	1    8675 4650
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2300 2525 2600 2525
+Text GLabel 800  1525 0    50   Input ~ 0
+PA1
+Text GLabel 800  1625 0    50   Input ~ 0
+PA2
+Text GLabel 9200 4600 3    50   Input ~ 0
+PA1
+Text GLabel 9300 4600 3    50   Input ~ 0
+PA2
 $EndSCHEMATC

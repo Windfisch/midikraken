@@ -437,7 +437,7 @@ AR Path="/60C89706/60DD046D" Ref="J?"  Part="1"
 AR Path="/60DD046D" Ref="J211"  Part="1" 
 F 0 "J211" H 6475 4150 50  0000 C CNN
 F 1 "do not equip" H 6525 3975 50  0000 C CNN
-F 2 "footprints:DIN5" H 6525 4225 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 6525 4225 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 6525 4225 50  0001 C CNN
 	1    6525 4225
 	1    0    0    -1  
@@ -481,7 +481,7 @@ AR Path="/60C89706/60E06815" Ref="J?"  Part="1"
 AR Path="/60E06815" Ref="J212"  Part="1" 
 F 0 "J212" H 6475 5150 50  0000 C CNN
 F 1 "do not equip" H 6525 4975 50  0000 C CNN
-F 2 "footprints:DIN5" H 6525 5225 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 6525 5225 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 6525 5225 50  0001 C CNN
 	1    6525 5225
 	1    0    0    -1  
@@ -522,7 +522,7 @@ AR Path="/60C89706/60E20B85" Ref="J?"  Part="1"
 AR Path="/60E20B85" Ref="J213"  Part="1" 
 F 0 "J213" H 6475 6150 50  0000 C CNN
 F 1 "do not equip" H 6525 5975 50  0000 C CNN
-F 2 "footprints:DIN5" H 6525 6225 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 6525 6225 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 6525 6225 50  0001 C CNN
 	1    6525 6225
 	1    0    0    -1  
@@ -563,7 +563,7 @@ AR Path="/60C89706/60E3D310" Ref="J?"  Part="1"
 AR Path="/60E3D310" Ref="J214"  Part="1" 
 F 0 "J214" H 6475 7150 50  0000 C CNN
 F 1 "do not equip" H 6525 6975 50  0000 C CNN
-F 2 "footprints:DIN5" H 6525 7225 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 6525 7225 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 6525 7225 50  0001 C CNN
 	1    6525 7225
 	1    0    0    -1  
@@ -752,17 +752,6 @@ F 3 "" H 10300 6175 50  0001 C CNN
 	1    10300 6175
 	1    0    0    -1  
 $EndComp
-$Comp
-L Connector_Generic:Conn_02x03_Counter_Clockwise J3
-U 1 1 60B5097F
-P 10000 6075
-F 0 "J3" H 10050 6350 50  0000 C CNN
-F 1 "2x3 female" H 9975 5850 50  0000 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 10000 6075 50  0001 C CNN
-F 3 "~" H 10000 6075 50  0001 C CNN
-	1    10000 6075
-	1    0    0    -1  
-$EndComp
 Text Notes 9625 5675 0    50   ~ 0
 chain to slave
 Text GLabel 9800 5450 0    50   Input ~ 0
@@ -782,17 +771,6 @@ F 1 "GND" H 10305 5277 50  0000 C CNN
 F 2 "" H 10300 5450 50  0001 C CNN
 F 3 "" H 10300 5450 50  0001 C CNN
 	1    10300 5450
-	1    0    0    -1  
-$EndComp
-$Comp
-L Connector_Generic:Conn_02x03_Counter_Clockwise J2
-U 1 1 60B33612
-P 10000 5350
-F 0 "J2" H 10050 5625 50  0000 C CNN
-F 1 "2x3 female" H 9975 5125 50  0000 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 10000 5350 50  0001 C CNN
-F 3 "~" H 10000 5350 50  0001 C CNN
-	1    10000 5350
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -1830,7 +1808,7 @@ U 1 1 6108C544
 P 7650 5100
 F 0 "J5" H 7707 5567 50  0000 C CNN
 F 1 "USB_B_Micro" H 7707 5476 50  0000 C CNN
-F 2 "" H 7800 5050 50  0001 C CNN
+F 2 "Connector_USB:USB_Micro-B_Wuerth_629105150521" H 7800 5050 50  0001 C CNN
 F 3 "~" H 7800 5050 50  0001 C CNN
 	1    7650 5100
 	1    0    0    -1  
@@ -1880,7 +1858,7 @@ AR Path="/60B6A74D/60D449A7" Ref="J?"  Part="1"
 AR Path="/60D449A7" Ref="J111"  Part="1" 
 F 0 "J111" H 675 4375 50  0000 C CNN
 F 1 "do not equip" H 825 3900 50  0000 C CNN
-F 2 "footprints:DIN5" H 825 4150 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 825 4150 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 825 4150 50  0001 C CNN
 	1    825  4150
 	-1   0    0    1   
@@ -1897,7 +1875,7 @@ AR Path="/60B6A74D/60D682C2" Ref="J?"  Part="1"
 AR Path="/60D682C2" Ref="J113"  Part="1" 
 F 0 "J113" H 675 6300 50  0000 C CNN
 F 1 "do not equip" H 825 5825 50  0000 C CNN
-F 2 "footprints:DIN5" H 825 6075 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 825 6075 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 825 6075 50  0001 C CNN
 	1    825  6075
 	-1   0    0    1   
@@ -1916,7 +1894,7 @@ AR Path="/60B6A74D/60D82352" Ref="J?"  Part="1"
 AR Path="/60D82352" Ref="J112"  Part="1" 
 F 0 "J112" H 675 5225 50  0000 C CNN
 F 1 "do not equip" H 825 5475 50  0000 C CNN
-F 2 "footprints:DIN5" H 825 5000 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 825 5000 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 825 5000 50  0001 C CNN
 	1    825  5000
 	-1   0    0    1   
@@ -1933,7 +1911,7 @@ AR Path="/60B6A74D/60DB5262" Ref="J?"  Part="1"
 AR Path="/60DB5262" Ref="J114"  Part="1" 
 F 0 "J114" H 675 7150 50  0000 C CNN
 F 1 "do not equip" H 825 7400 50  0000 C CNN
-F 2 "footprints:DIN5" H 825 6925 50  0001 C CNN
+F 2 "footprints:din5-frickel" H 825 6925 50  0001 C CNN
 F 3 "http://www.mouser.com/ds/2/18/40_c091_abd_e-75918.pdf" H 825 6925 50  0001 C CNN
 	1    825  6925
 	-1   0    0    1   
@@ -2038,7 +2016,7 @@ U 1 1 60C10CEB
 P 7650 3725
 F 0 "J4" H 7707 4192 50  0000 C CNN
 F 1 "USB_B_Micro" H 7707 4101 50  0000 C CNN
-F 2 "" H 7800 3675 50  0001 C CNN
+F 2 "Connector_USB:USB_Micro-B_Wuerth_629105150521" H 7800 3675 50  0001 C CNN
 F 3 "~" H 7800 3675 50  0001 C CNN
 	1    7650 3725
 	1    0    0    -1  
@@ -2068,28 +2046,6 @@ F 3 "" H 7650 4125 50  0001 C CNN
 	1    7650 4125
 	1    0    0    -1  
 $EndComp
-$Comp
-L Connector_Generic:Conn_02x02_Counter_Clockwise J7
-U 1 1 60C35D31
-P 8600 3675
-F 0 "J7" H 8650 3800 50  0000 C CNN
-F 1 "Conn_02x02_Counter_Clockwise" H 8650 3801 50  0001 C CNN
-F 2 "" H 8600 3675 50  0001 C CNN
-F 3 "~" H 8600 3675 50  0001 C CNN
-	1    8600 3675
-	1    0    0    -1  
-$EndComp
-$Comp
-L Connector_Generic:Conn_02x02_Counter_Clockwise J6
-U 1 1 60C41A1F
-P 8275 5200
-F 0 "J6" H 8325 5300 50  0000 C CNN
-F 1 "Conn_02x02_Counter_Clockwise" H 9300 5150 50  0001 C CNN
-F 2 "" H 8275 5200 50  0001 C CNN
-F 3 "~" H 8275 5200 50  0001 C CNN
-	1    8275 5200
-	1    0    0    -1  
-$EndComp
 NoConn ~ 7950 5300
 $Comp
 L power:VCC #PWR0120
@@ -2104,7 +2060,6 @@ F 3 "" H 8075 5200 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	8075 5200 8075 5300
-Connection ~ 8075 5200
 $Comp
 L power:GND #PWR0121
 U 1 1 60C6E69B
@@ -2118,7 +2073,6 @@ F 3 "" H 8575 5300 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	8575 5200 8575 5300
-Connection ~ 8575 5300
 Text Notes 7900 5475 0    50   ~ 0
 power only!
 Text GLabel 2300 1925 2    50   Input ~ 0
@@ -2163,6 +2117,50 @@ Text Notes 7875 4100 0    50   ~ 0
 USB-OTG only!
 Text Notes 8525 4000 0    50   ~ 0
 to eurorack USB-A\nsocket for host
-Text Notes 9775 3625 0    50   ~ 0
-TODO: pinouts richtig drehen...
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J2
+U 1 1 60E04254
+P 10100 5350
+F 0 "J2" H 10150 5575 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10150 5576 50  0001 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_2x03_P2.54mm_Vertical" H 10100 5350 50  0001 C CNN
+F 3 "~" H 10100 5350 50  0001 C CNN
+	1    10100 5350
+	-1   0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J3
+U 1 1 60E118D4
+P 10100 6075
+F 0 "J3" H 10150 6300 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10150 6301 50  0001 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_2x03_P2.54mm_Vertical" H 10100 6075 50  0001 C CNN
+F 3 "~" H 10100 6075 50  0001 C CNN
+	1    10100 6075
+	-1   0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_02x02_Odd_Even J7
+U 1 1 60E1FECA
+P 8375 5200
+F 0 "J7" H 8425 5325 50  0000 C CNN
+F 1 "Conn_02x02_Odd_Even" H 8425 5326 50  0001 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_2x02_P2.54mm_Vertical" H 8375 5200 50  0001 C CNN
+F 3 "~" H 8375 5200 50  0001 C CNN
+	1    8375 5200
+	-1   0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_02x02_Odd_Even J6
+U 1 1 60E2ACED
+P 8700 3675
+F 0 "J6" H 8750 3800 50  0000 C CNN
+F 1 "Conn_02x02_Odd_Even" H 8750 3801 50  0001 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_2x02_P2.54mm_Vertical" H 8700 3675 50  0001 C CNN
+F 3 "~" H 8700 3675 50  0001 C CNN
+	1    8700 3675
+	-1   0    0    -1  
+$EndComp
+Connection ~ 8075 5200
+Connection ~ 8575 5300
 $EndSCHEMATC

@@ -87,17 +87,6 @@ F 3 "https://assets.nexperia.com/documents/data-sheet/74HC_HCT165.pdf" H 4175 22
 $EndComp
 NoConn ~ 4675 1725
 $Comp
-L Connector_Generic:Conn_02x03_Counter_Clockwise J101
-U 1 1 60B33612
-P 9700 5325
-F 0 "J101" H 9750 5600 50  0000 C CNN
-F 1 "2x3 female" H 9675 5100 50  0000 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 9700 5325 50  0001 C CNN
-F 3 "~" H 9700 5325 50  0001 C CNN
-	1    9700 5325
-	1    0    0    -1  
-$EndComp
-$Comp
 L power:+5V #PWR0115
 U 1 1 60B34A09
 P 9500 5225
@@ -113,7 +102,7 @@ L power:GND #PWR0117
 U 1 1 60B3513A
 P 10000 5425
 F 0 "#PWR0117" H 10000 5175 50  0001 C CNN
-F 1 "GND" H 10005 5252 50  0000 C CNN
+F 1 "GND" H 10150 5350 50  0000 C CNN
 F 2 "" H 10000 5425 50  0001 C CNN
 F 3 "" H 10000 5425 50  0001 C CNN
 	1    10000 5425
@@ -164,19 +153,8 @@ Text GLabel 10000 5325 2    50   Input ~ 0
 STROBE_MIDI_5
 Text GLabel 9500 5425 0    50   Input ~ 0
 SCK_MIDI_5
-Text Notes 9325 5650 0    50   ~ 0
+Text Notes 9475 5625 0    50   ~ 0
 chain to slave
-$Comp
-L Connector_Generic:Conn_02x03_Counter_Clockwise J102
-U 1 1 60B5097F
-P 9700 6050
-F 0 "J102" H 9750 6325 50  0000 C CNN
-F 1 "2x3 female" H 9675 5825 50  0000 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 9700 6050 50  0001 C CNN
-F 3 "~" H 9700 6050 50  0001 C CNN
-	1    9700 6050
-	1    0    0    -1  
-$EndComp
 $Comp
 L power:+5V #PWR0116
 U 1 1 60B50985
@@ -193,7 +171,7 @@ L power:GND #PWR0118
 U 1 1 60B5098B
 P 10000 6150
 F 0 "#PWR0118" H 10000 5900 50  0001 C CNN
-F 1 "GND" H 10005 5977 50  0000 C CNN
+F 1 "GND" H 10150 6075 50  0000 C CNN
 F 2 "" H 10000 6150 50  0001 C CNN
 F 3 "" H 10000 6150 50  0001 C CNN
 	1    10000 6150
@@ -203,7 +181,7 @@ Text GLabel 10000 6050 2    50   Input ~ 0
 STROBE_MIDI_5
 Text GLabel 9500 6150 0    50   Input ~ 0
 SCK_MIDI_5
-Text Notes 9325 6375 0    50   ~ 0
+Text Notes 9400 6375 0    50   ~ 0
 chain from master
 Text GLabel 9500 6050 0    50   Input ~ 0
 MOSI_MIDI_5
@@ -457,6 +435,28 @@ F 1 "74HC595" H 9100 2700 50  0000 C CNN
 F 2 "Package_DIP:DIP-16_W7.62mm" H 8850 3375 50  0001 C CNN
 F 3 "http://www.ti.com/lit/ds/symlink/sn74hc595.pdf" H 8850 3375 50  0001 C CNN
 	1    8850 3375
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J101
+U 1 1 60C0AEA7
+P 9700 5325
+F 0 "J101" H 9750 5550 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 9750 5551 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 9700 5325 50  0001 C CNN
+F 3 "~" H 9700 5325 50  0001 C CNN
+	1    9700 5325
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J102
+U 1 1 60C0CBEA
+P 9700 6050
+F 0 "J102" H 9750 6275 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 9750 6276 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 9700 6050 50  0001 C CNN
+F 3 "~" H 9700 6050 50  0001 C CNN
+	1    9700 6050
 	1    0    0    -1  
 $EndComp
 $EndSCHEMATC

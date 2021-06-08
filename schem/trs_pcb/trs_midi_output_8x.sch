@@ -119,7 +119,7 @@ U 1 1 60C93F57
 P 2050 1625
 F 0 "J301" H 1800 1650 50  0000 R CNN
 F 1 "AudioJack3" H 2175 1350 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 2050 1625 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 2050 1625 50  0001 C CNN
 F 3 "~" H 2050 1625 50  0001 C CNN
 	1    2050 1625
 	-1   0    0    -1  
@@ -247,7 +247,7 @@ U 1 1 60CA7F60
 P 2050 2875
 F 0 "J302" H 1800 2900 50  0000 R CNN
 F 1 "AudioJack3" H 2175 2600 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 2050 2875 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 2050 2875 50  0001 C CNN
 F 3 "~" H 2050 2875 50  0001 C CNN
 	1    2050 2875
 	-1   0    0    -1  
@@ -375,7 +375,7 @@ U 1 1 60CAE686
 P 2050 4125
 F 0 "J303" H 1800 4150 50  0000 R CNN
 F 1 "AudioJack3" H 2175 3850 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 2050 4125 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 2050 4125 50  0001 C CNN
 F 3 "~" H 2050 4125 50  0001 C CNN
 	1    2050 4125
 	-1   0    0    -1  
@@ -503,7 +503,7 @@ U 1 1 60CAE6F1
 P 2050 5375
 F 0 "J304" H 1800 5400 50  0000 R CNN
 F 1 "AudioJack3" H 2175 5100 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 2050 5375 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 2050 5375 50  0001 C CNN
 F 3 "~" H 2050 5375 50  0001 C CNN
 	1    2050 5375
 	-1   0    0    -1  
@@ -631,7 +631,7 @@ U 1 1 60CD7DAD
 P 4425 1625
 F 0 "J305" H 4175 1650 50  0000 R CNN
 F 1 "AudioJack3" H 4550 1350 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 4425 1625 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 4425 1625 50  0001 C CNN
 F 3 "~" H 4425 1625 50  0001 C CNN
 	1    4425 1625
 	-1   0    0    -1  
@@ -759,7 +759,7 @@ U 1 1 60CD7E17
 P 4425 2875
 F 0 "J306" H 4175 2900 50  0000 R CNN
 F 1 "AudioJack3" H 4550 2600 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 4425 2875 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 4425 2875 50  0001 C CNN
 F 3 "~" H 4425 2875 50  0001 C CNN
 	1    4425 2875
 	-1   0    0    -1  
@@ -887,7 +887,7 @@ U 1 1 60CD7E81
 P 4425 4125
 F 0 "J307" H 4175 4150 50  0000 R CNN
 F 1 "AudioJack3" H 4550 3850 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 4425 4125 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 4425 4125 50  0001 C CNN
 F 3 "~" H 4425 4125 50  0001 C CNN
 	1    4425 4125
 	-1   0    0    -1  
@@ -1015,7 +1015,7 @@ U 1 1 60CD7EEB
 P 4425 5375
 F 0 "J308" H 4175 5400 50  0000 R CNN
 F 1 "AudioJack3" H 4550 5100 50  0000 R CNN
-F 2 "Connector_Audio:Jack_3.5mm_Ledino_KB3SPRS_Horizontal" H 4425 5375 50  0001 C CNN
+F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 4425 5375 50  0001 C CNN
 F 3 "~" H 4425 5375 50  0001 C CNN
 	1    4425 5375
 	-1   0    0    -1  

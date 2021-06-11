@@ -435,17 +435,8 @@ F 3 "http://www.ti.com/lit/ds/symlink/sn74hc595.pdf" H 8850 3375 50  0001 C CNN
 	1    8850 3375
 	1    0    0    -1  
 $EndComp
-$Comp
-L Connector_Generic:Conn_02x03_Odd_Even J101
-U 1 1 60C0AEA7
-P 9700 5325
-F 0 "J101" H 9750 5550 50  0000 C CNN
-F 1 "Conn_02x03_Odd_Even" H 9750 5551 50  0001 C CNN
-F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 9700 5325 50  0001 C CNN
-F 3 "~" H 9700 5325 50  0001 C CNN
-	1    9700 5325
-	1    0    0    -1  
-$EndComp
+Wire Wire Line
+	9250 1175 10000 1175
 $Comp
 L Connector_Generic:Conn_02x03_Odd_Even J102
 U 1 1 60C0CBEA
@@ -457,6 +448,15 @@ F 3 "~" H 9700 6050 50  0001 C CNN
 	1    9700 6050
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	9250 1175 10000 1175
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J101
+U 1 1 60C0AEA7
+P 9700 5325
+F 0 "J101" H 9750 5550 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 9750 5551 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 9700 5325 50  0001 C CNN
+F 3 "~" H 9700 5325 50  0001 C CNN
+	1    9700 5325
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC

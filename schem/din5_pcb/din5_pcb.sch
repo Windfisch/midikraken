@@ -2104,28 +2104,6 @@ USB-OTG only!
 Text Notes 8525 4000 0    50   ~ 0
 to eurorack USB-A\nsocket for host
 $Comp
-L Connector_Generic:Conn_02x03_Odd_Even J2
-U 1 1 60E04254
-P 10000 5350
-F 0 "J2" H 10050 5575 50  0000 C CNN
-F 1 "Conn_02x03_Odd_Even" H 10050 5576 50  0001 C CNN
-F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 5350 50  0001 C CNN
-F 3 "~" H 10000 5350 50  0001 C CNN
-	1    10000 5350
-	1    0    0    -1  
-$EndComp
-$Comp
-L Connector_Generic:Conn_02x03_Odd_Even J3
-U 1 1 60E118D4
-P 10000 6075
-F 0 "J3" H 10050 6300 50  0000 C CNN
-F 1 "Conn_02x03_Odd_Even" H 10050 6301 50  0001 C CNN
-F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 6075 50  0001 C CNN
-F 3 "~" H 10000 6075 50  0001 C CNN
-	1    10000 6075
-	1    0    0    -1  
-$EndComp
-$Comp
 L Connector_Generic:Conn_02x02_Odd_Even J7
 U 1 1 60E1FECA
 P 8275 5200
@@ -2301,4 +2279,26 @@ Text Notes 5975 -850 0    50   ~ 0
 todo (pcb): mark pin 1 on connectors
 Text Notes 5975 -675 0    50   ~ 0
 todo (pcb): are the connectors oriented correctly?\ntodo (pcb): do the connector plugs fit?
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J3
+U 1 1 60E118D4
+P 10000 6075
+F 0 "J3" H 10050 6300 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10050 6301 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 6075 50  0001 C CNN
+F 3 "~" H 10000 6075 50  0001 C CNN
+	1    10000 6075
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_02x03_Odd_Even J2
+U 1 1 60E04254
+P 10000 5350
+F 0 "J2" H 10050 5575 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10050 5576 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 5350 50  0001 C CNN
+F 3 "~" H 10000 5350 50  0001 C CNN
+	1    10000 5350
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC

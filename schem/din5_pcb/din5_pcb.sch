@@ -1523,7 +1523,7 @@ Wire Wire Line
 NoConn ~ 1850 4150
 NoConn ~ 1250 4150
 Wire Wire Line
-	1850 5100 2100 5100
+	1850 5100 1925 5100
 Wire Wire Line
 	2000 4900 2400 4900
 NoConn ~ 1850 5000
@@ -1711,7 +1711,7 @@ Wire Wire Line
 NoConn ~ 1850 6075
 NoConn ~ 1250 6075
 Wire Wire Line
-	1850 7025 2100 7025
+	1850 7025 1925 7025
 Wire Wire Line
 	1250 7025 1250 7325
 Wire Wire Line
@@ -1928,20 +1928,6 @@ Wire Wire Line
 Connection ~ 1850 6425
 Wire Wire Line
 	1125 6425 1850 6425
-Wire Wire Line
-	2000 5350 2000 4900
-Wire Wire Line
-	2000 5400 2000 5350
-Connection ~ 2000 5350
-Wire Wire Line
-	1125 5350 2000 5350
-Wire Wire Line
-	2000 7325 2000 7275
-Wire Wire Line
-	2000 7275 2000 6825
-Connection ~ 2000 7275
-Wire Wire Line
-	1125 7275 2000 7275
 Connection ~ 1250 5400
 Wire Wire Line
 	1250 5400 2000 5400
@@ -2279,4 +2265,26 @@ Text GLabel 9200 4600 3    50   Input ~ 0
 PA1
 Text GLabel 9300 4600 3    50   Input ~ 0
 PA2
+Wire Wire Line
+	2000 6825 2000 7325
+Wire Wire Line
+	1125 7275 1925 7275
+Wire Wire Line
+	1925 7275 1925 7025
+Connection ~ 1925 7025
+Wire Wire Line
+	1925 7025 2100 7025
+Wire Wire Line
+	2000 4900 2000 5400
+Wire Wire Line
+	1125 5350 1925 5350
+Wire Wire Line
+	1925 5350 1925 5100
+Connection ~ 1925 5100
+Wire Wire Line
+	1925 5100 2100 5100
+NoConn ~ 525  5000
+NoConn ~ 1125 5000
+NoConn ~ 525  6925
+NoConn ~ 1125 6925
 $EndSCHEMATC

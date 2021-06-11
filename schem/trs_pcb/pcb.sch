@@ -302,8 +302,6 @@ Wire Wire Line
 Wire Wire Line
 	9350 2075 9250 2075
 Wire Wire Line
-	9250 1175 10000 1175
-Wire Wire Line
 	10000 1175 10000 1775
 Wire Wire Line
 	10000 1775 10050 1775
@@ -459,4 +457,6 @@ F 3 "~" H 9700 6050 50  0001 C CNN
 	1    9700 6050
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	9250 1175 10000 1175
 $EndSCHEMATC

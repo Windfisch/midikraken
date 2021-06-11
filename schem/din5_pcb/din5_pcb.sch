@@ -2244,17 +2244,6 @@ Wire Wire Line
 	8900 4875 8675 4875
 Wire Wire Line
 	8675 4875 8675 4650
-$Comp
-L power:+5V #PWR05
-U 1 1 6106B5E8
-P 8675 4650
-F 0 "#PWR05" H 8675 4500 50  0001 C CNN
-F 1 "+5V" H 8525 4725 50  0000 C CNN
-F 2 "" H 8675 4650 50  0001 C CNN
-F 3 "" H 8675 4650 50  0001 C CNN
-	1    8675 4650
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	2300 2525 2600 2525
 Text GLabel 800  1525 0    50   Input ~ 0
@@ -2287,4 +2276,29 @@ NoConn ~ 525  5000
 NoConn ~ 1125 5000
 NoConn ~ 525  6925
 NoConn ~ 1125 6925
+NoConn ~ 800  1125
+NoConn ~ 825  5300
+NoConn ~ 825  7225
+NoConn ~ 9400 4600
+Text Notes 5975 -375 0    50   ~ 0
+todo: is BLK cheap to connect?
+$Comp
+L power:+3V3 #PWR?
+U 1 1 60E24BA6
+P 8675 4650
+F 0 "#PWR?" H 8675 4500 50  0001 C CNN
+F 1 "+3V3" H 8550 4800 50  0000 C CNN
+F 2 "" H 8675 4650 50  0001 C CNN
+F 3 "" H 8675 4650 50  0001 C CNN
+	1    8675 4650
+	1    0    0    -1  
+$EndComp
+Text Notes 5975 -575 0    50   ~ 0
+todo (pcb): add jlcjlc marker to both
+Text Notes 5975 -475 0    50   ~ 0
+todo (pcb): move display up a little?
+Text Notes 5975 -850 0    50   ~ 0
+todo (pcb): mark pin 1 on connectors
+Text Notes 5975 -675 0    50   ~ 0
+todo (pcb): are the connectors oriented correctly?\ntodo (pcb): do the connector plugs fit?
 $EndSCHEMATC

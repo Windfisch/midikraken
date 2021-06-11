@@ -441,7 +441,7 @@ U 1 1 60C0AEA7
 P 9700 5325
 F 0 "J101" H 9750 5550 50  0000 C CNN
 F 1 "Conn_02x03_Odd_Even" H 9750 5551 50  0001 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 9700 5325 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 9700 5325 50  0001 C CNN
 F 3 "~" H 9700 5325 50  0001 C CNN
 	1    9700 5325
 	1    0    0    -1  
@@ -452,7 +452,7 @@ U 1 1 60C0CBEA
 P 9700 6050
 F 0 "J102" H 9750 6275 50  0000 C CNN
 F 1 "Conn_02x03_Odd_Even" H 9750 6276 50  0001 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 9700 6050 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 9700 6050 50  0001 C CNN
 F 3 "~" H 9700 6050 50  0001 C CNN
 	1    9700 6050
 	1    0    0    -1  

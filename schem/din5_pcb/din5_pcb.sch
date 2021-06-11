@@ -2109,7 +2109,7 @@ U 1 1 60E04254
 P 10000 5350
 F 0 "J2" H 10050 5575 50  0000 C CNN
 F 1 "Conn_02x03_Odd_Even" H 10050 5576 50  0001 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 10000 5350 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 5350 50  0001 C CNN
 F 3 "~" H 10000 5350 50  0001 C CNN
 	1    10000 5350
 	1    0    0    -1  
@@ -2120,7 +2120,7 @@ U 1 1 60E118D4
 P 10000 6075
 F 0 "J3" H 10050 6300 50  0000 C CNN
 F 1 "Conn_02x03_Odd_Even" H 10050 6301 50  0001 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 10000 6075 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 6075 50  0001 C CNN
 F 3 "~" H 10000 6075 50  0001 C CNN
 	1    10000 6075
 	1    0    0    -1  
@@ -2283,10 +2283,10 @@ NoConn ~ 9400 4600
 Text Notes 5975 -375 0    50   ~ 0
 todo: is BLK cheap to connect?
 $Comp
-L power:+3V3 #PWR?
+L power:+3V3 #PWR0116
 U 1 1 60E24BA6
 P 8675 4650
-F 0 "#PWR?" H 8675 4500 50  0001 C CNN
+F 0 "#PWR0116" H 8675 4500 50  0001 C CNN
 F 1 "+3V3" H 8550 4800 50  0000 C CNN
 F 2 "" H 8675 4650 50  0001 C CNN
 F 3 "" H 8675 4650 50  0001 C CNN

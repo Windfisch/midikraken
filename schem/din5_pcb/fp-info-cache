@@ -1,4 +1,4 @@
-18919840066368788
+18921463961915788
 Battery
 BatteryHolder_Bulgin_BX0036_1xC
 Bulgin Battery Holder, BX0036, Battery Type C (https://www.bulgin.com/products/pub/media/bulgin/data/Battery_holders.pdf)
@@ -81723,6 +81723,13 @@ DIN5
 
 0
 7
+5
+footprints
+Jack_3.5mm_combo_ledino_upright
+https://www.reichelt.de/index.html?ACTION=7&LA=3&OPEN=0&INDEX=0&FILENAME=C160%252FKB3SPRS.pdf
+jack stereo TRS
+0
+8
 5
 footprints
 din5-frickel

@@ -7,7 +7,7 @@ mod software_uart;
 use software_uart::*;
 
 use rtic::app;
-use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, gpioa}};
+use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, gpioa, gpiob, gpioc}};
 use core::fmt::Write;
 
 use stm32f1xx_hal::time::Hertz;
@@ -25,7 +25,7 @@ use software_uart::typenum::Unsigned;
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 
-type NumPortPairs = software_uart::typenum::U4;
+type NumPortPairs = software_uart::typenum::U12;
 
 
 unsafe fn reset_mcu() {
@@ -167,7 +167,7 @@ const APP: () = {
 		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>,
 		sw_uart_isr: SoftwareUartIsr<'static, NumPortPairs>,
 
-		spi_strobe_pin: gpioa::PA3<Output<PushPull>>,
+		spi_strobe_pin: gpioc::PC14<Output<PushPull>>,
 
 		dma_transfer: Option<dma::Transfer<
 			dma::W,
@@ -175,8 +175,8 @@ const APP: () = {
 			dma::RxTxDma<
 				spi::SpiPayload<
 					stm32::SPI1,
-					spi::Spi1NoRemap,
-					(gpioa::PA5<Alternate<PushPull>>, gpioa::PA6<Input<Floating>>, gpioa::PA7<Alternate<PushPull>>)
+					spi::Spi1Remap,
+					(gpiob::PB3<Alternate<PushPull>>, gpiob::PB4<Input<Floating>>, gpiob::PB5<Alternate<PushPull>>)
 				>,
 				dma::dma1::C2,
 				dma::dma1::C3
@@ -220,10 +220,12 @@ const APP: () = {
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high().ok(); // Turn off
 
-		let spi_strobe_pin = gpioa.pa3.into_push_pull_output_with_state(&mut gpioa.crl, stm32f1xx_hal::gpio::State::High); // controls shift registers
-		let clk = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
-		let miso = gpioa.pa6.into_floating_input(&mut gpioa.crl);
-		let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
+		let (pa15, pb3, pb4) = afio.mapr.disable_jtag(gpioa.pa15, gpiob.pb3, gpiob.pb4);
+
+		let spi_strobe_pin = gpioc.pc14.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::State::High); // controls shift registers
+		let clk = pb3.into_alternate_push_pull(&mut gpiob.crl);
+		let miso = pb4.into_floating_input(&mut gpiob.crl);
+		let mosi = gpiob.pb5.into_alternate_push_pull(&mut gpiob.crl);
 
 		let spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks, &mut rcc.apb2);
 		let dma = dp.DMA1.split(&mut rcc.ahb);
@@ -398,12 +400,23 @@ const APP: () = {
 		let (_, spi_dma) = c.resources.dma_transfer.take().unwrap().wait();
 		c.resources.spi_strobe_pin.set_low().unwrap();
 
-		let in_bits: u32;
+		let mut in_bits: u32;
 		{
 			// this is safe in and only in this scope, since the DMA transfers are currently halted
 			let dma_buffer = unsafe { &mut DMA_BUFFER };
 
 			in_bits = u32::from_be_bytes(dma_buffer.received).reverse_bits();
+
+			// FIXME make this configurable
+			if true {
+				in_bits = (in_bits & 0x0000000F) | ((in_bits & 0xFFFFFF00) >> 4);
+			}
+			if false {
+				in_bits = (in_bits & 0x000000FF) | ((in_bits & 0xFFFFF000) >> 4);
+			}
+			if false {
+				in_bits = (in_bits & 0x00000FFF) | ((in_bits & 0xFFFF0000) >> 4);
+			}
 		
 			if let Some(out_bits) = c.resources.sw_uart_isr.out_bits() {
 				// We first fill each byte with two concatenated copies of the same 4 bit block.
@@ -418,7 +431,7 @@ const APP: () = {
 					((out_bits & 0x00F0) as u32) << 4 |
 					((out_bits & 0x0F00) as u32) << 8 |
 					((out_bits & 0xF000) as u32) << 12;
-				let mask = 0xF0F0F00F;
+				let mask = 0xF00FF0F0;
 				let raw_out_bits = (chunked_out_bits | (chunked_out_bits << 4)) | mask;
 				//dma_buffer.transmit = (out_bits as u32).reverse_bits().to_le_bytes();
 				dma_buffer.transmit = (raw_out_bits as u32).to_be_bytes();

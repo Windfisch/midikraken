@@ -5,13 +5,13 @@ An open-source, open-hardware MIDI-USB-interface supporting up to 16
 (and maybe beyond?) MIDI ports. The hardware is based on a STM32F103
 *"blue pill"* board which can be cheaply sourced from your favourite chinese
 seller ([note about quality differences](https://github.com/Windfisch/analog-synth/blob/master/bluepill.md)),
-plus other garden variety components such as 6N137 opto couplers, some LEDs
-and resistors.
+plus other garden variety components such as HC2630 opto couplers (that's just
+two 6N137 in one package), shift registers, some LEDs and resistors.
 
 Future features may include sophisticated MIDI routing, clock division,
 a hardware arpeggiator etc.
 
-This is currently in an early development stage, but should still be functional
+This project is still in development stage, but already works fine as a flexible
 as a MIDI-USB-interface.
 
 How it works
@@ -62,11 +62,45 @@ PB12 low and reset.
 Hardware
 --------
 
+Midikraken consists of two different PCBs that can be stacked (almost)
+arbitrarily: [The DIN board](schem/din5_pcb) has four traditional MIDI
+in/out port pairs, and can house the master microcontroller.
+
+[The TRS board](schem/trs_pcb) gives you eight TRS MIDI pairs that support
+both TRS-A and TRS-B. (Inputs are automatic, outputs need to be configured
+in software). It can not house the microcontroller and thus cannot be used
+without a DIN board.
+
+The boards can be chained using their master/slave connectors and are
+stackable using M3 screws / spacers. Currently, the firmware must be
+adapted and recompiled according to the stack configuration. Currently,
+a maximum of 16 port pairs is supported.
+
+### Errata
+
+During powerup, the MIDI ports send garbage bits. To fix this,
+you likely need to disconnect the 74HC595s' *output enable* pins from GND
+using a sharp knife (and some wire to reconnect all GNDs that should stay
+connected), and connecting them like this instead:
+
+```
++5V --- Capacitor --- OE pin --- Resistor ~100k --- GND
+```
+
+This is untested yet but should delay the output enable enough such that
+the shift registers already have been filled with proper data.
+
+Hardware (old)
+--------------
+
 Schematics for the first prototype board were created with KiCAD and are
 located in [schem/perfboard](schem/perfboard).
 
 A 3D-printed enclosure (which needs some adjustments to fit well) was
 designed in FreeCAD and resides in [cad/](cad/).
+
+**Note**: You need to use the firmware from 7072a0c6eb or earlier due
+different pin assignment; or you reassign the pins.
 
 Debugging
 ---------

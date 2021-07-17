@@ -222,12 +222,17 @@ const APP: () = {
 
 		let (pa15, pb3, pb4) = afio.mapr.disable_jtag(gpioa.pa15, gpiob.pb3, gpiob.pb4);
 
-		let spi_strobe_pin = gpioc.pc14.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::State::High); // controls shift registers
+		let mut spi_strobe_pin = gpioc.pc14.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::State::Low); // controls shift registers
 		let clk = pb3.into_alternate_push_pull(&mut gpiob.crl);
 		let miso = pb4.into_floating_input(&mut gpiob.crl);
 		let mosi = gpiob.pb5.into_alternate_push_pull(&mut gpiob.crl);
 
-		let spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks, &mut rcc.apb2);
+		let mut spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks, &mut rcc.apb2);
+
+		spi.transfer(&mut [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
+		spi_strobe_pin.set_high();
+
+
 		let dma = dp.DMA1.split(&mut rcc.ahb);
 		let spi_dma = spi.with_rx_tx_dma(dma.2, dma.3);
 		let spi_dma_transfer = spi_dma.read_write(unsafe { &mut DMA_BUFFER.received } , unsafe { &DMA_BUFFER.transmit });

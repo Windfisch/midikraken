@@ -63,10 +63,10 @@ Hardware
 --------
 
 Midikraken consists of two different PCBs that can be stacked (almost)
-arbitrarily: [The DIN board](schem/din5_pcb) has four traditional MIDI
+arbitrarily: [The DIN board](hardware/din5_pcb) has four traditional MIDI
 in/out port pairs, and can house the master microcontroller.
 
-[The TRS board](schem/trs_pcb) gives you eight TRS MIDI pairs that support
+[The TRS board](hardware/trs_pcb) gives you eight TRS MIDI pairs that support
 both TRS-A and TRS-B. (Inputs are automatic, outputs need to be configured
 in software). It can not house the microcontroller and thus cannot be used
 without a DIN board.
@@ -84,20 +84,20 @@ using a sharp knife (and some wire to reconnect all GNDs that should stay
 connected), and connecting them like this instead:
 
 ```
-+5V --- Capacitor --- OE pin --- Resistor ~100k --- GND
++5V --- Capacitor 10µF --- OE pin --- Resistor 10k --- GND
 ```
 
-This is untested yet but should delay the output enable enough such that
-the shift registers already have been filled with proper data.
+This delays the output enable enough such that the shift registers can
+be filled with proper data after the microcontroller has booted up.
 
 Hardware (old)
 --------------
 
 Schematics for the first prototype board were created with KiCAD and are
-located in [schem/perfboard](schem/perfboard).
+located in [hardware/perfboard](hardware/perfboard).
 
 A 3D-printed enclosure (which needs some adjustments to fit well) was
-designed in FreeCAD and resides in [cad/](cad/).
+designed in FreeCAD and resides in [hardware/perfboard/cad/](hardware/perfboard/cad/).
 
 **Note**: You need to use the firmware from 7072a0c6eb or earlier due
 different pin assignment; or you reassign the pins.
@@ -130,3 +130,15 @@ To measure the performance of the software UART in the worst-case scenario
 senders fetch their next byte and start transmitting it), enable the
 `benchmark feature flag`. Note that this will send and receive garbage data.
 
+License
+-------
+
+The software in the [firmware](firmware) directory can be redistributed
+and/or modified under the terms of the
+[GNU General Public License Version 3](gpl3.txt). Note this does not apply
+to the [bootloader](firmware/sboot/sboot_stm32) which is under its own
+license.
+
+The hardware designs in the [hardware](hardware) directory, excluding
+[hardware/lib/3d](hardware/lib/3d) to which own conditions apply, can be
+licensed under the terms of the [CERN OHL Version 2 license](cern_ohl_s_v2.txt).

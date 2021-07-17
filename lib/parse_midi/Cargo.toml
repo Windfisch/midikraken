@@ -3,6 +3,7 @@ name = "parse_midi"
 version = "0.1.0"
 authors = ["Florian Jung <flo@windfis.ch>"]
 edition = "2018"
+license = "MIT"
 
 [dev-dependencies]
 rand_pcg = "0.3"

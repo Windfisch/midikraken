@@ -142,3 +142,5 @@ license.
 The hardware designs in the [hardware](hardware) directory, excluding
 [hardware/lib/3d](hardware/lib/3d) to which own conditions apply, can be
 licensed under the terms of the [CERN OHL Version 2 license](cern_ohl_s_v2.txt).
+This specifically includes (but is not limited to) schematics, PCB designs and
+gerber files.

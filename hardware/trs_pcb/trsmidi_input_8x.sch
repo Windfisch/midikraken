@@ -4,10 +4,10 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 3
-Title ""
+Title "Midikraken TRS"
 Date ""
-Rev ""
-Comp ""
+Rev "01"
+Comp "Windfisch"
 Comment1 ""
 Comment2 ""
 Comment3 ""
@@ -1549,4 +1549,6 @@ Wire Wire Line
 Connection ~ 5150 5550
 Wire Wire Line
 	5150 5550 4775 5550
+Text Notes 7950 6450 0    50   ~ 0
+Copyright (c) 2021 Florian Jung.\n\nThis source describes Open Hardware and is licensed under the CERN-OHL-S v2.\n\nYou may redistribute and modify this source and make products using it under\nthe terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt).\n\nThis source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,\nINCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A\nPARTICULAR PURPOSE. Please see the CERN-OHL-S v2 for applicable conditions.\n\nSource location: https://github.com/Windfisch/midikraken\n\nAs per CERN-OHL-S v2 section 4, should You produce hardware based on this\nsource, You must where practicable maintain the Source Location visible\non the external case of the Gizmo or other products you make using this\nsource.\n
 $EndSCHEMATC

@@ -504,11 +504,11 @@ X B 3 200 0 100 L 50 50 1 1 P
 ENDDRAW
 ENDDEF
 #
-# bluepill_BluePill
+# din5_pcb-rescue_BluePill-bluepill
 #
-DEF bluepill_BluePill A 0 40 N Y 1 F N
+DEF din5_pcb-rescue_BluePill-bluepill A 0 40 N Y 1 F N
 F0 "A" -500 900 60 H V C CNN
-F1 "bluepill_BluePill" 400 -950 60 H V C CNN
+F1 "din5_pcb-rescue_BluePill-bluepill" 400 -950 60 H V C CNN
 F2 "" -100 750 60 H I C CNN
 F3 "" -100 750 60 H I C CNN
 DRAW

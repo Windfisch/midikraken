@@ -4,14 +4,14 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
-Title ""
+Title "Midikraken DIN board"
 Date ""
-Rev ""
-Comp ""
-Comment1 ""
-Comment2 ""
-Comment3 ""
-Comment4 ""
+Rev "01"
+Comp "Windfisch"
+Comment1 "the terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt)."
+Comment2 "You may redistribute and modify this source and make products using it under"
+Comment3 "This source describes Open Hardware and is licensed under the CERN-OHL-S v2."
+Comment4 "Copyright (c) 2021 Florian Jung."
 $EndDescr
 NoConn ~ 5975 7225
 Wire Wire Line
@@ -668,109 +668,109 @@ out0
 $Comp
 L power:+3V3 #PWR014
 U 1 1 6112B5D9
-P 8625 6075
-F 0 "#PWR014" H 8625 5925 50  0001 C CNN
-F 1 "+3V3" H 8640 6248 50  0000 C CNN
-F 2 "" H 8625 6075 50  0001 C CNN
-F 3 "" H 8625 6075 50  0001 C CNN
-	1    8625 6075
+P 8800 4550
+F 0 "#PWR014" H 8800 4400 50  0001 C CNN
+F 1 "+3V3" H 8815 4723 50  0000 C CNN
+F 2 "" H 8800 4550 50  0001 C CNN
+F 3 "" H 8800 4550 50  0001 C CNN
+	1    8800 4550
 	1    0    0    -1  
 $EndComp
 $Comp
 L power:+5V #PWR012
 U 1 1 6112A8E7
-P 8225 6075
-F 0 "#PWR012" H 8225 5925 50  0001 C CNN
-F 1 "+5V" H 8240 6248 50  0000 C CNN
-F 2 "" H 8225 6075 50  0001 C CNN
-F 3 "" H 8225 6075 50  0001 C CNN
-	1    8225 6075
+P 8400 4550
+F 0 "#PWR012" H 8400 4400 50  0001 C CNN
+F 1 "+5V" H 8415 4723 50  0000 C CNN
+F 2 "" H 8400 4550 50  0001 C CNN
+F 3 "" H 8400 4550 50  0001 C CNN
+	1    8400 4550
 	1    0    0    -1  
 $EndComp
 $Comp
 L power:VCC #PWR013
 U 1 1 6111916A
-P 8425 5925
-F 0 "#PWR013" H 8425 5775 50  0001 C CNN
-F 1 "VCC" H 8440 6098 50  0000 C CNN
-F 2 "" H 8425 5925 50  0001 C CNN
-F 3 "" H 8425 5925 50  0001 C CNN
-	1    8425 5925
+P 8600 4400
+F 0 "#PWR013" H 8600 4250 50  0001 C CNN
+F 1 "VCC" H 8615 4573 50  0000 C CNN
+F 2 "" H 8600 4400 50  0001 C CNN
+F 3 "" H 8600 4400 50  0001 C CNN
+	1    8600 4400
 	1    0    0    -1  
 $EndComp
 $Comp
 L Jumper:SolderJumper_3_Bridged12 JP14
 U 1 1 611179CB
-P 8425 6075
-F 0 "JP14" H 8425 6188 50  0000 C CNN
-F 1 "SolderJumper_3_Bridged12" H 8425 6279 50  0000 C CNN
-F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 8425 6075 50  0001 C CNN
-F 3 "~" H 8425 6075 50  0001 C CNN
-	1    8425 6075
+P 8600 4550
+F 0 "JP14" H 8600 4663 50  0000 C CNN
+F 1 "SolderJumper_3_Bridged12" H 8600 4754 50  0000 C CNN
+F 2 "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm" H 8600 4550 50  0001 C CNN
+F 3 "~" H 8600 4550 50  0001 C CNN
+	1    8600 4550
 	1    0    0    1   
 $EndComp
 $Comp
 L power:VCC #PWR018
 U 1 1 6110957F
-P 9800 5975
-F 0 "#PWR018" H 9800 5825 50  0001 C CNN
-F 1 "VCC" H 9815 6148 50  0000 C CNN
-F 2 "" H 9800 5975 50  0001 C CNN
-F 3 "" H 9800 5975 50  0001 C CNN
-	1    9800 5975
+P 9975 4450
+F 0 "#PWR018" H 9975 4300 50  0001 C CNN
+F 1 "VCC" H 9990 4623 50  0000 C CNN
+F 2 "" H 9975 4450 50  0001 C CNN
+F 3 "" H 9975 4450 50  0001 C CNN
+	1    9975 4450
 	1    0    0    -1  
 $EndComp
 $Comp
 L power:VCC #PWR017
 U 1 1 61107EB0
-P 9800 5250
-F 0 "#PWR017" H 9800 5100 50  0001 C CNN
-F 1 "VCC" H 9815 5423 50  0000 C CNN
-F 2 "" H 9800 5250 50  0001 C CNN
-F 3 "" H 9800 5250 50  0001 C CNN
-	1    9800 5250
+P 9975 3725
+F 0 "#PWR017" H 9975 3575 50  0001 C CNN
+F 1 "VCC" H 9990 3898 50  0000 C CNN
+F 2 "" H 9975 3725 50  0001 C CNN
+F 3 "" H 9975 3725 50  0001 C CNN
+	1    9975 3725
 	1    0    0    -1  
 $EndComp
-Text GLabel 10300 5975 2    50   Input ~ 0
+Text GLabel 10475 4450 2    50   Input ~ 0
 MISO_MIDI
-Text GLabel 9800 6075 0    50   Input ~ 0
+Text GLabel 9975 4550 0    50   Input ~ 0
 MOSI_MIDI_5
-Text Notes 9625 6400 0    50   ~ 0
+Text Notes 9800 4875 0    50   ~ 0
 chain from master
-Text GLabel 9800 6175 0    50   Input ~ 0
+Text GLabel 9975 4650 0    50   Input ~ 0
 SCK_MIDI_5
-Text GLabel 10300 6075 2    50   Input ~ 0
+Text GLabel 10475 4550 2    50   Input ~ 0
 STROBE_MIDI_5
 $Comp
 L power:GND #PWR022
 U 1 1 60B5098B
-P 10300 6175
-F 0 "#PWR022" H 10300 5925 50  0001 C CNN
-F 1 "GND" H 10305 6002 50  0000 C CNN
-F 2 "" H 10300 6175 50  0001 C CNN
-F 3 "" H 10300 6175 50  0001 C CNN
-	1    10300 6175
+P 10475 4650
+F 0 "#PWR022" H 10475 4400 50  0001 C CNN
+F 1 "GND" H 10480 4477 50  0000 C CNN
+F 2 "" H 10475 4650 50  0001 C CNN
+F 3 "" H 10475 4650 50  0001 C CNN
+	1    10475 4650
 	1    0    0    -1  
 $EndComp
-Text Notes 9625 5675 0    50   ~ 0
+Text Notes 9800 4150 0    50   ~ 0
 chain to slave
-Text GLabel 9800 5450 0    50   Input ~ 0
+Text GLabel 9975 3925 0    50   Input ~ 0
 SCK_MIDI_5
-Text GLabel 10300 5350 2    50   Input ~ 0
+Text GLabel 10475 3825 2    50   Input ~ 0
 STROBE_MIDI_5
-Text GLabel 10300 5250 2    50   Input ~ 0
+Text GLabel 10475 3725 2    50   Input ~ 0
 MIDI_MISO_CHAIN
-Text GLabel 9800 5350 0    50   Input ~ 0
+Text GLabel 9975 3825 0    50   Input ~ 0
 MIDI_MOSI_CHAIN
 $Comp
 L power:GND #PWR021
 U 1 1 60B3513A
-P 10300 5450
-F 0 "#PWR021" H 10300 5200 50  0001 C CNN
-F 1 "GND" H 10305 5277 50  0000 C CNN
-F 2 "" H 10300 5450 50  0001 C CNN
-F 3 "" H 10300 5450 50  0001 C CNN
-	1    10300 5450
+P 10475 3925
+F 0 "#PWR021" H 10475 3675 50  0001 C CNN
+F 1 "GND" H 10480 3752 50  0000 C CNN
+F 2 "" H 10475 3925 50  0001 C CNN
+F 3 "" H 10475 3925 50  0001 C CNN
+	1    10475 3925
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -894,24 +894,24 @@ $EndComp
 $Comp
 L power:VCC #PWR019
 U 1 1 610D17F6
-P 9875 875
-F 0 "#PWR019" H 9875 725 50  0001 C CNN
-F 1 "VCC" H 9890 1048 50  0000 C CNN
-F 2 "" H 9875 875 50  0001 C CNN
-F 3 "" H 9875 875 50  0001 C CNN
-	1    9875 875 
+P 9875 725
+F 0 "#PWR019" H 9875 575 50  0001 C CNN
+F 1 "VCC" H 9890 898 50  0000 C CNN
+F 2 "" H 9875 725 50  0001 C CNN
+F 3 "" H 9875 725 50  0001 C CNN
+	1    9875 725 
 	1    0    0    -1  
 $EndComp
-Connection ~ 7550 1075
+Connection ~ 7550 925 
 $Comp
 L power:VCC #PWR010
 U 1 1 610CD147
-P 7550 1075
-F 0 "#PWR010" H 7550 925 50  0001 C CNN
-F 1 "VCC" H 7565 1248 50  0000 C CNN
-F 2 "" H 7550 1075 50  0001 C CNN
-F 3 "" H 7550 1075 50  0001 C CNN
-	1    7550 1075
+P 7550 925
+F 0 "#PWR010" H 7550 775 50  0001 C CNN
+F 1 "VCC" H 7565 1098 50  0000 C CNN
+F 2 "" H 7550 925 50  0001 C CNN
+F 3 "" H 7550 925 50  0001 C CNN
+	1    7550 925 
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -969,34 +969,34 @@ F 3 "~" H 2750 2425 50  0001 C CNN
 	1    2750 2425
 	1    0    0    -1  
 $EndComp
-Text GLabel 9375 1575 0    50   Input ~ 0
+Text GLabel 9375 1425 0    50   Input ~ 0
 in3
-Text GLabel 9375 1475 0    50   Input ~ 0
+Text GLabel 9375 1325 0    50   Input ~ 0
 in2
-Text GLabel 9375 1375 0    50   Input ~ 0
+Text GLabel 9375 1225 0    50   Input ~ 0
 in1
-Text GLabel 9375 1275 0    50   Input ~ 0
+Text GLabel 9375 1125 0    50   Input ~ 0
 in0
 $Comp
 L 74xx:74HC595 U2
 U 1 1 60AADCC5
-P 7550 1675
-F 0 "U2" H 7825 900 50  0000 C CNN
-F 1 "74HC595" H 7800 1000 50  0000 C CNN
-F 2 "Package_DIP:DIP-16_W7.62mm" H 7550 1675 50  0001 C CNN
-F 3 "http://www.ti.com/lit/ds/symlink/sn74hc595.pdf" H 7550 1675 50  0001 C CNN
-	1    7550 1675
+P 7550 1525
+F 0 "U2" H 7825 750 50  0000 C CNN
+F 1 "74HC595" H 7800 850 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm" H 7550 1525 50  0001 C CNN
+F 3 "http://www.ti.com/lit/ds/symlink/sn74hc595.pdf" H 7550 1525 50  0001 C CNN
+	1    7550 1525
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 1875 7150 2375
-Connection ~ 7550 2375
-NoConn ~ 7950 1975
-NoConn ~ 7950 1875
-NoConn ~ 7950 1775
-NoConn ~ 7950 1675
+	7150 1725 7150 2225
+Connection ~ 7550 2225
+NoConn ~ 7950 1825
+NoConn ~ 7950 1725
+NoConn ~ 7950 1625
+NoConn ~ 7950 1525
 $Comp
-L bluepill:BluePill A1
+L din5_pcb-rescue:BluePill-bluepill A1
 U 1 1 60DBE39E
 P 1550 1925
 F 0 "A1" H 1400 950 60  0000 C CNN
@@ -1103,50 +1103,50 @@ Text GLabel 5850 1775 1    50   Input ~ 0
 out2
 Text GLabel 5250 1975 1    50   Input ~ 0
 out0
-Text GLabel 7950 1575 2    50   Input ~ 0
+Text GLabel 7950 1425 2    50   Input ~ 0
 out3
-Text GLabel 7950 1375 2    50   Input ~ 0
+Text GLabel 7950 1225 2    50   Input ~ 0
 out1
-Text GLabel 7950 1475 2    50   Input ~ 0
+Text GLabel 7950 1325 2    50   Input ~ 0
 out2
-Text GLabel 7950 1275 2    50   Input ~ 0
+Text GLabel 7950 1125 2    50   Input ~ 0
 out0
-Connection ~ 9375 1975
+Connection ~ 9375 1825
 $Comp
 L power:GND #PWR016
 U 1 1 60C82CE9
-P 9375 1975
-F 0 "#PWR016" H 9375 1725 50  0001 C CNN
-F 1 "GND" H 9225 1900 50  0000 C CNN
-F 2 "" H 9375 1975 50  0001 C CNN
-F 3 "" H 9375 1975 50  0001 C CNN
-	1    9375 1975
+P 9375 1825
+F 0 "#PWR016" H 9375 1575 50  0001 C CNN
+F 1 "GND" H 9225 1750 50  0000 C CNN
+F 2 "" H 9375 1825 50  0001 C CNN
+F 3 "" H 9375 1825 50  0001 C CNN
+	1    9375 1825
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9375 1875 9375 1975
-Connection ~ 9375 1875
+	9375 1725 9375 1825
+Connection ~ 9375 1725
 Wire Wire Line
-	9375 1775 9375 1875
-Connection ~ 9375 1775
+	9375 1625 9375 1725
+Connection ~ 9375 1625
 Wire Wire Line
-	9375 1675 9375 1775
-Text GLabel 7950 2175 2    50   Input ~ 0
+	9375 1525 9375 1625
+Text GLabel 7950 2025 2    50   Input ~ 0
 MIDI_MOSI_CHAIN
-Connection ~ 9875 2775
+Connection ~ 9875 2625
 $Comp
 L power:GND #PWR020
 U 1 1 60C5C9F3
-P 9875 2775
-F 0 "#PWR020" H 9875 2525 50  0001 C CNN
-F 1 "GND" H 9880 2602 50  0000 C CNN
-F 2 "" H 9875 2775 50  0001 C CNN
-F 3 "" H 9875 2775 50  0001 C CNN
-	1    9875 2775
+P 9875 2625
+F 0 "#PWR020" H 9875 2375 50  0001 C CNN
+F 1 "GND" H 9880 2452 50  0000 C CNN
+F 2 "" H 9875 2625 50  0001 C CNN
+F 3 "" H 9875 2625 50  0001 C CNN
+	1    9875 2625
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9375 1175 9375 975 
+	9375 1025 9375 825 
 $Comp
 L power:GND #PWR03
 U 1 1 60B639D8
@@ -1221,79 +1221,79 @@ F 3 "" H 3975 1875 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9250 675  9375 675 
+	9250 525  9375 525 
 $Comp
 L power:GND #PWR015
 U 1 1 60B3D5B0
-P 9250 675
-F 0 "#PWR015" H 9250 425 50  0001 C CNN
-F 1 "GND" H 9255 502 50  0000 C CNN
-F 2 "" H 9250 675 50  0001 C CNN
-F 3 "" H 9250 675 50  0001 C CNN
-	1    9250 675 
+P 9250 525
+F 0 "#PWR015" H 9250 275 50  0001 C CNN
+F 1 "GND" H 9255 352 50  0000 C CNN
+F 2 "" H 9250 525 50  0001 C CNN
+F 3 "" H 9250 525 50  0001 C CNN
+	1    9250 525 
 	1    0    0    -1  
 $EndComp
 $Comp
 L Device:R R1
 U 1 1 60B3B958
-P 9375 825
-F 0 "R1" H 9445 871 50  0000 L CNN
-F 1 "10k" H 9445 780 50  0000 L CNN
-F 2 "Resistor_SMD:R_0805_2012Metric" V 9305 825 50  0001 C CNN
-F 3 "~" H 9375 825 50  0001 C CNN
-	1    9375 825 
+P 9375 675
+F 0 "R1" H 9445 721 50  0000 L CNN
+F 1 "10k" H 9445 630 50  0000 L CNN
+F 2 "Resistor_SMD:R_0805_2012Metric" V 9305 675 50  0001 C CNN
+F 3 "~" H 9375 675 50  0001 C CNN
+	1    9375 675 
 	1    0    0    -1  
 $EndComp
-Text GLabel 9375 1025 0    50   Input ~ 0
+Text GLabel 9375 875  0    50   Input ~ 0
 MIDI_MISO_CHAIN
-NoConn ~ 10375 1275
+NoConn ~ 10375 1125
 $Comp
 L 74xx:74HC165 U3
 U 1 1 60AAE484
-P 9875 1775
-F 0 "U3" H 10000 1750 50  0000 C CNN
-F 1 "74HC165" H 9975 1600 50  0000 C CNN
-F 2 "Package_DIP:DIP-16_W7.62mm" H 9875 1775 50  0001 C CNN
-F 3 "https://assets.nexperia.com/documents/data-sheet/74HC_HCT165.pdf" H 9875 1775 50  0001 C CNN
-	1    9875 1775
+P 9875 1625
+F 0 "U3" H 10000 1600 50  0000 C CNN
+F 1 "74HC165" H 9975 1450 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm" H 9875 1625 50  0001 C CNN
+F 3 "https://assets.nexperia.com/documents/data-sheet/74HC_HCT165.pdf" H 9875 1625 50  0001 C CNN
+	1    9875 1625
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9375 2775 9875 2775
+	9375 2625 9875 2625
 Wire Wire Line
-	9375 2475 9375 2775
+	9375 2325 9375 2625
 Text GLabel 2300 1625 2    50   Input ~ 0
 MISO_MIDI
-Text GLabel 10375 1175 2    50   Input ~ 0
+Text GLabel 10375 1025 2    50   Input ~ 0
 MISO_MIDI
-Text GLabel 9375 2175 0    50   Input ~ 0
+Text GLabel 9375 2025 0    50   Input ~ 0
 STROBE_MIDI_5
-Text GLabel 9375 2375 0    50   Input ~ 0
+Text GLabel 9375 2225 0    50   Input ~ 0
 SCK_MIDI_5
 $Comp
 L power:GND #PWR011
 U 1 1 60B26AB2
-P 7550 2375
-F 0 "#PWR011" H 7550 2125 50  0001 C CNN
-F 1 "GND" H 7555 2202 50  0000 C CNN
-F 2 "" H 7550 2375 50  0001 C CNN
-F 3 "" H 7550 2375 50  0001 C CNN
-	1    7550 2375
+P 7550 2225
+F 0 "#PWR011" H 7550 1975 50  0001 C CNN
+F 1 "GND" H 7555 2052 50  0000 C CNN
+F 2 "" H 7550 2225 50  0001 C CNN
+F 3 "" H 7550 2225 50  0001 C CNN
+	1    7550 2225
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 2375 7550 2375
+	7150 2225 7550 2225
 Wire Wire Line
-	6600 1075 7550 1075
+	6600 925  7550 925 
 Wire Wire Line
-	6600 1575 6600 1075
+	6600 1425 6600 925 
 Wire Wire Line
-	7150 1575 6600 1575
-Text GLabel 7150 1775 0    50   Input ~ 0
+	7150 1425 6600 1425
+Text GLabel 7150 1625 0    50   Input ~ 0
 STROBE_MIDI_5
-Text GLabel 7150 1475 0    50   Input ~ 0
+Text GLabel 7150 1325 0    50   Input ~ 0
 SCK_MIDI_5
-Text GLabel 7150 1275 0    50   Input ~ 0
+Text GLabel 7150 1125 0    50   Input ~ 0
 MOSI_MIDI_5
 Text GLabel 4975 1375 2    50   Input ~ 0
 STROBE_MIDI_5
@@ -1805,39 +1805,39 @@ $EndComp
 $Comp
 L Connector:USB_B_Micro J5
 U 1 1 6108C544
-P 7650 5100
-F 0 "J5" H 7707 5567 50  0000 C CNN
-F 1 "USB_B_Micro" H 7707 5476 50  0000 C CNN
-F 2 "Connector_USB:USB_Micro-B_Wuerth_629105150521" H 7800 5050 50  0001 C CNN
-F 3 "~" H 7800 5050 50  0001 C CNN
-	1    7650 5100
+P 8025 2950
+F 0 "J5" H 8082 3417 50  0000 C CNN
+F 1 "USB_B_Micro" H 8082 3326 50  0000 C CNN
+F 2 "Connector_USB:USB_Micro-B_Wuerth_629105150521" H 8175 2900 50  0001 C CNN
+F 3 "~" H 8175 2900 50  0001 C CNN
+	1    8025 2950
 	1    0    0    -1  
 $EndComp
 $Comp
 L power:VCC #PWR0114
 U 1 1 6108FD21
-P 8075 4900
-F 0 "#PWR0114" H 8075 4750 50  0001 C CNN
-F 1 "VCC" H 8090 5073 50  0000 C CNN
-F 2 "" H 8075 4900 50  0001 C CNN
-F 3 "" H 8075 4900 50  0001 C CNN
-	1    8075 4900
+P 8450 2750
+F 0 "#PWR0114" H 8450 2600 50  0001 C CNN
+F 1 "VCC" H 8465 2923 50  0000 C CNN
+F 2 "" H 8450 2750 50  0001 C CNN
+F 3 "" H 8450 2750 50  0001 C CNN
+	1    8450 2750
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8075 4900 7950 4900
-NoConn ~ 7950 5100
-NoConn ~ 7950 5200
-NoConn ~ 7550 5500
+	8450 2750 8325 2750
+NoConn ~ 8325 2950
+NoConn ~ 8325 3050
+NoConn ~ 7925 3350
 $Comp
 L power:GND #PWR0115
 U 1 1 610C9AA7
-P 7650 5500
-F 0 "#PWR0115" H 7650 5250 50  0001 C CNN
-F 1 "GND" H 7655 5327 50  0000 C CNN
-F 2 "" H 7650 5500 50  0001 C CNN
-F 3 "" H 7650 5500 50  0001 C CNN
-	1    7650 5500
+P 8025 3350
+F 0 "#PWR0115" H 8025 3100 50  0001 C CNN
+F 1 "GND" H 8030 3177 50  0000 C CNN
+F 2 "" H 8025 3350 50  0001 C CNN
+F 3 "" H 8025 3350 50  0001 C CNN
+	1    8025 3350
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
@@ -1999,186 +1999,186 @@ NoConn ~ 1550 4450
 $Comp
 L Connector:USB_B_Micro J4
 U 1 1 60C10CEB
-P 7650 3725
-F 0 "J4" H 7707 4192 50  0000 C CNN
-F 1 "USB_B_Micro" H 7707 4101 50  0000 C CNN
-F 2 "Connector_USB:USB_Micro-B_Wuerth_629105150521" H 7800 3675 50  0001 C CNN
-F 3 "~" H 7800 3675 50  0001 C CNN
-	1    7650 3725
+P 5875 2950
+F 0 "J4" H 5932 3417 50  0000 C CNN
+F 1 "USB_B_Micro" H 5932 3326 50  0000 C CNN
+F 2 "Connector_USB:USB_Micro-B_Wuerth_629105150521" H 6025 2900 50  0001 C CNN
+F 3 "~" H 6025 2900 50  0001 C CNN
+	1    5875 2950
 	1    0    0    -1  
 $EndComp
 $Comp
 L power:VCC #PWR0118
 U 1 1 60C11423
-P 8075 3525
-F 0 "#PWR0118" H 8075 3375 50  0001 C CNN
-F 1 "VCC" H 8090 3698 50  0000 C CNN
-F 2 "" H 8075 3525 50  0001 C CNN
-F 3 "" H 8075 3525 50  0001 C CNN
-	1    8075 3525
+P 6300 2750
+F 0 "#PWR0118" H 6300 2600 50  0001 C CNN
+F 1 "VCC" H 6315 2923 50  0000 C CNN
+F 2 "" H 6300 2750 50  0001 C CNN
+F 3 "" H 6300 2750 50  0001 C CNN
+	1    6300 2750
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8075 3525 7950 3525
-NoConn ~ 7550 4125
+	6300 2750 6175 2750
+NoConn ~ 5775 3350
 $Comp
 L power:GND #PWR0119
 U 1 1 60C11432
-P 7650 4125
-F 0 "#PWR0119" H 7650 3875 50  0001 C CNN
-F 1 "GND" H 7655 3952 50  0000 C CNN
-F 2 "" H 7650 4125 50  0001 C CNN
-F 3 "" H 7650 4125 50  0001 C CNN
-	1    7650 4125
+P 5875 3350
+F 0 "#PWR0119" H 5875 3100 50  0001 C CNN
+F 1 "GND" H 5880 3177 50  0000 C CNN
+F 2 "" H 5875 3350 50  0001 C CNN
+F 3 "" H 5875 3350 50  0001 C CNN
+	1    5875 3350
 	1    0    0    -1  
 $EndComp
-NoConn ~ 7950 5300
+NoConn ~ 8325 3150
 $Comp
 L power:VCC #PWR0120
 U 1 1 60C62803
-P 8075 5200
-F 0 "#PWR0120" H 8075 5050 50  0001 C CNN
-F 1 "VCC" H 8090 5373 50  0000 C CNN
-F 2 "" H 8075 5200 50  0001 C CNN
-F 3 "" H 8075 5200 50  0001 C CNN
-	1    8075 5200
+P 8450 3050
+F 0 "#PWR0120" H 8450 2900 50  0001 C CNN
+F 1 "VCC" H 8465 3223 50  0000 C CNN
+F 2 "" H 8450 3050 50  0001 C CNN
+F 3 "" H 8450 3050 50  0001 C CNN
+	1    8450 3050
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8075 5200 8075 5300
+	8450 3050 8450 3150
 $Comp
 L power:GND #PWR0121
 U 1 1 60C6E69B
-P 8575 5300
-F 0 "#PWR0121" H 8575 5050 50  0001 C CNN
-F 1 "GND" H 8580 5127 50  0000 C CNN
-F 2 "" H 8575 5300 50  0001 C CNN
-F 3 "" H 8575 5300 50  0001 C CNN
-	1    8575 5300
+P 8950 3150
+F 0 "#PWR0121" H 8950 2900 50  0001 C CNN
+F 1 "GND" H 8955 2977 50  0000 C CNN
+F 2 "" H 8950 3150 50  0001 C CNN
+F 3 "" H 8950 3150 50  0001 C CNN
+	1    8950 3150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8575 5200 8575 5300
-Text Notes 7900 5475 0    50   ~ 0
+	8950 3050 8950 3150
+Text Notes 8275 3325 0    50   ~ 0
 power only!
 Text GLabel 2300 1925 2    50   Input ~ 0
 USB_DP
 Text GLabel 2300 2025 2    50   Input ~ 0
 USB_DM
-Text GLabel 7950 3825 2    50   Input ~ 0
+Text GLabel 6175 3050 2    50   Input ~ 0
 USB_DM
-Text GLabel 7950 3925 2    50   Input ~ 0
+Text GLabel 6175 3150 2    50   Input ~ 0
 USB_ID
 Text GLabel 2300 2325 2    50   Input ~ 0
 USB_ID
-Text GLabel 7950 3725 2    50   Input ~ 0
+Text GLabel 6175 2950 2    50   Input ~ 0
 USB_DP
-Text GLabel 8900 3675 2    50   Input ~ 0
+Text GLabel 7125 2900 2    50   Input ~ 0
 USB_DP
-Text GLabel 8900 3775 2    50   Input ~ 0
+Text GLabel 7125 3000 2    50   Input ~ 0
 USB_DM
 $Comp
 L power:VCC #PWR0122
 U 1 1 60D04FAC
-P 8400 3675
-F 0 "#PWR0122" H 8400 3525 50  0001 C CNN
-F 1 "VCC" H 8415 3848 50  0000 C CNN
-F 2 "" H 8400 3675 50  0001 C CNN
-F 3 "" H 8400 3675 50  0001 C CNN
-	1    8400 3675
+P 6625 2900
+F 0 "#PWR0122" H 6625 2750 50  0001 C CNN
+F 1 "VCC" H 6640 3073 50  0000 C CNN
+F 2 "" H 6625 2900 50  0001 C CNN
+F 3 "" H 6625 2900 50  0001 C CNN
+	1    6625 2900
 	1    0    0    -1  
 $EndComp
 $Comp
 L power:GND #PWR0123
 U 1 1 60D05439
-P 8400 3775
-F 0 "#PWR0123" H 8400 3525 50  0001 C CNN
-F 1 "GND" H 8405 3602 50  0000 C CNN
-F 2 "" H 8400 3775 50  0001 C CNN
-F 3 "" H 8400 3775 50  0001 C CNN
-	1    8400 3775
+P 6625 3000
+F 0 "#PWR0123" H 6625 2750 50  0001 C CNN
+F 1 "GND" H 6630 2827 50  0000 C CNN
+F 2 "" H 6625 3000 50  0001 C CNN
+F 3 "" H 6625 3000 50  0001 C CNN
+	1    6625 3000
 	1    0    0    -1  
 $EndComp
-Text Notes 7875 4100 0    50   ~ 0
+Text Notes 6100 3325 0    50   ~ 0
 USB-OTG only!
-Text Notes 8525 4000 0    50   ~ 0
+Text Notes 6750 3225 0    50   ~ 0
 to eurorack USB-A\nsocket for host
 $Comp
 L Connector_Generic:Conn_02x02_Odd_Even J7
 U 1 1 60E1FECA
-P 8275 5200
-F 0 "J7" H 8325 5325 50  0000 C CNN
-F 1 "Conn_02x02_Odd_Even" H 8325 5326 50  0001 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical" H 8275 5200 50  0001 C CNN
-F 3 "~" H 8275 5200 50  0001 C CNN
-	1    8275 5200
+P 8650 3050
+F 0 "J7" H 8700 3175 50  0000 C CNN
+F 1 "Conn_02x02_Odd_Even" H 8700 3176 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical" H 8650 3050 50  0001 C CNN
+F 3 "~" H 8650 3050 50  0001 C CNN
+	1    8650 3050
 	1    0    0    -1  
 $EndComp
-Connection ~ 8075 5200
-Connection ~ 8575 5300
+Connection ~ 8450 3050
+Connection ~ 8950 3150
 $Comp
 L Connector_Generic:Conn_02x02_Odd_Even J6
 U 1 1 60E2ACED
-P 8600 3675
-F 0 "J6" H 8650 3800 50  0000 C CNN
-F 1 "Conn_02x02_Odd_Even" H 8650 3801 50  0001 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical" H 8600 3675 50  0001 C CNN
-F 3 "~" H 8600 3675 50  0001 C CNN
-	1    8600 3675
+P 6825 2900
+F 0 "J6" H 6875 3025 50  0000 C CNN
+F 1 "Conn_02x02_Odd_Even" H 6875 3026 50  0001 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical" H 6825 2900 50  0001 C CNN
+F 3 "~" H 6825 2900 50  0001 C CNN
+	1    6825 2900
 	1    0    0    -1  
 $EndComp
 $Comp
 L Device:Rotary_Encoder_Switch SW1
 U 1 1 60F5FE54
-P 10325 3900
-F 0 "SW1" H 10325 4267 50  0000 C CNN
-F 1 "Rotary_Encoder_Switch" H 10325 4176 50  0000 C CNN
-F 2 "Rotary_Encoder:RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm" H 10175 4060 50  0001 C CNN
-F 3 "~" H 10325 4160 50  0001 C CNN
-	1    10325 3900
+P 10625 2950
+F 0 "SW1" H 10625 3317 50  0000 C CNN
+F 1 "Rotary_Encoder_Switch" H 10625 3226 50  0000 C CNN
+F 2 "Rotary_Encoder:RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm" H 10475 3110 50  0001 C CNN
+F 3 "~" H 10625 3210 50  0001 C CNN
+	1    10625 2950
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	10025 3900 9775 3900
+	10325 2950 10075 2950
 Wire Wire Line
-	9775 3900 9775 4200
+	10075 2950 10075 3250
 Wire Wire Line
-	9775 4200 10325 4200
+	10075 3250 10625 3250
 Wire Wire Line
-	10800 4200 10800 4000
+	11100 3250 11100 3050
 Wire Wire Line
-	10800 4000 10625 4000
+	11100 3050 10925 3050
 $Comp
 L power:GND #PWR024
 U 1 1 60F9A317
-P 10325 4200
-F 0 "#PWR024" H 10325 3950 50  0001 C CNN
-F 1 "GND" H 10330 4027 50  0000 C CNN
-F 2 "" H 10325 4200 50  0001 C CNN
-F 3 "" H 10325 4200 50  0001 C CNN
-	1    10325 4200
+P 10625 3250
+F 0 "#PWR024" H 10625 3000 50  0001 C CNN
+F 1 "GND" H 10630 3077 50  0000 C CNN
+F 2 "" H 10625 3250 50  0001 C CNN
+F 3 "" H 10625 3250 50  0001 C CNN
+	1    10625 3250
 	1    0    0    -1  
 $EndComp
-Connection ~ 10325 4200
+Connection ~ 10625 3250
 Wire Wire Line
-	10325 4200 10800 4200
-Text GLabel 10025 3800 0    50   Input ~ 0
+	10625 3250 11100 3250
+Text GLabel 10325 2850 0    50   Input ~ 0
 PB6
-Text GLabel 10025 4000 0    50   Input ~ 0
+Text GLabel 10325 3050 0    50   Input ~ 0
 PB7
-Text GLabel 10625 3800 2    50   Input ~ 0
+Text GLabel 10925 2850 2    50   Input ~ 0
 PC15
 Text GLabel 800  1325 0    50   Input ~ 0
 PC15
 $Comp
 L Connector_Generic:Conn_01x07 J8
 U 1 1 60FCFEC2
-P 9100 4400
-F 0 "J8" V 9018 4012 50  0000 R CNN
-F 1 "Conn_01x07" V 8973 4012 50  0001 R CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical" H 9100 4400 50  0001 C CNN
-F 3 "~" H 9100 4400 50  0001 C CNN
-	1    9100 4400
+P 7775 4400
+F 0 "J8" V 7693 4012 50  0000 R CNN
+F 1 "Conn_01x07" V 7648 4012 50  0001 R CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical" H 7775 4400 50  0001 C CNN
+F 3 "~" H 7775 4400 50  0001 C CNN
+	1    7775 4400
 	0    -1   -1   0   
 $EndComp
 Text GLabel 2350 2800 3    50   Input ~ 0
@@ -2201,36 +2201,36 @@ Wire Wire Line
 Connection ~ 2550 2425
 Wire Wire Line
 	2550 2425 2600 2425
-Text GLabel 9000 4600 3    50   Input ~ 0
+Text GLabel 7675 4600 3    50   Input ~ 0
 PB13
-Text GLabel 9100 4600 3    50   Input ~ 0
+Text GLabel 7775 4600 3    50   Input ~ 0
 PB15
 $Comp
 L power:GND #PWR023
 U 1 1 6105C50C
-P 8800 4600
-F 0 "#PWR023" H 8800 4350 50  0001 C CNN
-F 1 "GND" H 8805 4427 50  0000 C CNN
-F 2 "" H 8800 4600 50  0001 C CNN
-F 3 "" H 8800 4600 50  0001 C CNN
-	1    8800 4600
+P 7475 4600
+F 0 "#PWR023" H 7475 4350 50  0001 C CNN
+F 1 "GND" H 7480 4427 50  0000 C CNN
+F 2 "" H 7475 4600 50  0001 C CNN
+F 3 "" H 7475 4600 50  0001 C CNN
+	1    7475 4600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8900 4600 8900 4875
+	7575 4600 7575 4875
 Wire Wire Line
-	8900 4875 8675 4875
+	7575 4875 7350 4875
 Wire Wire Line
-	8675 4875 8675 4650
+	7350 4875 7350 4650
 Wire Wire Line
 	2300 2525 2600 2525
 Text GLabel 800  1525 0    50   Input ~ 0
 PA1
 Text GLabel 800  1625 0    50   Input ~ 0
 PA2
-Text GLabel 9200 4600 3    50   Input ~ 0
+Text GLabel 7875 4600 3    50   Input ~ 0
 PA1
-Text GLabel 9300 4600 3    50   Input ~ 0
+Text GLabel 7975 4600 3    50   Input ~ 0
 PA2
 Wire Wire Line
 	2000 6825 2000 7325
@@ -2257,38 +2257,40 @@ NoConn ~ 1125 6925
 NoConn ~ 800  1125
 NoConn ~ 825  5300
 NoConn ~ 825  7225
-NoConn ~ 9400 4600
+NoConn ~ 8075 4600
 $Comp
 L power:+3V3 #PWR0116
 U 1 1 60E24BA6
-P 8675 4650
-F 0 "#PWR0116" H 8675 4500 50  0001 C CNN
-F 1 "+3V3" H 8550 4800 50  0000 C CNN
-F 2 "" H 8675 4650 50  0001 C CNN
-F 3 "" H 8675 4650 50  0001 C CNN
-	1    8675 4650
+P 7350 4650
+F 0 "#PWR0116" H 7350 4500 50  0001 C CNN
+F 1 "+3V3" H 7225 4800 50  0000 C CNN
+F 2 "" H 7350 4650 50  0001 C CNN
+F 3 "" H 7350 4650 50  0001 C CNN
+	1    7350 4650
 	1    0    0    -1  
 $EndComp
 $Comp
 L Connector_Generic:Conn_02x03_Odd_Even J3
 U 1 1 60E118D4
-P 10000 6075
-F 0 "J3" H 10050 6300 50  0000 C CNN
-F 1 "Conn_02x03_Odd_Even" H 10050 6301 50  0001 C CNN
-F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 6075 50  0001 C CNN
-F 3 "~" H 10000 6075 50  0001 C CNN
-	1    10000 6075
+P 10175 4550
+F 0 "J3" H 10225 4775 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10225 4776 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10175 4550 50  0001 C CNN
+F 3 "~" H 10175 4550 50  0001 C CNN
+	1    10175 4550
 	1    0    0    -1  
 $EndComp
 $Comp
 L Connector_Generic:Conn_02x03_Odd_Even J2
 U 1 1 60E04254
-P 10000 5350
-F 0 "J2" H 10050 5575 50  0000 C CNN
-F 1 "Conn_02x03_Odd_Even" H 10050 5576 50  0001 C CNN
-F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10000 5350 50  0001 C CNN
-F 3 "~" H 10000 5350 50  0001 C CNN
-	1    10000 5350
+P 10175 3825
+F 0 "J2" H 10225 4050 50  0000 C CNN
+F 1 "Conn_02x03_Odd_Even" H 10225 4051 50  0001 C CNN
+F 2 "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical" H 10175 3825 50  0001 C CNN
+F 3 "~" H 10175 3825 50  0001 C CNN
+	1    10175 3825
 	1    0    0    -1  
 $EndComp
+Text Notes 7475 6450 0    50   ~ 0
+Copyright (c) 2021 Florian Jung.\n\nThis source describes Open Hardware and is licensed under the CERN-OHL-S v2.\n\nYou may redistribute and modify this source and make products using it under\nthe terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt).\n\nThis source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,\nINCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A\nPARTICULAR PURPOSE. Please see the CERN-OHL-S v2 for applicable conditions.\n\nSource location: https://github.com/Windfisch/midikraken\n\nAs per CERN-OHL-S v2 section 4, should You produce hardware based on this\nsource, You must where practicable maintain the Source Location visible\non the external case of the Gizmo or other products you make using this\nsource.\n
 $EndSCHEMATC

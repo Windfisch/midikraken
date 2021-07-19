@@ -1,3 +1,4 @@
 (sym_lib_table
   (lib (name bluepill)(type Legacy)(uri ../lib/bluepill.lib)(options "")(descr ""))
+  (lib (name perfboard-rescue)(type Legacy)(uri ${KIPRJMOD}/perfboard-rescue.lib)(options "")(descr ""))
 )

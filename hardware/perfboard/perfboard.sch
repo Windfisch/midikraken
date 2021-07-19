@@ -4,17 +4,17 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
-Title ""
+Title "Ghettokraken (perfboard prototype)"
 Date ""
-Rev ""
-Comp ""
-Comment1 ""
+Rev "00"
+Comp "Windfisch"
+Comment1 "This is not pin-compatible to the other midikraken boards!"
 Comment2 ""
 Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L bluepill:BluePill A1
+L perfboard-rescue:BluePill-bluepill A1
 U 1 1 605E4C70
 P 4550 3750
 F 0 "A1" H 4300 2800 60  0000 R CNN
@@ -1106,4 +1106,6 @@ F 3 "~" H 8850 4500 50  0001 C CNN
 	1    8850 4500
 	1    0    0    1   
 $EndComp
+Text Notes 525  7700 0    50   ~ 0
+Copyright (c) 2021 Florian Jung.\n\nThis source describes Open Hardware and is licensed under the CERN-OHL-S v2.\n\nYou may redistribute and modify this source and make products using it under\nthe terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt).\n\nThis source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,\nINCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A\nPARTICULAR PURPOSE. Please see the CERN-OHL-S v2 for applicable conditions.\n\nSource location: https://github.com/Windfisch/midikraken\n\nAs per CERN-OHL-S v2 section 4, should You produce hardware based on this\nsource, You must where practicable maintain the Source Location visible\non the external case of the Gizmo or other products you make using this\nsource.\n
 $EndSCHEMATC

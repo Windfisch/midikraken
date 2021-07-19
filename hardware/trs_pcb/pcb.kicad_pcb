@@ -2,7 +2,7 @@
 
   (general
     (thickness 1.6)
-    (drawings 31)
+    (drawings 32)
     (tracks 1506)
     (zones 0)
     (modules 125)
@@ -10,6 +10,16 @@
   )
 
   (page A4)
+  (title_block
+    (title "Midikraken TRS")
+    (rev 01)
+    (company Windfisch)
+    (comment 1 "Copyright (c) 2021 Florian Jung.\n")
+    (comment 2 "the terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt).\n")
+    (comment 3 "You may redistribute and modify this source and make products using it under\n")
+    (comment 4 "This source describes Open Hardware and is licensed under the CERN-OHL-S v2.\n")
+  )
+
   (layers
     (0 F.Cu signal)
     (31 B.Cu signal)
@@ -6721,6 +6731,9 @@
     )
   )
 
+  (gr_text "Copyright (c) 2021 Florian Jung.\n\nThis source describes Open Hardware and is licensed under the CERN-OHL-S v2.\n\nYou may redistribute and modify this source and make products using it under\nthe terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt).\n\nThis source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,\nINCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A\nPARTICULAR PURPOSE. Please see the CERN-OHL-S v2 for applicable conditions.\n\nSource location: https://github.com/Windfisch/midikraken\n\nAs per CERN-OHL-S v2 section 4, should You produce hardware based on this\nsource, You must where practicable maintain the Source Location visible\non the external case of the Gizmo or other products you make using this\nsource.\n" (at 186.766 140.386) (layer Cmts.User)
+    (effects (font (size 1.5 1.5) (thickness 0.15)) (justify left))
+  )
   (gr_text JLCJLCJLCJLC (at 125.966 151.386) (layer F.SilkS)
     (effects (font (size 0.9 0.9) (thickness 0.17)))
   )

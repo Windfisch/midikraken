@@ -1,3 +1,4 @@
 (sym_lib_table
   (lib (name bluepill)(type Legacy)(uri ../lib/bluepill.lib)(options "")(descr ""))
+  (lib (name din5_pcb-rescue)(type Legacy)(uri ${KIPRJMOD}/din5_pcb-rescue.lib)(options "")(descr ""))
 )

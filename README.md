@@ -76,31 +76,8 @@ stackable using M3 screws / spacers. Currently, the firmware must be
 adapted and recompiled according to the stack configuration. Currently,
 a maximum of 16 port pairs is supported.
 
-### Errata
-
-During powerup, the MIDI ports send garbage bits. To fix this,
-you likely need to disconnect the 74HC595s' *output enable* pins from GND
-using a sharp knife (and some wire to reconnect all GNDs that should stay
-connected), and connecting them like this instead:
-
-```
-+5V --- Capacitor 10µF --- OE pin --- Resistor 10k --- GND
-```
-
-This delays the output enable enough such that the shift registers can
-be filled with proper data after the microcontroller has booted up.
-
-Hardware (old)
---------------
-
-Schematics for the first prototype board were created with KiCAD and are
-located in [hardware/perfboard](hardware/perfboard).
-
-A 3D-printed enclosure (which needs some adjustments to fit well) was
-designed in FreeCAD and resides in [hardware/perfboard/cad/](hardware/perfboard/cad/).
-
-**Note**: You need to use the firmware from 7072a0c6eb or earlier due
-different pin assignment; or you reassign the pins.
+For details, revision history and errata, see
+[the hardware documentation](hardware/README.md).
 
 Debugging
 ---------

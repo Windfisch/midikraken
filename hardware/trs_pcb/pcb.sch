@@ -4,14 +4,14 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 3
-Title ""
+Title "Midikraken TRS"
 Date ""
-Rev ""
-Comp ""
-Comment1 ""
-Comment2 ""
-Comment3 ""
-Comment4 ""
+Rev "01"
+Comp "Windfisch"
+Comment1 "the terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt)."
+Comment2 "You may redistribute and modify this source and make products using it under "
+Comment3 "This source describes Open Hardware and is licensed under the CERN-OHL-S v2."
+Comment4 "Copyright (c) 2021 Florian Jung"
 $EndDescr
 $Comp
 L 74xx:74HC595 U103
@@ -117,7 +117,7 @@ L Device:R R101
 U 1 1 60B3B958
 P 3675 1275
 F 0 "R101" H 3745 1321 50  0000 L CNN
-F 1 "R" H 3745 1230 50  0000 L CNN
+F 1 "10k" H 3745 1230 50  0000 L CNN
 F 2 "Resistor_SMD:R_0805_2012Metric" V 3605 1275 50  0001 C CNN
 F 3 "~" H 3675 1275 50  0001 C CNN
 	1    3675 1275
@@ -459,4 +459,6 @@ F 3 "~" H 9700 5325 50  0001 C CNN
 	1    9700 5325
 	1    0    0    -1  
 $EndComp
+Text Notes 550  7725 0    50   ~ 0
+Copyright (c) 2021 Florian Jung.\n\nThis source describes Open Hardware and is licensed under the CERN-OHL-S v2.\n\nYou may redistribute and modify this source and make products using it under\nthe terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt).\n\nThis source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,\nINCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A\nPARTICULAR PURPOSE. Please see the CERN-OHL-S v2 for applicable conditions.\n\nSource location: https://github.com/Windfisch/midikraken\n\nAs per CERN-OHL-S v2 section 4, should You produce hardware based on this\nsource, You must where practicable maintain the Source Location visible\non the external case of the Gizmo or other products you make using this\nsource.\n
 $EndSCHEMATC

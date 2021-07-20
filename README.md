@@ -29,38 +29,6 @@ stable until then.)
 enough for up to 16 software UARTs (and likely even more), while leaving
 plenty of cpu cycles (25% for 16 UARTs) free for other work.
 
-Flashing without a bootloader
------------------------------
-
-  - Connect RX/TX of your uart/usb-adapter to PA9/PA8.
-  - Put the STM32 into download mode by setting BOOT0 high and resetting.
-  - `cd firmware`
-  - `make flash.bare.release` (assuming that `ttyUSB0` is your uart adapter)
-
-Flashing and using a bootloader
--------------------------------
-
-### Preparing the bootloader
-
-Building with the `--features=bootloader` flag enabled will relocate the
-program entry point to `FLASH + 0x2000`, allowing to use a bootloader.
-
-Follow [these steps](firmware/sboot/README.md) in order to build and
-initially flash the bootloader. You only need to perform this once.
-
-### Flashing the firmware
-
-Bootloader mode can be entered by sending the `firmware/sboot/bootloader.syx` sysex to
-the zeroth output of the midikraken (e.g. using `amidi -p hw:1,0,0 -s bootloader.syx`).
-
-If that does not work (e.g. because the firmware is not present or corrupt), pull
-PB12 low and reset.
-
-  - Connect the Midikraken to USB
-  - (in case of a defective firmware, pull PB12 low and reset)
-  - `cd firmware`
-  - `make flash.dfu.release` (will send the reset sysex automatically)
-
 Hardware
 --------
 
@@ -78,11 +46,47 @@ stackable using M3 screws / spacers. Currently, the firmware must be
 adapted and recompiled according to the stack configuration. Currently,
 a maximum of 16 port pairs is supported.
 
-For details, revision history and errata, see
-[the hardware documentation](hardware/README.md).
+For information on how to build the hardware, the revision history and errata,
+see [the hardware documentation](hardware/README.md).
 
-Debugging
----------
+
+Firmware
+--------
+
+The firmware is written in Rust. It can be used either bare metal or with a
+bootloader.
+
+### Flashing without a bootloader
+
+  - Connect RX/TX of your uart/usb-adapter to PA9/PA8.
+  - Put the STM32 into download mode by setting BOOT0 high and resetting.
+  - `cd firmware`
+  - `make flash.bare.release` (assuming that `ttyUSB0` is your uart adapter)
+
+### Flashing and using a bootloader
+
+#### Preparing the bootloader
+
+Building with the `--features=bootloader` flag enabled will relocate the
+program entry point to `FLASH + 0x2000`, allowing to use a bootloader.
+
+Follow [these steps](firmware/sboot/README.md) in order to build and
+initially flash the bootloader. You only need to perform this once.
+
+#### Flashing the firmware
+
+Bootloader mode can be entered by sending the `firmware/sboot/bootloader.syx` sysex to
+the zeroth output of the midikraken (e.g. using `amidi -p hw:1,0,0 -s bootloader.syx`).
+
+If that does not work (e.g. because the firmware is not present or corrupt), pull
+PB12 low and reset.
+
+  - Connect the Midikraken to USB
+  - (in case of a defective firmware, pull PB12 low and reset)
+  - `cd firmware`
+  - `make flash.dfu.release` (will send the reset sysex automatically)
+
+### Debugging
 
 printf-debugging can be seen on PA9/PA10 with 38400 baud. In the default
 configuration, you should see only
@@ -98,8 +102,7 @@ You can enable more debug information with the `debugprint` flag.
 
 Note that this degrades performance close to being unusable.
 
-Benchmarking
-------------
+### Benchmarking
 
 The software UART timer interrupt fires 93750x per second. This leaves
 only 768 cpu cycles per call to the ISR.

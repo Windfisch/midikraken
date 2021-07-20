@@ -14,6 +14,8 @@ a hardware arpeggiator etc.
 This project is still in development stage, but already works fine as a flexible
 as a MIDI-USB-interface.
 
+![Example of a Midikraken configuration](hardware/img/midikraken_trs_din_ui.jpg)
+
 How it works
 ------------
 

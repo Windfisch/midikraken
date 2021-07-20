@@ -126,3 +126,16 @@ The hardware designs in the [hardware](hardware) directory, excluding
 licensed under the terms of the [CERN OHL Version 2 license](cern_ohl_s_v2.txt).
 This specifically includes (but is not limited to) schematics, PCB designs and
 gerber files.
+
+Contributing
+------------
+
+I am happy about contributions, just open a pull request!
+
+**Note:** Even though Midikraken is licensed under GPLv3 and OHL-S-v2 (the exact
+versions), any contributions / pull requests must be licensed under the
+"GPLv3 *or any later version*" or "OHL-S-v2 *or any later version*", respectively.
+This is because on the one hand, I want to be able to update the project to new
+versions of these licenses, but on the other hand, I don't like licensing my work
+under a license (e.g. the hypothetical GPLv4) that I haven't even read yet. If such
+a license is released, I will likely adopt it after revising it.

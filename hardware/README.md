@@ -31,9 +31,9 @@ master.
 
 ### Bill of material
 
-[din5_pcb/bom.html](din5_pcb/bom.html)
+[din5_pcb/bom.html](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/bom.html)
 
-[trs_pcb/bom.html](trs_pcb/bom.html)
+[trs_pcb/bom.html](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/bom.html)
 
 
 ### Errata

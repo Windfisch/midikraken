@@ -29,6 +29,13 @@ possible.
 TRS boards are not able to house a microcontroller and thus can not serve as
 master.
 
+### Bill of material
+
+[din5_pcb/bom.html](din5_pcb/bom.html)
+
+[trs_pcb/bom.html](trs_pcb/bom.html)
+
+
 ### Errata
 
 During powerup, the MIDI ports send garbage bits. To fix this,

@@ -20,7 +20,7 @@ P 1000 1400
 AR Path="/60B467EC" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B467EC" Ref="J201"  Part="1" 
 F 0 "J201" H 982 1725 50  0000 C CNN
-F 1 "AudioJack3" H 982 1634 50  0000 C CNN
+F 1 "PJ324" H 982 1634 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 1000 1400 50  0001 C CNN
 F 3 "~" H 1000 1400 50  0001 C CNN
 	1    1000 1400
@@ -145,7 +145,7 @@ P 2600 975
 AR Path="/60B4682F" Ref="D?"  Part="1" 
 AR Path="/60B37C5E/60B4682F" Ref="D201"  Part="1" 
 F 0 "D201" V 2639 857 50  0000 R CNN
-F 1 "LED" V 2548 857 50  0000 R CNN
+F 1 "red" V 2548 857 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 2600 975 50  0001 C CNN
 F 3 "~" H 2600 975 50  0001 C CNN
 	1    2600 975 
@@ -212,7 +212,7 @@ P 1000 2975
 AR Path="/60B61B54" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B61B54" Ref="J202"  Part="1" 
 F 0 "J202" H 982 3300 50  0000 C CNN
-F 1 "AudioJack3" H 982 3209 50  0000 C CNN
+F 1 "PJ324" H 982 3209 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 1000 2975 50  0001 C CNN
 F 3 "~" H 1000 2975 50  0001 C CNN
 	1    1000 2975
@@ -337,7 +337,7 @@ P 2600 2550
 AR Path="/60B61CCF" Ref="D?"  Part="1" 
 AR Path="/60B37C5E/60B61CCF" Ref="D202"  Part="1" 
 F 0 "D202" V 2639 2432 50  0000 R CNN
-F 1 "LED" V 2548 2432 50  0000 R CNN
+F 1 "red" V 2548 2432 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 2600 2550 50  0001 C CNN
 F 3 "~" H 2600 2550 50  0001 C CNN
 	1    2600 2550
@@ -404,7 +404,7 @@ P 1000 4550
 AR Path="/60B6B56B" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B6B56B" Ref="J203"  Part="1" 
 F 0 "J203" H 982 4875 50  0000 C CNN
-F 1 "AudioJack3" H 982 4784 50  0000 C CNN
+F 1 "PJ324" H 982 4784 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 1000 4550 50  0001 C CNN
 F 3 "~" H 1000 4550 50  0001 C CNN
 	1    1000 4550
@@ -522,19 +522,6 @@ $EndComp
 Wire Wire Line
 	2400 4275 2400 4350
 Connection ~ 2400 4350
-$Comp
-L Device:LED D?
-U 1 1 60B6B7F2
-P 2600 4125
-AR Path="/60B6B7F2" Ref="D?"  Part="1" 
-AR Path="/60B37C5E/60B6B7F2" Ref="D203"  Part="1" 
-F 0 "D203" V 2639 4007 50  0000 R CNN
-F 1 "LED" V 2548 4007 50  0000 R CNN
-F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 2600 4125 50  0001 C CNN
-F 3 "~" H 2600 4125 50  0001 C CNN
-	1    2600 4125
-	0    -1   -1   0   
-$EndComp
 Wire Wire Line
 	2600 4575 2600 4750
 Wire Wire Line
@@ -596,7 +583,7 @@ P 1000 6125
 AR Path="/60B6B825" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B6B825" Ref="J204"  Part="1" 
 F 0 "J204" H 982 6450 50  0000 C CNN
-F 1 "AudioJack3" H 982 6359 50  0000 C CNN
+F 1 "PJ324" H 982 6359 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 1000 6125 50  0001 C CNN
 F 3 "~" H 1000 6125 50  0001 C CNN
 	1    1000 6125
@@ -721,7 +708,7 @@ P 2600 5700
 AR Path="/60B6B87E" Ref="D?"  Part="1" 
 AR Path="/60B37C5E/60B6B87E" Ref="D204"  Part="1" 
 F 0 "D204" V 2639 5582 50  0000 R CNN
-F 1 "LED" V 2548 5582 50  0000 R CNN
+F 1 "red" V 2548 5582 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 2600 5700 50  0001 C CNN
 F 3 "~" H 2600 5700 50  0001 C CNN
 	1    2600 5700
@@ -788,7 +775,7 @@ P 3750 1400
 AR Path="/60B935FD" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B935FD" Ref="J205"  Part="1" 
 F 0 "J205" H 3732 1725 50  0000 C CNN
-F 1 "AudioJack3" H 3732 1634 50  0000 C CNN
+F 1 "PJ324" H 3732 1634 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 3750 1400 50  0001 C CNN
 F 3 "~" H 3750 1400 50  0001 C CNN
 	1    3750 1400
@@ -913,7 +900,7 @@ P 5350 975
 AR Path="/60B93A9C" Ref="D?"  Part="1" 
 AR Path="/60B37C5E/60B93A9C" Ref="D205"  Part="1" 
 F 0 "D205" V 5389 857 50  0000 R CNN
-F 1 "LED" V 5298 857 50  0000 R CNN
+F 1 "red" V 5298 857 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 5350 975 50  0001 C CNN
 F 3 "~" H 5350 975 50  0001 C CNN
 	1    5350 975 
@@ -980,7 +967,7 @@ P 3750 2975
 AR Path="/60B93ACE" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B93ACE" Ref="J206"  Part="1" 
 F 0 "J206" H 3732 3300 50  0000 C CNN
-F 1 "AudioJack3" H 3732 3209 50  0000 C CNN
+F 1 "PJ324" H 3732 3209 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 3750 2975 50  0001 C CNN
 F 3 "~" H 3750 2975 50  0001 C CNN
 	1    3750 2975
@@ -1105,7 +1092,7 @@ P 5350 2550
 AR Path="/60B93B27" Ref="D?"  Part="1" 
 AR Path="/60B37C5E/60B93B27" Ref="D206"  Part="1" 
 F 0 "D206" V 5389 2432 50  0000 R CNN
-F 1 "LED" V 5298 2432 50  0000 R CNN
+F 1 "red" V 5298 2432 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 5350 2550 50  0001 C CNN
 F 3 "~" H 5350 2550 50  0001 C CNN
 	1    5350 2550
@@ -1172,7 +1159,7 @@ P 3750 4550
 AR Path="/60B93B59" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B93B59" Ref="J207"  Part="1" 
 F 0 "J207" H 3732 4875 50  0000 C CNN
-F 1 "AudioJack3" H 3732 4784 50  0000 C CNN
+F 1 "PJ324" H 3732 4784 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 3750 4550 50  0001 C CNN
 F 3 "~" H 3750 4550 50  0001 C CNN
 	1    3750 4550
@@ -1297,7 +1284,7 @@ P 5350 4125
 AR Path="/60B93BB2" Ref="D?"  Part="1" 
 AR Path="/60B37C5E/60B93BB2" Ref="D207"  Part="1" 
 F 0 "D207" V 5389 4007 50  0000 R CNN
-F 1 "LED" V 5298 4007 50  0000 R CNN
+F 1 "red" V 5298 4007 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 5350 4125 50  0001 C CNN
 F 3 "~" H 5350 4125 50  0001 C CNN
 	1    5350 4125
@@ -1364,7 +1351,7 @@ P 3750 6125
 AR Path="/60B93BE4" Ref="J?"  Part="1" 
 AR Path="/60B37C5E/60B93BE4" Ref="J208"  Part="1" 
 F 0 "J208" H 3732 6450 50  0000 C CNN
-F 1 "AudioJack3" H 3732 6359 50  0000 C CNN
+F 1 "PJ324" H 3732 6359 50  0000 C CNN
 F 2 "footprints:Jack_3.5mm_combo_ledino_upright" H 3750 6125 50  0001 C CNN
 F 3 "~" H 3750 6125 50  0001 C CNN
 	1    3750 6125
@@ -1489,7 +1476,7 @@ P 5350 5700
 AR Path="/60B93C3D" Ref="D?"  Part="1" 
 AR Path="/60B37C5E/60B93C3D" Ref="D208"  Part="1" 
 F 0 "D208" V 5389 5582 50  0000 R CNN
-F 1 "LED" V 5298 5582 50  0000 R CNN
+F 1 "red" V 5298 5582 50  0000 R CNN
 F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 5350 5700 50  0001 C CNN
 F 3 "~" H 5350 5700 50  0001 C CNN
 	1    5350 5700
@@ -1551,4 +1538,17 @@ Wire Wire Line
 	5150 5550 4775 5550
 Text Notes 7950 6450 0    50   ~ 0
 Copyright (c) 2021 Florian Jung.\n\nThis source describes Open Hardware and is licensed under the CERN-OHL-S v2.\n\nYou may redistribute and modify this source and make products using it under\nthe terms of the CERN-OHL-S v2 (https://ohwr.org/cern_ohl_s_v2.txt).\n\nThis source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,\nINCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A\nPARTICULAR PURPOSE. Please see the CERN-OHL-S v2 for applicable conditions.\n\nSource location: https://github.com/Windfisch/midikraken\n\nAs per CERN-OHL-S v2 section 4, should You produce hardware based on this\nsource, You must where practicable maintain the Source Location visible\non the external case of the Gizmo or other products you make using this\nsource.\n
+$Comp
+L Device:LED D?
+U 1 1 60B6B7F2
+P 2600 4125
+AR Path="/60B6B7F2" Ref="D?"  Part="1" 
+AR Path="/60B37C5E/60B6B7F2" Ref="D203"  Part="1" 
+F 0 "D203" V 2639 4007 50  0000 R CNN
+F 1 "red" V 2548 4007 50  0000 R CNN
+F 2 "LED_THT:LED_D3.0mm_Horizontal_O6.35mm_Z2.0mm" H 2600 4125 50  0001 C CNN
+F 3 "~" H 2600 4125 50  0001 C CNN
+	1    2600 4125
+	0    -1   -1   0   
+$EndComp
 $EndSCHEMATC

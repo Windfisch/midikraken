@@ -43,6 +43,33 @@ connected), and connecting them like this instead:
 This delays the output enable enough such that the shift registers can
 be filled with proper data after the microcontroller has booted up.
 
+#### Fixing the DIN board
+
+On the front side, cut trace A that connects U2's pin 13 to GND. The cut
+is marked in red.
+
+![Front side](img/din5_rev01_patch_front.png)
+
+On the back side, cut the two traces at B that connect the same pin to GND.
+Then solder a 10k resistor between pins B and C. Solder a 10uF capacitor
+to pin D, and connect the other end of the capacitor to pin B using enameled
+cupper wire.
+
+![Back side](img/din5_rev01_patch_back.png)
+
+In the end, the fix could look like this:
+
+![Photo of the fixed board](img/din5_rev01_patch_photo.jpg)
+
+#### Fixing the TRS board
+
+On the front side, cut the two traces marked in red. Then wire a capacitor from
+B to C and a resistor from A to B. Doing this once is enough since both ICs' OE
+pins are still connected with each other.
+
+![Front side](img/trs_rev01_patch_front.png)
+
+
 ### Eurorack compatibility
 
 Please note that Midikraken was designed as a standalone adapter box. However,

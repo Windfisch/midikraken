@@ -1,4 +1,4 @@
-18932829307932788
+18921463961915788
 Battery
 BatteryHolder_Bulgin_BX0036_1xC
 Bulgin Battery Holder, BX0036, Battery Type C (https://www.bulgin.com/products/pub/media/bulgin/data/Battery_holders.pdf)
@@ -81718,13 +81718,6 @@ BLUEPILL-blackpill
 40
 38
 footprints
-DD39AJPA
-
-
-0
-5
-5
-footprints
 DIN5
 
 
@@ -81738,48 +81731,6 @@ jack stereo TRS
 0
 8
 5
-footprints
-Molex_52044_3445
-
-
-0
-34
-34
-footprints
-SolderDipJumper
-
-
-0
-2
-2
-footprints
-SolderDipJumper2alt
-
-
-0
-2
-2
-footprints
-SolderDipJumper3
-
-
-0
-3
-3
-footprints
-SolderDipJumper3alt
-
-
-0
-3
-3
-footprints
-SolderDipJumper4alt
-
-
-0
-4
-4
 footprints
 din5-frickel
 

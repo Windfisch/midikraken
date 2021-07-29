@@ -203,7 +203,7 @@ const APP: () = {
 		usb_midi_buffer: UsbMidiBuffer,
 	}
 
-	#[init(spawn=[benchmark_task, mainloop])]
+	#[init(spawn=[benchmark_task])]
 	fn init(cx : init::Context) -> init::LateResources {
 		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
 		static mut SOFTWARE_UART: Option<SoftwareUart<NumPortPairs>> = None;
@@ -332,8 +332,6 @@ const APP: () = {
 			writeln!(tx, "spawned").ok();
 		}
 
-		#[cfg(not(feature = "benchmark"))]
-		cx.spawn.mainloop().unwrap();
 
 		return init::LateResources { tx, mytimer, queue, usb_dev, midi,
 			sw_uart_tx, sw_uart_rx, sw_uart_isr,
@@ -357,36 +355,51 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer, bootloader_sysex_statemachine], priority = 2)]
-	fn mainloop(mut c: mainloop::Context) {
-		loop {
-			usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
+	#[task(resources = [tx, display, delay])]
+	fn gui_task(mut c: gui_task::Context) {
+		c.resources.tx.lock(|tx| { writeln!(tx, "display initializing...").ok() });
+		c.resources.display.init(c.resources.delay).unwrap();
+		c.resources.display.hard_reset(c.resources.delay).unwrap();
+		c.resources.display.init(c.resources.delay).unwrap();
+		c.resources.display.set_orientation(st7789::Orientation::Landscape).unwrap();
 
-			for cable in 0..NumPortPairs::USIZE {
-				if c.resources.sw_uart_tx.clear_to_send(cable) {
-					if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
-						#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-						c.resources.sw_uart_tx.send_byte(cable, byte);
-					}
-					else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
-						#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-						c.resources.sw_uart_tx.send_byte(cable, byte);
-					}
+		use embedded_graphics::pixelcolor::Rgb565;
+		use embedded_graphics::prelude::*;
+		c.resources.display.clear(Rgb565::RED).unwrap();
+
+		c.resources.tx.lock(|tx| { writeln!(tx, "display done").ok() });
+
+
+	}
+
+	#[task(binds = USB_LP_CAN_RX0, resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer, bootloader_sysex_statemachine], priority = 2)]
+	fn usb_isr(mut c: usb_isr::Context) {
+		usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
+
+		for cable in 0..NumPortPairs::USIZE {
+			if c.resources.sw_uart_tx.clear_to_send(cable) {
+				if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
+					#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+					c.resources.sw_uart_tx.send_byte(cable, byte);
+				}
+				else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
+					#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+					c.resources.sw_uart_tx.send_byte(cable, byte);
 				}
 			}
+		}
 
-			while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
-				//write!(c.resources.tx, "({},{:02X}) ", cable, byte).ok();
-				if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
-					#[cfg(feature = "debugprint")] write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok();
-					usb_message[0] |= cable << 4;
-					let ret = c.resources.midi.send_bytes(usb_message);
+		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
+			//write!(c.resources.tx, "({},{:02X}) ", cable, byte).ok();
+			if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
+				#[cfg(feature = "debugprint")] write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok();
+				usb_message[0] |= cable << 4;
+				let ret = c.resources.midi.send_bytes(usb_message);
 
-					#[cfg(feature = "debugprint")]
-					match ret {
-						Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size).ok(); }
-						Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error).ok(); }
-					}
+				#[cfg(feature = "debugprint")]
+				match ret {
+					Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size).ok(); }
+					Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error).ok(); }
 				}
 			}
 		}

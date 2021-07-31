@@ -261,7 +261,7 @@ const APP: () = {
 			dp.USART1,
 			(gpio_tx, gpio_rx),
 			&mut afio.mapr,
-			serial::Config::default().baudrate(38400.bps()),
+			serial::Config::default().baudrate(115200.bps()),
 			clocks,
 			&mut rcc.apb2
 		);

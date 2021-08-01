@@ -292,9 +292,9 @@ const APP: () = {
 		let usb_bus = USB_BUS.as_ref().unwrap();
 
 		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, NumPortPairs::U8, NumPortPairs::U8).unwrap();
-		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
+		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x1209, 0x2E80))
 			.manufacturer("Windfisch")
-			.product("Midikraken x4")
+			.product("Midikraken")
 			.serial_number("TEST")
 			.device_class(usbd_midi::data::usb::constants::USB_CLASS_NONE)
 			.build();

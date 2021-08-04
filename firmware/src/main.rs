@@ -201,9 +201,12 @@ const APP: () = {
 		>>,
 
 		usb_midi_buffer: UsbMidiBuffer,
+
+		display: st7789::ST7789<display_interface_spi::SPIInterfaceNoCS<spi::Spi<stm32f1xx_hal::pac::SPI2, spi::Spi2NoRemap, (gpiob::PB13<Alternate<PushPull>>, spi::NoMiso, gpiob::PB15<Alternate<PushPull>>), u8>, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
+		delay: stm32f1xx_hal::delay::Delay,
 	}
 
-	#[init(spawn=[benchmark_task])]
+	#[init(spawn=[benchmark_task, gui_task])]
 	fn init(cx : init::Context) -> init::LateResources {
 		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
 		static mut SOFTWARE_UART: Option<SoftwareUart<NumPortPairs>> = None;
@@ -226,6 +229,7 @@ const APP: () = {
 
 		assert!(clocks.usbclk_valid());
 
+		let delay = stm32f1xx_hal::delay::Delay::new(cx.core.SYST, clocks);
 
 		// GPIO and peripheral configuration
 		let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
@@ -273,6 +277,16 @@ const APP: () = {
 		writeln!(tx, "      bootloader enabled").ok();
 		writeln!(tx, "========================================================\n").ok();
 
+
+		// Configure the display
+		let display_reset = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
+		let display_dc = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
+		let display_clk = gpiob.pb13.into_alternate_push_pull(&mut gpiob.crh);
+		let display_mosi = gpiob.pb15.into_alternate_push_pull(&mut gpiob.crh);
+		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 10.mhz(), clocks, &mut rcc.apb1);
+		let di = display_interface_spi::SPIInterfaceNoCS::new(display_spi, display_dc);
+		let display = st7789::ST7789::new(di, display_reset, 240, 240);
+		
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
 		// Pull the D+ pin down to send a RESET condition to the USB bus.
@@ -332,6 +346,7 @@ const APP: () = {
 			writeln!(tx, "spawned").ok();
 		}
 
+		cx.spawn.gui_task().unwrap();
 
 		return init::LateResources { tx, mytimer, queue, usb_dev, midi,
 			sw_uart_tx, sw_uart_rx, sw_uart_isr,
@@ -342,7 +357,9 @@ const APP: () = {
 			usb_midi_buffer: UsbMidiBuffer::new(),
 			bootloader_sysex_statemachine: BootloaderSysexStatemachine::new(),
 			dma_transfer: Some(spi_dma_transfer),
-			spi_strobe_pin
+			spi_strobe_pin,
+			display,
+			delay
 		};
 	}
 

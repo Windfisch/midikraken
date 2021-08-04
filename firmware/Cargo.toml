@@ -19,6 +19,12 @@ heapless = "0.6"
 parse_midi = { path = "../lib/parse_midi" }
 generic-array = "0.14"
 
+display-interface = "0.4"
+display-interface-spi = "0.4"
+embedded-graphics = "0.7"
+st7789 = "0.6"
+
+
 usb-device = { version = ">=0.2.1", features = ["control-buffer-1024"] }
 usbd-midi = { path="../lib/usbd-midi" }
 embedded-hal = ">=0.2.3"

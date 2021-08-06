@@ -24,6 +24,7 @@ flash.dfu.%: %.dfu.bin reboot
 
 reboot: sboot/bootloader.syx
 	bash -c 'PORT=`amidi -l | grep "Midikraken.*" | head -n 1 | grep -o "hw:\S*"`; if [ x$$PORT != x ]; then amidi -p $$PORT -s $<; sleep 1.5; echo "Ok"; else echo "No device connected"; fi'
+	sleep 0.5
 
 .PHONY: debug.bare.bin debug.dfu.bin release.bare.bin release.dfu.bin
 

@@ -224,7 +224,7 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 	/** Handles the received bits and returns a bitset indicating which UARTs have finished
 		receiving. Call `recv_byte` to retrieve the received bytes.
 		Must be called in a timer interrupt running at 3x the baud rate. */
-	pub fn process(&mut self, in_bits: u16) -> u16 {
+	pub fn process(&mut self, in_bits: u16) -> (u16, u16) {
 		let next_phase = (self.phase + 1) % 3;
 
 		// handle the received bits
@@ -261,6 +261,7 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 		self.recv_active[self.phase] &= !recv_finished;
 
 		// handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
+		let mut sendbuf_consumed = 0;
 		let send_batchsize: usize = (NumUarts::USIZE+2) / 3;
 		let send_buffers = unsafe { addr_of_mut!((*self.registers).send_buffers) };
 		let first = self.phase * send_batchsize;
@@ -271,6 +272,9 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 					workbuf = read_volatile(addr_of!((*send_buffers)[i]));
 					write_volatile(addr_of_mut!((*send_buffers)[i]), UART_SEND_IDLE);
 				}
+				if workbuf != UART_SEND_IDLE {
+					sendbuf_consumed |= 1 << i;
+				}
 			}
 			
 			self.out_bits |= (workbuf & 1) << i;
@@ -278,6 +282,6 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 		}
 
 		self.phase = next_phase;
-		return recv_finished;
+		return (recv_finished, sendbuf_consumed);
 	}
 }

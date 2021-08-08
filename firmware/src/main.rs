@@ -24,7 +24,7 @@ mod software_uart;
 use software_uart::*;
 
 use rtic::app;
-use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, gpioa, gpiob, gpioc}};
+use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, PullUp, gpioa, gpiob, gpioc}};
 use core::fmt::Write;
 
 use stm32f1xx_hal::time::Hertz;
@@ -204,6 +204,8 @@ const APP: () = {
 
 		display: st7789::ST7789<display_interface_spi::SPIInterfaceNoCS<spi::Spi<stm32f1xx_hal::pac::SPI2, spi::Spi2NoRemap, (gpiob::PB13<Alternate<PushPull>>, spi::NoMiso, gpiob::PB15<Alternate<PushPull>>), u8>, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
 		delay: stm32f1xx_hal::delay::Delay,
+
+		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<Floating>>, gpiob::PB7<Input<Floating>>)> // FIXME LIES
 	}
 
 	#[init(spawn=[benchmark_task, gui_task])]
@@ -319,6 +321,17 @@ const APP: () = {
 			.start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
+		let pb6 = unsafe { core::mem::transmute::<gpiob::PB6<Input<PullUp>>,gpiob::PB6<Input<Floating>>>(gpiob.pb6.into_pull_up_input(&mut gpiob.crl)) };
+		let pb7 = unsafe { core::mem::transmute::<gpiob::PB7<Input<PullUp>>,gpiob::PB7<Input<Floating>>>(gpiob.pb7.into_pull_up_input(&mut gpiob.crl)) };
+		let knob_timer = timer::Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1).qei(
+			(pb6, pb7),
+			&mut afio.mapr,
+			stm32f1xx_hal::qei::QeiOptions {
+				slave_mode: stm32f1xx_hal::qei::SlaveMode::EncoderMode3,
+				auto_reload_value: 65535
+			}
+		);
+
 		let queue = unsafe { Queue::u16_sc() };
 		
 		#[cfg(feature = "benchmark")]
@@ -359,7 +372,8 @@ const APP: () = {
 			dma_transfer: Some(spi_dma_transfer),
 			spi_strobe_pin,
 			display,
-			delay
+			delay,
+			knob_timer
 		};
 	}
 
@@ -372,27 +386,8 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, display, delay])]
-	fn gui_task(mut c: gui_task::Context) {
-		c.resources.tx.lock(|tx| { writeln!(tx, "display initializing...").ok() });
-		c.resources.display.init(c.resources.delay).unwrap();
-		c.resources.display.hard_reset(c.resources.delay).unwrap();
-		c.resources.display.init(c.resources.delay).unwrap();
-		c.resources.display.set_orientation(st7789::Orientation::Landscape).unwrap();
-
-		use embedded_graphics::pixelcolor::Rgb565;
-		use embedded_graphics::prelude::*;
-		c.resources.display.clear(Rgb565::RED).unwrap();
-
-		c.resources.tx.lock(|tx| { writeln!(tx, "display done").ok() });
-
-
-	}
-
-	#[task(binds = USB_LP_CAN_RX0, resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, sw_uart_tx, usb_midi_buffer, bootloader_sysex_statemachine], priority = 2)]
-	fn usb_isr(mut c: usb_isr::Context) {
-		usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
-
+	#[task(resources = [queue, tx, sw_uart_tx, midi_out_queues], priority = 2)]
+	fn send_task(c: send_task::Context) {
 		for cable in 0..NumPortPairs::USIZE {
 			if c.resources.sw_uart_tx.clear_to_send(cable) {
 				if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
@@ -405,16 +400,53 @@ const APP: () = {
 				}
 			}
 		}
+	}
+
+	#[task(resources = [tx, display, delay, knob_timer])]
+	fn gui_task(mut c: gui_task::Context) {
+		c.resources.tx.lock(|tx| { writeln!(tx, "display initializing...").ok() });
+		c.resources.display.init(c.resources.delay).unwrap();
+		c.resources.display.hard_reset(c.resources.delay).unwrap();
+		c.resources.display.init(c.resources.delay).unwrap();
+		c.resources.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
+
+
+		use embedded_graphics::{
+			mono_font::{ascii::FONT_10X20, MonoTextStyle},
+				pixelcolor::Rgb565,
+				prelude::*,
+				text::Text,
+		};
+
+		c.resources.display.clear(Rgb565::RED).unwrap();
+
+		let style = MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE);
+		Text::new("Hello Display!", Point::new(20, 80 + 20), style).draw(c.resources.display).unwrap();
+
+		c.resources.tx.lock(|tx| { writeln!(tx, "display done").ok() });
+
+		loop {
+			Text::new("Hello", Point::new(c.resources.knob_timer.count() as i32, 80 + 20), style).draw(c.resources.display).unwrap();
+			let count = c.resources.knob_timer.count();
+			//c.resources.tx.lock(|tx| { writeln!(tx, "knob: {}", count).ok() });
+		}
+	}
+
+	#[task(binds = USB_LP_CAN_RX0, spawn = [send_task], resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, usb_midi_buffer, bootloader_sysex_statemachine], priority = 2)]
+	fn usb_isr(mut c: usb_isr::Context) {
+		usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
+
+		c.spawn.send_task().ok();
 
 		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
 			//write!(c.resources.tx, "({},{:02X}) ", cable, byte).ok();
 			if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
 				#[cfg(feature = "debugprint")] write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok();
 				usb_message[0] |= cable << 4;
-				let ret = c.resources.midi.send_bytes(usb_message);
+				let _ret = c.resources.midi.send_bytes(usb_message);
 
 				#[cfg(feature = "debugprint")]
-				match ret {
+				match _ret {
 					Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size).ok(); }
 					Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error).ok(); }
 				}
@@ -438,7 +470,7 @@ const APP: () = {
 		});
 	}
 
-	#[task(binds = TIM2, spawn=[byte_received], resources = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=100)]
+	#[task(binds = TIM2, spawn=[byte_received, send_task], resources = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=100)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
 
 		#[cfg(feature = "benchmark")]
@@ -496,8 +528,12 @@ const APP: () = {
 			unsafe { &DMA_BUFFER.transmit }
 		));
 
-		if c.resources.sw_uart_isr.process((in_bits & 0xFFFF) as u16) != 0 {
+		let (recv_finished, sendbuf_consumed) = c.resources.sw_uart_isr.process((in_bits & 0xFFFF) as u16);
+		if recv_finished != 0 {
 			c.spawn.byte_received().ok();
+		}
+		if sendbuf_consumed != 0 {
+			c.spawn.send_task().ok();
 		}
 
 		#[cfg(feature = "benchmark")]

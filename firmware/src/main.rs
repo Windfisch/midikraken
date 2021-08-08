@@ -515,7 +515,7 @@ const APP: () = {
 					((out_bits & 0x00F0) as u32) << 4 |
 					((out_bits & 0x0F00) as u32) << 8 |
 					((out_bits & 0xF000) as u32) << 12;
-				let mask = 0xF00FF0F0;
+				let mask = 0xF0F00FF0;
 				let raw_out_bits = (chunked_out_bits | (chunked_out_bits << 4)) | mask;
 				//dma_buffer.transmit = (out_bits as u32).reverse_bits().to_le_bytes();
 				dma_buffer.transmit = (raw_out_bits as u32).to_be_bytes();

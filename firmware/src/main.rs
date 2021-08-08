@@ -204,7 +204,7 @@ const APP: () = {
 		display: st7789::ST7789<display_interface_spi::SPIInterfaceNoCS<spi::Spi<stm32f1xx_hal::pac::SPI2, spi::Spi2NoRemap, (gpiob::PB13<Alternate<PushPull>>, spi::NoMiso, gpiob::PB15<Alternate<PushPull>>), u8>, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
 		delay: stm32f1xx_hal::delay::Delay,
 
-		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<Floating>>, gpiob::PB7<Input<Floating>>)> // FIXME LIES
+		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>
 	}
 
 	#[init(spawn=[benchmark_task, gui_task])]
@@ -319,10 +319,8 @@ const APP: () = {
 			.start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
-		let pb6 = unsafe { core::mem::transmute::<gpiob::PB6<Input<PullUp>>,gpiob::PB6<Input<Floating>>>(gpiob.pb6.into_pull_up_input(&mut gpiob.crl)) };
-		let pb7 = unsafe { core::mem::transmute::<gpiob::PB7<Input<PullUp>>,gpiob::PB7<Input<Floating>>>(gpiob.pb7.into_pull_up_input(&mut gpiob.crl)) };
 		let knob_timer = timer::Timer::tim4(dp.TIM4, &clocks).qei(
-			(pb6, pb7),
+			(gpiob.pb6.into_pull_up_input(&mut gpiob.crl), gpiob.pb7.into_pull_up_input(&mut gpiob.crl)),
 			&mut afio.mapr,
 			stm32f1xx_hal::qei::QeiOptions {
 				slave_mode: stm32f1xx_hal::qei::SlaveMode::EncoderMode3,

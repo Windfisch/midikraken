@@ -636,7 +636,7 @@ dependencies = [
 [[package]]
 name = "stm32f1xx-hal"
 version = "0.7.0"
-source = "git+https://github.com/stm32-rs/stm32f1xx-hal#5776ccd780041a7669c0a9d7099de6d18226d679"
+source = "git+https://github.com/Windfisch/stm32f1xx-hal?branch=allow_pullup_inputs_and_opendrain_outputs#5d9d6c17ad0c70393cd8294d4743f098477347ac"
 dependencies = [
  "bxcan",
  "cast",

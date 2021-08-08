@@ -18,8 +18,6 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use embedded_hal::digital::v2::OutputPin;
-
 mod software_uart;
 use software_uart::*;
 
@@ -72,9 +70,9 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 	loop {
 		let mut blink_thrice = |delay: u32| {
 			for _ in 0..3 {
-				led.set_low().ok();
+				led.set_low();
 				cortex_m::asm::delay(5000000*delay);
-				led.set_high().ok();
+				led.set_high();
 				cortex_m::asm::delay(10000000);
 			}
 			cortex_m::asm::delay(10000000);
@@ -190,10 +188,11 @@ const APP: () = {
 			dma::W,
 			(&'static mut [u8; 4], &'static [u8; 4]),
 			dma::RxTxDma<
-				spi::SpiPayload<
+				spi::Spi<
 					stm32::SPI1,
 					spi::Spi1Remap,
-					(gpiob::PB3<Alternate<PushPull>>, gpiob::PB4<Input<Floating>>, gpiob::PB5<Alternate<PushPull>>)
+					(gpiob::PB3<Alternate<PushPull>>, gpiob::PB4<Input<Floating>>, gpiob::PB5<Alternate<PushPull>>),
+					u8
 				>,
 				dma::dma1::C2,
 				dma::dma1::C3
@@ -234,29 +233,29 @@ const APP: () = {
 		let delay = stm32f1xx_hal::delay::Delay::new(cx.core.SYST, clocks);
 
 		// GPIO and peripheral configuration
-		let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
-		let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
-		let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
-		let mut gpioc = dp.GPIOC.split(&mut rcc.apb2);
+		let mut afio = dp.AFIO.constrain();
+		let mut gpioa = dp.GPIOA.split();
+		let mut gpiob = dp.GPIOB.split();
+		let mut gpioc = dp.GPIOC.split();
 
 		// Configure the on-board LED (PC13, green)
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
-		led.set_high().ok(); // Turn off
+		led.set_high(); // Turn off
 
 		let (pa15, pb3, pb4) = afio.mapr.disable_jtag(gpioa.pa15, gpiob.pb3, gpiob.pb4);
 
-		let mut spi_strobe_pin = gpioc.pc14.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::State::Low); // controls shift registers
+		let mut spi_strobe_pin = gpioc.pc14.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::PinState::Low); // controls shift registers
 		let clk = pb3.into_alternate_push_pull(&mut gpiob.crl);
 		let miso = pb4.into_floating_input(&mut gpiob.crl);
 		let mosi = gpiob.pb5.into_alternate_push_pull(&mut gpiob.crl);
 
-		let mut spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks, &mut rcc.apb2);
+		let mut spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks);
 
 		spi.transfer(&mut [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
 		spi_strobe_pin.set_high();
 
 
-		let dma = dp.DMA1.split(&mut rcc.ahb);
+		let dma = dp.DMA1.split();
 		let spi_dma = spi.with_rx_tx_dma(dma.2, dma.3);
 		let spi_dma_transfer = spi_dma.read_write(unsafe { &mut DMA_BUFFER.received } , unsafe { &DMA_BUFFER.transmit });
 
@@ -268,8 +267,7 @@ const APP: () = {
 			(gpio_tx, gpio_rx),
 			&mut afio.mapr,
 			serial::Config::default().baudrate(115200.bps()),
-			clocks,
-			&mut rcc.apb2
+			clocks
 		);
 		let (mut tx, _rx) = serial.split();
 		writeln!(tx, "========================================================").ok();
@@ -285,7 +283,7 @@ const APP: () = {
 		let display_dc = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
 		let display_clk = gpiob.pb13.into_alternate_push_pull(&mut gpiob.crh);
 		let display_mosi = gpiob.pb15.into_alternate_push_pull(&mut gpiob.crh);
-		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 10.mhz(), clocks, &mut rcc.apb1);
+		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 10.mhz(), clocks);
 		let di = display_interface_spi::SPIInterfaceNoCS::new(display_spi, display_dc);
 		let display = st7789::ST7789::new(di, display_reset, 240, 240);
 		
@@ -293,7 +291,7 @@ const APP: () = {
 		// BluePill board has a pull-up resistor on the D+ line.
 		// Pull the D+ pin down to send a RESET condition to the USB bus.
 		let mut usb_dp = gpioa.pa12.into_push_pull_output(&mut gpioa.crh);
-		usb_dp.set_low().ok();
+		usb_dp.set_low();
 		cortex_m::asm::delay(clocks.sysclk().0 / 100);
 		
 		let usb_dm = gpioa.pa11;
@@ -317,13 +315,13 @@ const APP: () = {
 	
 		
 		let mut mytimer =
-			timer::Timer::tim2(dp.TIM2, &clocks, &mut rcc.apb1)
+			timer::Timer::tim2(dp.TIM2, &clocks)
 			.start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
 		let pb6 = unsafe { core::mem::transmute::<gpiob::PB6<Input<PullUp>>,gpiob::PB6<Input<Floating>>>(gpiob.pb6.into_pull_up_input(&mut gpiob.crl)) };
 		let pb7 = unsafe { core::mem::transmute::<gpiob::PB7<Input<PullUp>>,gpiob::PB7<Input<Floating>>>(gpiob.pb7.into_pull_up_input(&mut gpiob.crl)) };
-		let knob_timer = timer::Timer::tim4(dp.TIM4, &clocks, &mut rcc.apb1).qei(
+		let knob_timer = timer::Timer::tim4(dp.TIM4, &clocks).qei(
 			(pb6, pb7),
 			&mut afio.mapr,
 			stm32f1xx_hal::qei::QeiOptions {
@@ -482,7 +480,7 @@ const APP: () = {
 
 		// handle the SPI DMA
 		let (_, spi_dma) = c.resources.dma_transfer.take().unwrap().wait();
-		c.resources.spi_strobe_pin.set_low().unwrap();
+		c.resources.spi_strobe_pin.set_low();
 
 		let mut in_bits: u32;
 		{
@@ -522,7 +520,7 @@ const APP: () = {
 			}
 		}
 
-		c.resources.spi_strobe_pin.set_high().unwrap();
+		c.resources.spi_strobe_pin.set_high();
 		*c.resources.dma_transfer = Some(spi_dma.read_write(
 			unsafe { &mut DMA_BUFFER.received },
 			unsafe { &DMA_BUFFER.transmit }

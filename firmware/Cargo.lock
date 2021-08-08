@@ -612,11 +612,11 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "stm32-usbd"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70d13eca735cae37df697f599777b000cc0ee924df8452f2b4bfaa6798ab0338"
+checksum = "c6c94998f166d66b210a164648a0b7866428d8f1e0740bf8a4c5edd89d4750c1"
 dependencies = [
- "cortex-m 0.6.7",
+ "cortex-m 0.7.2",
  "usb-device",
  "vcell",
 ]
@@ -636,7 +636,7 @@ dependencies = [
 [[package]]
 name = "stm32f1xx-hal"
 version = "0.7.0"
-source = "git+https://github.com/Windfisch/stm32f1xx-hal?branch=spi_dma_rx_pr#e6796e07056fa898cfc73f46d38363a794ced4cd"
+source = "git+https://github.com/stm32-rs/stm32f1xx-hal#5776ccd780041a7669c0a9d7099de6d18226d679"
 dependencies = [
  "bxcan",
  "cast",

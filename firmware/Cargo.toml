@@ -39,6 +39,7 @@ usb-device = { git = "https://github.com/Windfisch/usb-device", branch = "descri
 
 [profile.dev]
 opt-level = "z"
+codegen-units = 1
 debug = true
 lto = true
 [profile.release]

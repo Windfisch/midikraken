@@ -1,7 +1,7 @@
 all: debug.bin release.bin
 
 release.bare.bin:
-	cargo build --target=thumbv7m-none-eabi --release --features=debugprint
+	cargo build --target=thumbv7m-none-eabi --release
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/release/midikraken $@
 
 debug.bare.bin:
@@ -9,7 +9,7 @@ debug.bare.bin:
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/debug/midikraken $@
 
 release.dfu.bin:
-	cargo build --target=thumbv7m-none-eabi --release --features=bootloader,debugprint
+	cargo build --target=thumbv7m-none-eabi --release --features=bootloader
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/release/midikraken $@
 
 debug.dfu.bin:

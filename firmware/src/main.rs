@@ -37,6 +37,10 @@ use parse_midi::MidiToUsbParser;
 
 use software_uart::typenum::Unsigned;
 
+#[macro_use]
+mod str_writer;
+use str_writer::*;
+
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 
@@ -60,8 +64,8 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 
 	let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
 
-	writeln!(tx, "Panic!").ok();
-	writeln!(tx, "{}", info).ok();
+	//writeln!(tx, "Panic!").ok();
+	//writeln!(tx, "{}", info).ok();
 
 
 	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
@@ -204,7 +208,8 @@ const APP: () = {
 		display: st7789::ST7789<display_interface_spi::SPIInterfaceNoCS<spi::Spi<stm32f1xx_hal::pac::SPI2, spi::Spi2NoRemap, (gpiob::PB13<Alternate<PushPull>>, spi::NoMiso, gpiob::PB15<Alternate<PushPull>>), u8>, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
 		delay: stm32f1xx_hal::delay::Delay,
 
-		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>
+		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>,
+		knob_button: gpioc::PC15<Input<PullUp>>
 	}
 
 	#[init(spawn=[benchmark_task, gui_task])]
@@ -270,12 +275,13 @@ const APP: () = {
 			clocks
 		);
 		let (mut tx, _rx) = serial.split();
-		writeln!(tx, "========================================================").ok();
+		/*writeln!(tx, "========================================================").ok();
 		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		#[cfg(bootloader)]
 		writeln!(tx, "      bootloader enabled").ok();
 		writeln!(tx, "========================================================\n").ok();
+		*/
 
 
 		// Configure the display
@@ -313,7 +319,6 @@ const APP: () = {
 			.device_class(usbd_midi::data::usb::constants::USB_CLASS_NONE)
 			.build();
 	
-		
 		let mut mytimer =
 			timer::Timer::tim2(dp.TIM2, &clocks)
 			.start_count_down(Hertz(31250 * 3));
@@ -327,6 +332,7 @@ const APP: () = {
 				auto_reload_value: 65535
 			}
 		);
+		let knob_button = gpioc.pc15.into_pull_up_input(&mut gpioc.crh);
 
 		let queue = unsafe { Queue::u16_sc() };
 		
@@ -369,7 +375,8 @@ const APP: () = {
 			spi_strobe_pin,
 			display,
 			delay,
-			knob_timer
+			knob_timer,
+			knob_button
 		};
 	}
 
@@ -398,9 +405,8 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, display, delay, knob_timer])]
+	#[task(resources = [tx, display, delay, knob_timer, knob_button])]
 	fn gui_task(mut c: gui_task::Context) {
-		c.resources.tx.lock(|tx| { writeln!(tx, "display initializing...").ok() });
 		c.resources.display.init(c.resources.delay).unwrap();
 		c.resources.display.hard_reset(c.resources.delay).unwrap();
 		c.resources.display.init(c.resources.delay).unwrap();
@@ -408,23 +414,101 @@ const APP: () = {
 
 
 		use embedded_graphics::{
-			mono_font::{ascii::FONT_10X20, MonoTextStyle},
+			mono_font::{ascii::FONT_9X15, MonoTextStyleBuilder},
 				pixelcolor::Rgb565,
 				prelude::*,
 				text::Text,
 		};
 
-		c.resources.display.clear(Rgb565::RED).unwrap();
+		c.resources.display.clear(Rgb565::BLACK).unwrap();
 
-		let style = MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE);
-		Text::new("Hello Display!", Point::new(20, 80 + 20), style).draw(c.resources.display).unwrap();
+		let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
+		let hl_style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::RED).build();
+		let dial_style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLUE).build();
+		Text::new("Routing Matrix", Point::new(20, 80 + 20), style).draw(c.resources.display).unwrap();
 
-		c.resources.tx.lock(|tx| { writeln!(tx, "display done").ok() });
 
+		let mut buf = [0u8; 20];
+		for i in 0..8 {
+			Text::new(slfmt!(&mut buf, "{}", i), Point::new(30 + 20*i, 80+40), style).draw(c.resources.display).unwrap();
+			Text::new(slfmt!(&mut buf, "{}", i), Point::new(10, 80+60 + 20*i), style).draw(c.resources.display).unwrap();
+		}
+		let mut values = [[0u8; 8]; 8];
+		for x in 0..8 {
+			for y in 0..8 {
+				Text::new(slfmt!(&mut buf, "{}", values[x as usize][y as usize]), Point::new(30 + 20*x, 80+60 + 20*y), style).draw(c.resources.display).unwrap();
+			}
+		}
+
+		let mut ox = 0;
+		let mut oy = 0;
+		let mut ob = false;
+		let mut old_pressed = false;
+		let mut debounce = 0u8;
+		enum State {
+			Select(u16),
+			Dial(u16, u16, u16),
+		}
+		let mut state = State::Select(0);
 		loop {
-			Text::new("Hello", Point::new(c.resources.knob_timer.count() as i32, 80 + 20), style).draw(c.resources.display).unwrap();
-			let count = c.resources.knob_timer.count();
-			//c.resources.tx.lock(|tx| { writeln!(tx, "knob: {}", count).ok() });
+			c.resources.delay.delay_ms(1u8);
+
+			let count = c.resources.knob_timer.count() / 4;
+
+			let pressed = c.resources.knob_button.is_low();
+			if pressed != old_pressed {
+				debounce = 25;
+				old_pressed = pressed;
+			}
+			let button_event = pressed && debounce == 1;
+			if debounce > 0 { debounce -= 1; }
+
+			let mut needs_redraw = false;
+			let (x,y, back) = match state {
+				State::Select(base) => {
+					let pos = count.wrapping_sub(base) % 65;
+					let x = pos % 8;
+					let y = (pos / 8) % 8;
+
+					if button_event {
+						state = State::Dial(x, y, count.wrapping_sub(values[x as usize][y as usize] as u16));
+						needs_redraw = true;
+					}
+
+					(x, y, pos == 64)
+				}
+				State::Dial(x, y, base) => {
+					let new = count.wrapping_sub(base) as u8 % 10;
+					if new != values[x as usize][y as usize] {
+						values[x as usize][y as usize] = new;
+						needs_redraw = true;
+					}
+					if button_event {
+						state = State::Select(count.wrapping_sub(x + 8*y));
+						needs_redraw = true;
+					}
+					(x, y, false)
+				}
+			};
+
+			if (ox, oy) != (x, y) || needs_redraw {
+				Text::new(
+					slfmt!(&mut buf, "{}", values[x as usize][y as usize]),
+					Point::new(30 + 20*(x as i32), 80+60 + 20*(y as i32)),
+					match state {
+						State::Select(_) => hl_style,
+						State::Dial(_,_,_) => dial_style,
+					}
+				).draw(c.resources.display).unwrap();
+			}
+			if (ox, oy) != (x,y) {
+				Text::new(slfmt!(&mut buf, "{}", values[ox as usize][oy as usize]), Point::new(30 + 20*(ox as i32), 80+60 + 20*(oy as i32)), style).draw(c.resources.display).unwrap();
+				ox = x; oy = y;
+			}
+			if ob != back {
+				Text::new("Back", Point::new(10, 80+230), if back { hl_style } else { style }).draw(c.resources.display).unwrap();
+				ob = back;
+			}
 		}
 	}
 

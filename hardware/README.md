@@ -70,6 +70,7 @@ The following components need or need not be mounted on the PCB:
 - *(B2)*: do not mount the components from *(B1)*, instead run a copper wire across *TODO*.
 - *(C)*: mount or do not mount J8 and SW1.
 - *(D2)*: Close JP1-4, and close JP5-8 according to your selection in *(E)*.
+- *(E2)*: Do not equip U1.
 - *(F)*: Configure JP9 accordingly.
 - *(X2)*: Close JP102 and do not mount Jx05-Jx08, and all LEDs and resistors on this side.
  Also do not mount U205-U208.
@@ -162,4 +163,6 @@ usual perfboards lack.
 
 **Note**: You need to use the firmware from 7072a0c6eb or earlier due
 different pin assignment; or you reassign the pins.
+
+This roughly resembles the *(D2, E2)* configuration
 

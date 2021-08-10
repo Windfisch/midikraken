@@ -41,6 +41,8 @@ use software_uart::typenum::Unsigned;
 mod str_writer;
 use str_writer::*;
 
+mod gui;
+
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 
@@ -408,52 +410,32 @@ const APP: () = {
 	#[task(resources = [tx, display, delay, knob_timer, knob_button])]
 	fn gui_task(mut c: gui_task::Context) {
 		c.resources.display.init(c.resources.delay).unwrap();
-		c.resources.display.hard_reset(c.resources.delay).unwrap();
-		c.resources.display.init(c.resources.delay).unwrap();
 		c.resources.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
 
-
 		use embedded_graphics::{
-			mono_font::{ascii::FONT_9X15, MonoTextStyleBuilder},
 				pixelcolor::Rgb565,
 				prelude::*,
-				text::Text,
 		};
 
 		c.resources.display.clear(Rgb565::BLACK).unwrap();
 
-		let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
-		let hl_style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::RED).build();
-		let dial_style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLUE).build();
-		Text::new("Routing Matrix", Point::new(20, 80 + 20), style).draw(c.resources.display).unwrap();
-
-
-		let mut buf = [0u8; 20];
-		for i in 0..8 {
-			Text::new(slfmt!(&mut buf, "{}", i), Point::new(30 + 20*i, 80+40), style).draw(c.resources.display).unwrap();
-			Text::new(slfmt!(&mut buf, "{}", i), Point::new(10, 80+60 + 20*i), style).draw(c.resources.display).unwrap();
-		}
+		let mut gui = gui::GridState::new();
 		let mut values = [[0u8; 8]; 8];
-		for x in 0..8 {
-			for y in 0..8 {
-				Text::new(slfmt!(&mut buf, "{}", values[x as usize][y as usize]), Point::new(30 + 20*x, 80+60 + 20*y), style).draw(c.resources.display).unwrap();
-			}
-		}
 
-		let mut ox = 0;
-		let mut oy = 0;
-		let mut ob = false;
 		let mut old_pressed = false;
 		let mut debounce = 0u8;
-		enum State {
-			Select(u16),
-			Dial(u16, u16, u16),
-		}
-		let mut state = State::Select(0);
+		let mut old_count = c.resources.knob_timer.count() / 4;
+		const MAX_COUNT: isize = 65536 / 4;
 		loop {
 			c.resources.delay.delay_ms(1u8);
 
 			let count = c.resources.knob_timer.count() / 4;
+			let scroll_raw = count as isize - old_count as isize;
+			let scroll =
+				if scroll_raw >= MAX_COUNT / 2 { scroll_raw - MAX_COUNT }
+				else if scroll_raw <= -MAX_COUNT / 2 { scroll_raw + MAX_COUNT }
+				else { scroll_raw } as i16;
+			old_count = count;
 
 			let pressed = c.resources.knob_button.is_low();
 			if pressed != old_pressed {
@@ -463,52 +445,13 @@ const APP: () = {
 			let button_event = pressed && debounce == 1;
 			if debounce > 0 { debounce -= 1; }
 
-			let mut needs_redraw = false;
-			let (x,y, back) = match state {
-				State::Select(base) => {
-					let pos = count.wrapping_sub(base) % 65;
-					let x = pos % 8;
-					let y = (pos / 8) % 8;
-
-					if button_event {
-						state = State::Dial(x, y, count.wrapping_sub(values[x as usize][y as usize] as u16));
-						needs_redraw = true;
-					}
-
-					(x, y, pos == 64)
-				}
-				State::Dial(x, y, base) => {
-					let new = count.wrapping_sub(base) as u8 % 10;
-					if new != values[x as usize][y as usize] {
-						values[x as usize][y as usize] = new;
-						needs_redraw = true;
-					}
-					if button_event {
-						state = State::Select(count.wrapping_sub(x + 8*y));
-						needs_redraw = true;
-					}
-					(x, y, false)
-				}
-			};
-
-			if (ox, oy) != (x, y) || needs_redraw {
-				Text::new(
-					slfmt!(&mut buf, "{}", values[x as usize][y as usize]),
-					Point::new(30 + 20*(x as i32), 80+60 + 20*(y as i32)),
-					match state {
-						State::Select(_) => hl_style,
-						State::Dial(_,_,_) => dial_style,
-					}
-				).draw(c.resources.display).unwrap();
-			}
-			if (ox, oy) != (x,y) {
-				Text::new(slfmt!(&mut buf, "{}", values[ox as usize][oy as usize]), Point::new(30 + 20*(ox as i32), 80+60 + 20*(oy as i32)), style).draw(c.resources.display).unwrap();
-				ox = x; oy = y;
-			}
-			if ob != back {
-				Text::new("Back", Point::new(10, 80+230), if back { hl_style } else { style }).draw(c.resources.display).unwrap();
-				ob = back;
-			}
+			gui.process(scroll, button_event, false, &mut values,
+				|val, inc| { *val = (*val as i16 + inc).rem_euclid(10) as u8; },
+				|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
+				false,
+				"Clock Routing / Division",
+				c.resources.display
+			);
 		}
 	}
 

@@ -13,7 +13,8 @@ enum GridEditingMode {
 }
 
 pub enum GridAction {
-	Continue,
+	NoAction,
+	ValueUpdated,
 	Exit,
 	EnterMenu(usize, usize)
 }
@@ -138,6 +139,8 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 			self.redraw_pending = false;
 		}
 
+		let mut updated = false;
+
 		let selected = Self::entry(self.position);
 
 		match self.state {
@@ -151,6 +154,7 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 								}
 								false => {
 									increment(&mut data[x][y], 1);
+									updated = true;
 								}
 							}
 						}
@@ -171,6 +175,7 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 					Entry::Element(x, y) => {
 						if scroll != 0 {
 							increment(&mut data[x][y], scroll);
+							updated = true;
 						}
 						if press {
 							self.state = GridEditingMode::Selecting;
@@ -195,6 +200,11 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 			self.draw_update(new_selected, true, data, &stringify, draw_target);
 		}
 		
-		GridAction::Continue
+		if updated {
+			return GridAction::ValueUpdated;
+		}
+		else {
+			return GridAction::NoAction;
+		}
 	}
 }

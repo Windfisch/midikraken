@@ -292,13 +292,13 @@ const APP: () = {
 			clocks
 		);
 		let (mut tx, _rx) = serial.split();
-		/*writeln!(tx, "========================================================").ok();
+		writeln!(tx, "========================================================").ok();
 		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		#[cfg(bootloader)]
 		writeln!(tx, "      bootloader enabled").ok();
 		writeln!(tx, "========================================================\n").ok();
-		*/
+		
 
 
 		// Configure the display
@@ -397,16 +397,50 @@ const APP: () = {
 		};
 	}
 
-	#[task(resources = [queue, sw_uart_rx], priority = 8)]
+	#[task(spawn = [handle_received_byte], resources = [queue, sw_uart_rx], priority = 99)]
 	fn byte_received(c: byte_received::Context) {
 		for i in 0..NumPortPairs::USIZE {
 			if let Some(byte) = c.resources.sw_uart_rx.recv_byte(i) {
 				c.resources.queue.enqueue((i as u8, byte)).ok(); // we can't do anything about this failing
 			}
 		}
+		c.spawn.handle_received_byte().ok();
 	}
 
-	#[task(resources = [queue, tx, sw_uart_tx, midi_out_queues], priority = 2)]
+	#[task(spawn = [send_task], resources = [tx, queue, midi_parsers, midi, event_routing_table, clock_routing_table, midi_out_queues], priority = 40)]
+	fn handle_received_byte(mut c: handle_received_byte::Context) {
+		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
+			if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
+				usb_message[0] |= cable << 4;
+
+				// send to usb
+				#[cfg(feature = "debugprint")] c.resources.tx.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
+				let _ret = c.resources.midi.lock(|midi| midi.send_bytes(usb_message));
+				#[cfg(feature = "debugprint")]
+				match _ret {
+					Ok(size) => { c.resources.tx.lock(|tx| write!(tx, "wrote {} bytes to usb\n", size).ok()); }
+					Err(error) => { c.resources.tx.lock(|tx| write!(tx, "error writing to usb: {:?}\n", error).ok()); }
+				}
+
+				// process for internal routing
+				if (cable as usize) < c.resources.event_routing_table.len() {
+					let cable_in = cable as usize;
+					for cable_out in 0..c.resources.event_routing_table[cable_in].len() {
+						match c.resources.event_routing_table[cable_in][cable_out] {
+							EventRouteMode::Both => {
+								// TODO this is not right
+								c.resources.midi_out_queues.lock(|qs| enqueue_all(usb_message, &mut qs[cable_out].normal));
+								c.spawn.send_task().ok();
+							}
+							_ => {} // TODO
+						}
+					}
+				}
+			}
+		}
+	}
+
+	#[task(resources = [tx, sw_uart_tx, midi_out_queues], priority = 50)]
 	fn send_task(c: send_task::Context) {
 		for cable in 0..NumPortPairs::USIZE {
 			if c.resources.sw_uart_tx.clear_to_send(cable) {
@@ -422,7 +456,7 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, display, delay, knob_timer, knob_button, event_routing_table, clock_routing_table])]
+	#[task(resources = [tx, display, delay, knob_timer, knob_button, event_routing_table, clock_routing_table], priority = 1)]
 	fn gui_task(mut c: gui_task::Context) {
 		c.resources.display.init(c.resources.delay).unwrap();
 		c.resources.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
@@ -464,13 +498,16 @@ const APP: () = {
 			let button_event = pressed && debounce == 1;
 			if debounce > 0 { debounce -= 1; }
 
+			let mut event_routing_table = c.resources.event_routing_table.lock(|t| *t);
+			let mut clock_routing_table = c.resources.clock_routing_table.lock(|t| *t);
+
 			match active_menu {
 				ActiveMenu::EventRouting(ref mut grid_state) => {
 					let result = grid_state.process(
 						scroll,
 						button_event,
 						false,
-						c.resources.event_routing_table,
+						&mut event_routing_table,
 						|val, _inc| {
 							*val = match *val {
 								EventRouteMode::None => EventRouteMode::Keyboard,
@@ -493,6 +530,7 @@ const APP: () = {
 					);
 					match result {
 						gui::GridAction::Exit => { active_menu = ActiveMenu::ClockRouting(gui::GridState::new()) }
+						gui::GridAction::ValueUpdated => { c.resources.event_routing_table.lock(|t| *t = event_routing_table); }
 						_ => {}
 					}
 				}
@@ -501,7 +539,7 @@ const APP: () = {
 						scroll,
 						button_event,
 						false,
-						c.resources.clock_routing_table,
+						&mut clock_routing_table,
 						|val, inc| { *val = (*val as i16 + inc).rem_euclid(10) as u8; },
 						|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
 						true,
@@ -510,6 +548,7 @@ const APP: () = {
 					);
 					match result {
 						gui::GridAction::Exit => { active_menu = ActiveMenu::EventRouting(gui::GridState::new()) }
+						gui::GridAction::ValueUpdated => { c.resources.clock_routing_table.lock(|t| *t = clock_routing_table); }
 						_ => {}
 					}
 				}
@@ -518,26 +557,11 @@ const APP: () = {
 		}
 	}
 
-	#[task(binds = USB_LP_CAN_RX0, spawn = [send_task], resources = [tx, queue, midi_parsers, midi_out_queues, usb_dev, midi, usb_midi_buffer, bootloader_sysex_statemachine], priority = 2)]
+	#[task(binds = USB_LP_CAN_RX0, spawn = [send_task], resources = [midi_out_queues, usb_dev, midi, usb_midi_buffer, bootloader_sysex_statemachine], priority = 50)]
 	fn usb_isr(mut c: usb_isr::Context) {
 		usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
 
 		c.spawn.send_task().ok();
-
-		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
-			//write!(c.resources.tx, "({},{:02X}) ", cable, byte).ok();
-			if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
-				#[cfg(feature = "debugprint")] write!(c.resources.tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok();
-				usb_message[0] |= cable << 4;
-				let _ret = c.resources.midi.send_bytes(usb_message);
-
-				#[cfg(feature = "debugprint")]
-				match _ret {
-					Ok(size) => { write!(c.resources.tx, "wrote {} bytes to usb\n", size).ok(); }
-					Err(error) => { write!(c.resources.tx, "error writing to usb: {:?}\n", error).ok(); }
-				}
-			}
-		}
 	}
 
 	#[cfg(feature = "benchmark")]
@@ -575,7 +599,7 @@ const APP: () = {
 			// this is safe in and only in this scope, since the DMA transfers are currently halted
 			let dma_buffer = unsafe { &mut DMA_BUFFER };
 
-			in_bits = u32::from_be_bytes(dma_buffer.received).reverse_bits();
+			in_bits = u32::from_le_bytes(dma_buffer.received);
 
 			// FIXME make this configurable
 			if true {
@@ -638,6 +662,9 @@ const APP: () = {
 		fn EXTI0();
 		fn EXTI1();
 		fn EXTI2();
+		fn EXTI3();
+		fn EXTI4();
+		fn EXTI5();
     }
 };
 
@@ -672,6 +699,20 @@ impl UsbMidiBuffer {
 	}
 }
 
+fn enqueue_all<T: generic_array::ArrayLength<u8>>(message: [u8; 4], queue: &mut Queue<u8, T, u16, heapless::spsc::SingleCore>) -> bool
+{
+	let len = parse_midi::payload_length(message[0]);
+	if queue.len() + len as u16 <= queue.capacity() {
+		for i in 0..len {
+			queue.enqueue(message[1+i as usize]).unwrap();
+		}
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 fn usb_poll<B: bus::UsbBus>(
 	usb_dev: &mut UsbDevice<'static, B>,
 	midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
@@ -694,21 +735,15 @@ fn usb_poll<B: bus::UsbBus>(
 			}
 		}
 		else {
-			let queue = &mut midi_out_queues[cable as usize].normal;
-			let len = parse_midi::payload_length(message[0]);
-			if queue.len() + len as u16 <= queue.capacity() {
-				for i in 0..len {
-					queue.enqueue(message[1+i as usize]).unwrap();
-				}
+			if enqueue_all(message, &mut midi_out_queues[cable as usize].normal) {
+				buffer.acknowledge();
 			}
 			else {
 				break;
 			}
 
-			buffer.acknowledge();
-
 			if cable == 0 {
-				for i in 0..len {
+				for i in 0..parse_midi::payload_length(message[0]) {
 					bootloader_sysex_statemachine.push(message[1+i as usize]);
 				}
 			}

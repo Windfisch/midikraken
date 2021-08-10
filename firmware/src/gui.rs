@@ -98,6 +98,8 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 	)
 		where for<'a> STRINGIFY: Fn(&T, &'a [u8]) -> &'a str
 	{
+		draw_target.clear(Rgb565::BLACK).ok().unwrap();
+
 		let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
 
 		Text::new(title, Point::new(20, 80 + 20), style).draw(draw_target).ok().unwrap();

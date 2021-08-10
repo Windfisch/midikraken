@@ -114,6 +114,15 @@ fn benchmark(phase: i8) -> u16 {
 	}
 }
 
+#[derive(Copy,Clone)]
+pub enum EventRouteMode {
+	None,
+	Keyboard,
+	Controller,
+	Both
+}
+
+
 pub struct MidiOutQueue {
 	realtime: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
 	normal: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
@@ -211,7 +220,13 @@ const APP: () = {
 		delay: stm32f1xx_hal::delay::Delay,
 
 		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>,
-		knob_button: gpioc::PC15<Input<PullUp>>
+		knob_button: gpioc::PC15<Input<PullUp>>,
+
+		#[init([[EventRouteMode::None; 8]; 8])]
+		event_routing_table: [[EventRouteMode; 8]; 8],
+		#[init([[0u8; 8]; 8])]
+		clock_routing_table: [[u8; 8]; 8]
+
 	}
 
 	#[init(spawn=[benchmark_task, gui_task])]
@@ -407,7 +422,7 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, display, delay, knob_timer, knob_button])]
+	#[task(resources = [tx, display, delay, knob_timer, knob_button, event_routing_table, clock_routing_table])]
 	fn gui_task(mut c: gui_task::Context) {
 		c.resources.display.init(c.resources.delay).unwrap();
 		c.resources.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
@@ -419,8 +434,12 @@ const APP: () = {
 
 		c.resources.display.clear(Rgb565::BLACK).unwrap();
 
-		let mut gui = gui::GridState::new();
-		let mut values = [[0u8; 8]; 8];
+		enum ActiveMenu {
+			EventRouting(gui::GridState<EventRouteMode, 8, 8>),
+			ClockRouting(gui::GridState<u8, 8, 8>),
+		}
+
+		let mut active_menu = ActiveMenu::EventRouting(gui::GridState::new());
 
 		let mut old_pressed = false;
 		let mut debounce = 0u8;
@@ -445,13 +464,57 @@ const APP: () = {
 			let button_event = pressed && debounce == 1;
 			if debounce > 0 { debounce -= 1; }
 
-			gui.process(scroll, button_event, false, &mut values,
-				|val, inc| { *val = (*val as i16 + inc).rem_euclid(10) as u8; },
-				|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
-				false,
-				"Clock Routing / Division",
-				c.resources.display
-			);
+			match active_menu {
+				ActiveMenu::EventRouting(ref mut grid_state) => {
+					let result = grid_state.process(
+						scroll,
+						button_event,
+						false,
+						c.resources.event_routing_table,
+						|val, _inc| {
+							*val = match *val {
+								EventRouteMode::None => EventRouteMode::Keyboard,
+								EventRouteMode::Keyboard => EventRouteMode::Controller,
+								EventRouteMode::Controller => EventRouteMode::Both,
+								EventRouteMode::Both => EventRouteMode::None,
+							}
+						},
+						|val, _| {
+							match *val {
+								EventRouteMode::None => " ",
+								EventRouteMode::Keyboard => "K",
+								EventRouteMode::Controller => "C",
+								EventRouteMode::Both => "B",
+							}
+						},
+						false,
+						"Event Routing",
+						c.resources.display
+					);
+					match result {
+						gui::GridAction::Exit => { active_menu = ActiveMenu::ClockRouting(gui::GridState::new()) }
+						_ => {}
+					}
+				}
+				ActiveMenu::ClockRouting(ref mut grid_state) => {
+					let result = grid_state.process(
+						scroll,
+						button_event,
+						false,
+						c.resources.clock_routing_table,
+						|val, inc| { *val = (*val as i16 + inc).rem_euclid(10) as u8; },
+						|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
+						true,
+						"Clock Routing/Division",
+						c.resources.display
+					);
+					match result {
+						gui::GridAction::Exit => { active_menu = ActiveMenu::EventRouting(gui::GridState::new()) }
+						_ => {}
+					}
+				}
+			}
+
 		}
 	}
 

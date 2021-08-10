@@ -22,7 +22,7 @@ generic-array = "0.14"
 display-interface = "0.4"
 display-interface-spi = "0.4"
 embedded-graphics = "0.7"
-st7789 = "0.6"
+st7789 = { version = "0.6", features = ["batch"] }
 
 
 usb-device = { version = ">=0.2.1", features = ["control-buffer-1024"] }
@@ -43,7 +43,20 @@ codegen-units = 1
 debug = true
 lto = true
 [profile.release]
-opt-level = 3
+opt-level = "s"
 codegen-units = 1
 debug = true
 lto = true
+
+[profile.release.package.st7789]
+opt-level = 3
+[profile.release.package.display-interface]
+opt-level = 3
+[profile.release.package.display-interface-spi]
+opt-level = 3
+[profile.release.package.embedded-graphics]
+opt-level = 3
+[profile.release.package.stm32f1xx-hal]
+opt-level = 3
+[profile.release.package.stm32f1]
+opt-level = 3

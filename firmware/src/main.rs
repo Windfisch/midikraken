@@ -306,7 +306,7 @@ const APP: () = {
 		let display_dc = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
 		let display_clk = gpiob.pb13.into_alternate_push_pull(&mut gpiob.crh);
 		let display_mosi = gpiob.pb15.into_alternate_push_pull(&mut gpiob.crh);
-		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 10.mhz(), clocks);
+		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 18.mhz(), clocks);
 		let di = display_interface_spi::SPIInterfaceNoCS::new(display_spi, display_dc);
 		let display = st7789::ST7789::new(di, display_reset, 240, 240);
 		
@@ -409,6 +409,8 @@ const APP: () = {
 
 	#[task(spawn = [send_task], resources = [tx, queue, midi_parsers, midi, event_routing_table, clock_routing_table, midi_out_queues], priority = 40)]
 	fn handle_received_byte(mut c: handle_received_byte::Context) {
+		static mut clock_count: [u16; 8] = [0; 8];
+
 		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
 			if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
 				usb_message[0] |= cable << 4;
@@ -423,17 +425,41 @@ const APP: () = {
 				}
 
 				// process for internal routing
-				if (cable as usize) < c.resources.event_routing_table.len() {
+				let is_transport = match usb_message[1] { 0xF1 | 0xF2 | 0xF3 | 0xFA | 0xFC => true, _ => false };
+				let is_clock = usb_message[1] == 0xF8;
+				let is_control_ish = match usb_message[0] & 0x0F { 0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true, _ => false };
+				let is_keyboard_ish = match usb_message[0] & 0x0F { 0x8 | 0x9 | 0xA | 0xD => true, _ => false };
+
+				assert!(c.resources.event_routing_table.len() == c.resources.clock_routing_table.len());
+				assert!(c.resources.event_routing_table[0].len() == c.resources.clock_routing_table[0].len());
+				assert!(c.resources.event_routing_table[0].len() == clock_count.len());
+				if (cable as usize) < c.resources.event_routing_table[0].len() {
 					let cable_in = cable as usize;
-					for cable_out in 0..c.resources.event_routing_table[cable_in].len() {
-						match c.resources.event_routing_table[cable_in][cable_out] {
-							EventRouteMode::Both => {
-								// TODO this is not right
-								c.resources.midi_out_queues.lock(|qs| enqueue_all(usb_message, &mut qs[cable_out].normal));
-								c.spawn.send_task().ok();
-							}
-							_ => {} // TODO
+					
+					for cable_out in 0..c.resources.event_routing_table.len() {
+						let forward_event = match c.resources.event_routing_table[cable_out][cable_in] {
+							EventRouteMode::Both => is_control_ish || is_keyboard_ish,
+							EventRouteMode::Controller => is_control_ish,
+							EventRouteMode::Keyboard => is_keyboard_ish,
+							EventRouteMode::None => false
+						};
+
+						let forward_clock = match c.resources.clock_routing_table[cable_out][cable_in] {
+							0 => false,
+							division => is_transport || (is_clock && clock_count[cable_in] % (division as u16) == 0)
+						};
+
+						if forward_event || forward_clock {
+							c.resources.midi_out_queues.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
+							c.spawn.send_task().ok();
 						}
+					}
+
+					if usb_message[1] == 0xFA { // start
+						clock_count[cable_in] = 0;
+					}
+					if usb_message[1] == 0xF8 { // clock
+						clock_count[cable_in] = (clock_count[cable_in] + 1) % 27720; // 27720 is the least common multiple of 1,2,...,12
 					}
 				}
 			}
@@ -699,8 +725,18 @@ impl UsbMidiBuffer {
 	}
 }
 
-fn enqueue_all<T: generic_array::ArrayLength<u8>>(message: [u8; 4], queue: &mut Queue<u8, T, u16, heapless::spsc::SingleCore>) -> bool
-{
+fn enqueue_message(message: [u8; 4], queue: &mut MidiOutQueue) -> bool {
+	let is_realtime = message[1] & 0xF8 == 0xF8;
+
+	if is_realtime {
+		return queue.realtime.enqueue(message[1]).is_ok();
+	}
+	else {
+		return enqueue_all_bytes(message, &mut queue.normal);
+	}
+}
+
+fn enqueue_all_bytes<T: generic_array::ArrayLength<u8>>(message: [u8; 4], queue: &mut Queue<u8, T, u16, heapless::spsc::SingleCore>) -> bool {
 	let len = parse_midi::payload_length(message[0]);
 	if queue.len() + len as u16 <= queue.capacity() {
 		for i in 0..len {
@@ -713,7 +749,7 @@ fn enqueue_all<T: generic_array::ArrayLength<u8>>(message: [u8; 4], queue: &mut 
 	}
 }
 
-fn usb_poll<B: bus::UsbBus>(
+fn usb_poll<B: bus::UsbBus>( // FIXME inline that function in the usb_isr
 	usb_dev: &mut UsbDevice<'static, B>,
 	midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
 	midi_out_queues: &mut [MidiOutQueue; 16],
@@ -726,27 +762,17 @@ fn usb_poll<B: bus::UsbBus>(
 		let cable = (message[0] & 0xF0) >> 4;
 		let is_realtime = message[1] & 0xF8 == 0xF8;
 
-		if is_realtime {
-			if midi_out_queues[cable as usize].realtime.enqueue(message[1]).is_ok() {
-				buffer.acknowledge();
-			}
-			else {
-				break;
-			}
+		if enqueue_message(message, &mut midi_out_queues[cable as usize]) {
+			buffer.acknowledge();
 		}
 		else {
-			if enqueue_all(message, &mut midi_out_queues[cable as usize].normal) {
-				buffer.acknowledge();
+			break;
+		}
+		
+		if !is_realtime && cable == 0 {
+			for i in 0..parse_midi::payload_length(message[0]) {
+				bootloader_sysex_statemachine.push(message[1+i as usize]);
 			}
-			else {
-				break;
-			}
-
-			if cable == 0 {
-				for i in 0..parse_midi::payload_length(message[0]) {
-					bootloader_sysex_statemachine.push(message[1+i as usize]);
-				}
-			}
-		};
+		}
 	}
 }

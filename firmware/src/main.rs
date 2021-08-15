@@ -184,37 +184,35 @@ type TxDmaSpi2 = dma::TxDma<
 	>;
 
 
-pub struct WriteDmaToWriteAdapter<const N: usize>
+pub struct WriteDmaToWriteAdapter
 {
 	write_dma: Option<TxDmaSpi2>
 }
 
-unsafe impl<const N: usize> Send for WriteDmaToWriteAdapter<N> {}
+unsafe impl Send for WriteDmaToWriteAdapter {}
 
 
-impl<const N: usize> WriteDmaToWriteAdapter<N>
+impl WriteDmaToWriteAdapter
 {
-	pub fn new(write_dma: TxDmaSpi2) -> WriteDmaToWriteAdapter<N> {
+	pub fn new(write_dma: TxDmaSpi2) -> WriteDmaToWriteAdapter {
 		WriteDmaToWriteAdapter {
 			write_dma: Some(write_dma)
 		}
 	}
 }
 
-impl<const N: usize> embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteAdapter<N>
+impl embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteAdapter
 {
 	type Error = ();
 
 	fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-		for chunk in words.chunks(N) {
-			unsafe {
-				// SAFETY: we will drop this reference before leaving the function
-				let chunk_static = core::mem::transmute::<&[u8], &'static [u8]>(chunk);
-				// SAFETY: no DMA operation is in progress
-				let transfer = self.write_dma.take().unwrap().write(chunk_static);
-				let (_, txdma) = transfer.wait();
-				self.write_dma = Some(txdma);
-			}
+		unsafe {
+			// SAFETY: we will drop this reference before leaving the function
+			let words_static = core::mem::transmute::<&[u8], &'static [u8]>(words);
+			// SAFETY: no DMA operation is in progress
+			let transfer = self.write_dma.take().unwrap().write(words_static);
+			let (_, txdma) = transfer.wait();
+			self.write_dma = Some(txdma);
 		}
 		Ok(())
 	}
@@ -264,7 +262,7 @@ const APP: () = {
 		usb_midi_buffer: UsbMidiBuffer,
 
 		display: st7789::ST7789<
-			display_interface_spi::SPIInterfaceNoCS<WriteDmaToWriteAdapter<128>, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
+			display_interface_spi::SPIInterfaceNoCS<WriteDmaToWriteAdapter, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
 		delay: stm32f1xx_hal::delay::Delay,
 
 		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>,

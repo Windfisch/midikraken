@@ -66,8 +66,8 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 
 	let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
 
-	//writeln!(tx, "Panic!").ok();
-	//writeln!(tx, "{}", info).ok();
+	writeln!(tx, "Panic!").ok();
+	writeln!(tx, "{}", info).ok();
 
 
 	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
@@ -173,7 +173,68 @@ impl DmaPair {
 	pub const fn zero() -> DmaPair { DmaPair { transmit: [0xFF; 4], received: [0; 4] } }
 }
 
+type TxDmaSpi2 = dma::TxDma<
+		spi::Spi<
+			stm32::SPI2,
+			spi::Spi2NoRemap,
+			(gpiob::PB13<Alternate<PushPull>>, stm32f1xx_hal::spi::NoMiso, gpiob::PB15<Alternate<PushPull>>),
+			u8
+		>,
+		dma::dma1::C5,
+	>;
+
+
+pub struct WriteDmaToWriteAdapter<const N: usize>
+{
+	buffer: *mut [u8; N],
+	write_dma: Option<TxDmaSpi2>
+}
+
+unsafe impl<const N: usize> Send for WriteDmaToWriteAdapter<N> {}
+
+
+impl<const N: usize> WriteDmaToWriteAdapter<N>
+{
+	pub fn new(buffer: &'static mut [u8; N], write_dma: TxDmaSpi2) -> WriteDmaToWriteAdapter<N> {
+		WriteDmaToWriteAdapter {
+			buffer,
+			write_dma: Some(write_dma)
+		}
+	}
+}
+
+impl<const N: usize> embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteAdapter<N>
+{
+	type Error = ();
+
+	fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
+		use core::mem::MaybeUninit;
+		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
+
+		for chunk in words.chunks(N) {
+			unsafe {
+				// SAFETY: no DMA operation is in progress
+				let array = &mut *self.buffer;
+				array[..chunk.len()].copy_from_slice(chunk);
+				let transfer = self.write_dma.take().unwrap().write(&array[..chunk.len()]);
+				let (_, txdma) = transfer.wait();
+				self.write_dma = Some(txdma);
+			}
+		}
+
+		/*let mut spi: spi::Spi<
+			stm32::SPI2,
+			spi::Spi2NoRemap,
+			(gpiob::PB13<Alternate<PushPull>>, stm32f1xx_hal::spi::NoMiso, gpiob::PB15<Alternate<PushPull>>),
+			u8
+		> = unsafe { MaybeUninit::uninit().assume_init() };
+		spi.read();*/
+		Ok(())
+	}
+}
+
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
+static mut DISPLAY_DMA_BUFFER: [u8; 128] = [0; 128];
 
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
@@ -216,7 +277,8 @@ const APP: () = {
 
 		usb_midi_buffer: UsbMidiBuffer,
 
-		display: st7789::ST7789<display_interface_spi::SPIInterfaceNoCS<spi::Spi<stm32f1xx_hal::pac::SPI2, spi::Spi2NoRemap, (gpiob::PB13<Alternate<PushPull>>, spi::NoMiso, gpiob::PB15<Alternate<PushPull>>), u8>, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
+		display: st7789::ST7789<
+			display_interface_spi::SPIInterfaceNoCS<WriteDmaToWriteAdapter<128>, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
 		delay: stm32f1xx_hal::delay::Delay,
 
 		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>,
@@ -296,18 +358,25 @@ const APP: () = {
 		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 		#[cfg(bootloader)]
-		writeln!(tx, "      bootloader enabled").ok();
+		{
+			writeln!(tx, "      bootloader enabled").ok();
+		}
 		writeln!(tx, "========================================================\n").ok();
 		
 
 
 		// Configure the display
+
+
 		let display_reset = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
 		let display_dc = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
 		let display_clk = gpiob.pb13.into_alternate_push_pull(&mut gpiob.crh);
 		let display_mosi = gpiob.pb15.into_alternate_push_pull(&mut gpiob.crh);
 		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 18.mhz(), clocks);
-		let di = display_interface_spi::SPIInterfaceNoCS::new(display_spi, display_dc);
+
+		let display_dma = display_spi.with_tx_dma(dma.5);
+		let adapter = WriteDmaToWriteAdapter::new(unsafe { &mut DISPLAY_DMA_BUFFER }, display_dma);
+		let di = display_interface_spi::SPIInterfaceNoCS::new(adapter, display_dc);
 		let display = st7789::ST7789::new(di, display_reset, 240, 240);
 		
 		// Configure USB

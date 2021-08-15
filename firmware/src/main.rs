@@ -186,7 +186,6 @@ type TxDmaSpi2 = dma::TxDma<
 
 pub struct WriteDmaToWriteAdapter<const N: usize>
 {
-	buffer: *mut [u8; N],
 	write_dma: Option<TxDmaSpi2>
 }
 
@@ -195,9 +194,8 @@ unsafe impl<const N: usize> Send for WriteDmaToWriteAdapter<N> {}
 
 impl<const N: usize> WriteDmaToWriteAdapter<N>
 {
-	pub fn new(buffer: &'static mut [u8; N], write_dma: TxDmaSpi2) -> WriteDmaToWriteAdapter<N> {
+	pub fn new(write_dma: TxDmaSpi2) -> WriteDmaToWriteAdapter<N> {
 		WriteDmaToWriteAdapter {
-			buffer,
 			write_dma: Some(write_dma)
 		}
 	}
@@ -208,33 +206,21 @@ impl<const N: usize> embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteA
 	type Error = ();
 
 	fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-		use core::mem::MaybeUninit;
-		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
-
 		for chunk in words.chunks(N) {
 			unsafe {
+				// SAFETY: we will drop this reference before leaving the function
+				let chunk_static = core::mem::transmute::<&[u8], &'static [u8]>(chunk);
 				// SAFETY: no DMA operation is in progress
-				let array = &mut *self.buffer;
-				array[..chunk.len()].copy_from_slice(chunk);
-				let transfer = self.write_dma.take().unwrap().write(&array[..chunk.len()]);
+				let transfer = self.write_dma.take().unwrap().write(chunk_static);
 				let (_, txdma) = transfer.wait();
 				self.write_dma = Some(txdma);
 			}
 		}
-
-		/*let mut spi: spi::Spi<
-			stm32::SPI2,
-			spi::Spi2NoRemap,
-			(gpiob::PB13<Alternate<PushPull>>, stm32f1xx_hal::spi::NoMiso, gpiob::PB15<Alternate<PushPull>>),
-			u8
-		> = unsafe { MaybeUninit::uninit().assume_init() };
-		spi.read();*/
 		Ok(())
 	}
 }
 
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
-static mut DISPLAY_DMA_BUFFER: [u8; 128] = [0; 128];
 
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
@@ -375,7 +361,7 @@ const APP: () = {
 		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 18.mhz(), clocks);
 
 		let display_dma = display_spi.with_tx_dma(dma.5);
-		let adapter = WriteDmaToWriteAdapter::new(unsafe { &mut DISPLAY_DMA_BUFFER }, display_dma);
+		let adapter = WriteDmaToWriteAdapter::new(display_dma);
 		let di = display_interface_spi::SPIInterfaceNoCS::new(adapter, display_dc);
 		let display = st7789::ST7789::new(di, display_reset, 240, 240);
 		

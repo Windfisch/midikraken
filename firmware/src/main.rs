@@ -274,12 +274,12 @@ fn read_settings_from_flash(tx: &mut impl core::fmt::Write, flash: &mut stm32f1x
 
 fn write_settings_to_flash(tx: &mut impl core::fmt::Write, flash: &mut stm32f1xx_hal::flash::Parts, settings_compressed: &DynArray<2048>) -> Result<(), SettingsError> {
 	writeln!(tx, "writing settings to flash").ok();
-	let mut writer = flash.writer(stm32f1xx_hal::flash::SectorSize::Sz2K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+	let mut writer = flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
 	writeln!(tx, " -> Erasing").ok();
-	writer.change_verification(false);
+	writer.change_verification(true);
 	writer.erase(SETTINGS_BASE, 2048).unwrap();
 	writeln!(tx, " -> Writing").ok();
-	writer.change_verification(true);
+	writer.change_verification(true); // FIXME
 	writer.write(SETTINGS_BASE, settings_compressed.raw()).unwrap();
 	writeln!(tx, " -> Done").ok();
 
@@ -819,16 +819,20 @@ const APP: () = {
 
 
 		enum ActiveMenu {
+			MainScreen(gui::MainScreenState),
+			MainMenu(gui::MenuState),
 			EventRouting(gui::GridState<EventRouteMode, 8, 8>),
 			ClockRouting(gui::GridState<u8, 8, 8>),
 		}
 
-		let mut active_menu = ActiveMenu::EventRouting(gui::GridState::new());
+		let mut active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
 
 		let mut old_pressed = false;
 		let mut debounce = 0u8;
 		let mut old_count = c.resources.knob_timer.count() / 4;
 		const MAX_COUNT: isize = 65536 / 4;
+		let mut dirty: bool = false;
+		let mut preset_idx = 0;
 		loop {
 			c.resources.delay.delay_ms(1u8);
 
@@ -851,6 +855,59 @@ const APP: () = {
 			let mut preset = c.resources.current_preset.lock(|p| *p);
 
 			match active_menu {
+				ActiveMenu::MainScreen(ref mut state) => {
+					state.process(preset_idx, dirty, c.resources.display);
+					if button_event {
+						active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
+					}
+					if scroll != 0 && !dirty {
+						preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
+						let current_preset = &mut c.resources.current_preset;
+						let settings_compressed = &mut c.resources.settings_compressed;
+						c.resources.tx.lock(|tx| {
+							current_preset.lock(|p| {
+								preset = load_preset(tx, settings_compressed, preset_idx).unwrap();
+								*p = preset;
+							})
+						});
+					}
+				}
+				ActiveMenu::MainMenu(ref mut menu_state) => {
+					let result = menu_state.process(
+						scroll,
+						button_event,
+						false,
+						"Main Menu",
+						&[
+							"Event Routing",
+							"Clock Routing",
+							if dirty { "Save" } else { "(nothing to save)" },
+							"Back"
+						],
+						c.resources.display
+					);
+					match result {
+						gui::MenuAction::Activated(index) => {
+							match index {
+								0 => { active_menu = ActiveMenu::EventRouting(gui::GridState::new()); }
+								1 => { active_menu = ActiveMenu::ClockRouting(gui::GridState::new()); }
+								2 => {
+									let flash = &mut c.resources.flash;
+									let settings_compressed = &mut c.resources.settings_compressed;
+									c.resources.tx.lock(|tx| {
+										writeln!(tx, "Going to save settings to flash").ok();
+										save_preset(settings_compressed, preset_idx, &preset).unwrap(); // FIXME this must be handled!
+										write_settings_to_flash(tx, flash, settings_compressed).unwrap();
+									});
+									dirty = false;
+								}
+								3 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
+								_ => { unreachable!(); }
+							}
+						}
+						_ => {}
+					}
+				}
 				ActiveMenu::EventRouting(ref mut grid_state) => {
 					let result = grid_state.process(
 						scroll,
@@ -879,22 +936,12 @@ const APP: () = {
 					);
 					match result {
 						gui::GridAction::Exit => {
-							c.resources.tx.lock(|tx| writeln!(tx, "Saving preset").ok() );
-							save_preset(c.resources.settings_compressed, 0, &preset).unwrap(); // FIXME this must be handled!
-							c.resources.tx.lock(|tx| writeln!(tx, "Done").ok() );
-
-							let current_preset = &mut c.resources.current_preset;
-							let settings_compressed = &mut c.resources.settings_compressed;
-							c.resources.tx.lock(|tx| {
-								current_preset.lock(|p| {
-									preset = load_preset(tx, settings_compressed, 0).unwrap();
-									*p = preset;
-								})
-							});
-							
-							active_menu = ActiveMenu::ClockRouting(gui::GridState::new());
+							active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
 						}
-						gui::GridAction::ValueUpdated => { c.resources.current_preset.lock(|p| p.event_routing_table = preset.event_routing_table); }
+						gui::GridAction::ValueUpdated => {
+							c.resources.current_preset.lock(|p| p.event_routing_table = preset.event_routing_table);
+							dirty = true;
+						}
 						_ => {}
 					}
 				}
@@ -911,17 +958,13 @@ const APP: () = {
 						c.resources.display
 					);
 					match result {
-						gui::GridAction::Exit => { 
-							active_menu = ActiveMenu::EventRouting(gui::GridState::new());
-
-							let flash = &mut c.resources.flash;
-							let settings_compressed = &mut c.resources.settings_compressed;
-							c.resources.tx.lock(|tx| {
-								writeln!(tx, "Going to save settings to flash").ok();
-								write_settings_to_flash(tx, flash, settings_compressed).unwrap();
-							});
+						gui::GridAction::Exit => {
+							active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
 						}
-						gui::GridAction::ValueUpdated => { c.resources.current_preset.lock(|p| p.clock_routing_table = preset.clock_routing_table); }
+						gui::GridAction::ValueUpdated => {
+							c.resources.current_preset.lock(|p| p.clock_routing_table = preset.clock_routing_table);
+							dirty = true;
+						}
 						_ => {}
 					}
 				}

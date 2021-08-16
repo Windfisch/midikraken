@@ -34,7 +34,7 @@ embedded-hal = ">=0.2.3"
 vergen = "3"
 
 [patch.crates-io]
-stm32f1xx-hal = { git = "https://github.com/Windfisch/stm32f1xx-hal", branch="allow_pullup_inputs_and_opendrain_outputs" }
+stm32f1xx-hal = { git = "https://github.com/Windfisch/stm32f1xx-hal", branch="midikraken" }
 #stm32f1xx-hal = { git = "https://github.com/stm32-rs/stm32f1xx-hal", revision="5776ccd780041a7669c0a9d7099de6d18226d679" }
 #stm32f1xx-hal = { path = "/home/flo/stm32f1xx-hal" }
 usb-device = { git = "https://github.com/Windfisch/usb-device", branch = "descriptor-writer-updates-and-buffer-sizes" }

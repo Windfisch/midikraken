@@ -7,6 +7,58 @@ use embedded_graphics::{
 		text::Text,
 };
 
+pub enum MenuAction {
+	Activated(usize),
+	Continue
+}
+
+pub struct MenuState {
+	selected: usize,
+	redraw_pending: bool,
+}
+
+impl MenuState {
+	pub fn new() -> MenuState {
+		MenuState { selected: 0, redraw_pending: true }
+	}
+
+	pub fn process(
+		&mut self,
+		scroll: i16,
+		press: bool,
+		long_press: bool,
+		title: &str,
+		entries: &[&str],
+		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>
+	) -> MenuAction
+	{
+		self.selected = (self.selected as i16 + scroll).rem_euclid(entries.len() as i16) as usize;
+		if press {
+			return MenuAction::Activated(self.selected);
+		}
+
+		if self.redraw_pending {
+			draw_target.clear(Rgb565::BLACK).ok().unwrap();
+			let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
+			Text::new(title, Point::new(20, 80 + 20), style).draw(draw_target).ok().unwrap();
+		}
+
+		if self.redraw_pending || scroll != 0 {
+			let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
+			let sel_style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::BLACK).background_color(Rgb565::WHITE).build();
+			for (i, text) in entries.iter().enumerate() {
+				let this_style = if i == self.selected { sel_style } else { style };
+				Text::new(text, Point::new(20, 80+20+30 + 20*i as i32), this_style).draw(draw_target).ok().unwrap();
+			}
+		}
+
+		self.redraw_pending = false;
+
+		MenuAction::Continue
+	}
+}
+
+
 enum GridEditingMode {
 	Selecting,
 	Dialing
@@ -30,6 +82,42 @@ pub struct GridState<T, const COLS: usize, const ROWS: usize> {
 enum Entry {
 	Element(usize, usize),
 	Back
+}
+
+pub struct MainScreenState {
+	redraw_pending: bool,
+	last_preset: usize,
+	last_dirty: bool
+}
+
+impl MainScreenState {
+	pub fn new() -> MainScreenState { MainScreenState { redraw_pending: true, last_preset: 0, last_dirty: false } }
+	pub fn process(
+		&mut self,
+		preset: usize,
+		dirty: bool,
+		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>
+	)
+	{
+		let mut buf = [0; 10];
+		let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
+		if self.redraw_pending {
+			draw_target.clear(Rgb565::BLACK).ok().unwrap();
+			Text::new("Midikraken", Point::new(20, 80 + 20), style).draw(draw_target).ok().unwrap();
+			Text::new("Current preset:", Point::new(20, 80 + 50), style).draw(draw_target).ok().unwrap();
+		}
+
+		if self.last_preset != preset || self.redraw_pending {
+			Text::new(slfmt!(&mut buf, "{}  ", preset), Point::new(180, 80 + 50), style).draw(draw_target).ok().unwrap();
+		}
+		if self.last_dirty != dirty || self.redraw_pending {
+			Text::new(if dirty { "(dirty)" } else { "       " }, Point::new(40, 80 + 70), style).draw(draw_target).ok().unwrap();
+		}
+
+		self.last_dirty = dirty;
+		self.last_preset = preset;
+		self.redraw_pending = false;
+	}
 }
 
 

@@ -49,11 +49,12 @@ const SYSCLK : Hertz = Hertz(72_000_000);
 type NumPortPairs = software_uart::typenum::U12;
 
 
-unsafe fn reset_mcu() {
+unsafe fn reset_mcu() -> ! {
 	(*stm32::SCB::ptr()).aircr.write(0x05FA0004);
+	loop {}
 }
 
-unsafe fn reset_to_bootloader() {
+unsafe fn reset_to_bootloader() -> ! {
 	const BOOTKEY_ADDR: *mut u32 = 0x20003000 as *mut u32;
 	core::ptr::write_volatile(BOOTKEY_ADDR, 0x157F32D4);
 	reset_mcu();
@@ -73,7 +74,8 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
 	let mut reg = unsafe { MaybeUninit::uninit().assume_init() };
 	let mut led = led.into_push_pull_output(&mut reg);
-	loop {
+
+	for _ in 0..3 {
 		let mut blink_thrice = |delay: u32| {
 			for _ in 0..3 {
 				led.set_low();
@@ -88,6 +90,8 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 		blink_thrice(1);
 		cortex_m::asm::delay(10000000);
 	}
+	
+	unsafe { reset_to_bootloader(); }
 }
 
 

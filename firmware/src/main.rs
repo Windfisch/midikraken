@@ -118,12 +118,33 @@ fn benchmark(phase: i8) -> u16 {
 	}
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq)]
 pub enum EventRouteMode {
 	None,
 	Keyboard,
 	Controller,
 	Both
+}
+
+impl EventRouteMode {
+	pub fn from_u8(val: u8) -> Result<EventRouteMode,()> {
+		match val {
+			0 => Ok(EventRouteMode::None),
+			1 => Ok(EventRouteMode::Keyboard),
+			2 => Ok(EventRouteMode::Controller),
+			3 => Ok(EventRouteMode::Both),
+			_ => Err(())
+		}
+	}
+
+	pub fn to_u8(&self) -> u8 {
+		match self {
+			EventRouteMode::None => 0,
+			EventRouteMode::Keyboard => 1,
+			EventRouteMode::Controller => 2,
+			EventRouteMode::Both => 3
+		}
+	}
 }
 
 
@@ -222,7 +243,245 @@ impl embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteAdapter
 	}
 }
 
+#[derive(Debug)]
+struct SettingsError;
+impl From<core::array::TryFromSliceError> for SettingsError {
+	fn from(_: core::array::TryFromSliceError) -> SettingsError { SettingsError{} }
+}
+impl From<stm32f1xx_hal::flash::Error> for SettingsError {
+	fn from(_: stm32f1xx_hal::flash::Error) -> SettingsError { SettingsError{} }
+}
+impl From<()> for SettingsError {
+	fn from(_: ()) -> SettingsError { SettingsError{} }
+}
+
+const SETTINGS_BASE: u32 = (1<<17) - 2*2048;
+fn read_settings_from_flash(tx: &mut impl core::fmt::Write, flash: &mut stm32f1xx_hal::flash::Parts, settings_compressed: &mut DynArray<2048>) -> Result<(), SettingsError> {
+	writeln!(tx, "reading stored settings").ok();
+	let writer = flash.writer(stm32f1xx_hal::flash::SectorSize::Sz2K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+
+	let first_bytes = writer.read(SETTINGS_BASE, 2)?;
+	if first_bytes == [0xFF, 0xFF] {
+		writeln!(tx, "flash seems to be uninitialized").ok();
+		return Ok(());
+	}
+
+	let settings_raw = writer.read(SETTINGS_BASE, 2048)?;
+	settings_compressed.set_raw(settings_raw);
+
+	Ok(())
+}
+
+fn write_settings_to_flash(tx: &mut impl core::fmt::Write, flash: &mut stm32f1xx_hal::flash::Parts, settings_compressed: &DynArray<2048>) -> Result<(), SettingsError> {
+	writeln!(tx, "writing settings to flash").ok();
+	let mut writer = flash.writer(stm32f1xx_hal::flash::SectorSize::Sz2K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+	writeln!(tx, " -> Erasing").ok();
+	writer.change_verification(false);
+	writer.erase(SETTINGS_BASE, 2048).unwrap();
+	writeln!(tx, " -> Writing").ok();
+	writer.change_verification(true);
+	writer.write(SETTINGS_BASE, settings_compressed.raw()).unwrap();
+	writeln!(tx, " -> Done").ok();
+
+	Ok(())
+}
+
+fn load_preset(tx: &mut impl core::fmt::Write, settings_compressed: &DynArray<2048>, preset_idx: usize) -> Result<Preset, SettingsError> {
+	writeln!(tx, "Loading preset {}", preset_idx).ok();
+	let data = settings_compressed.get(preset_idx).ok_or(SettingsError)?;
+	writeln!(tx, "  -> Found").ok();
+	let preset = parse_routing(data)?;
+	writeln!(tx, "  -> Done").ok();
+
+	Ok(preset)
+}
+
+fn parse_routing(data: &[u8]) -> Result<Preset, SettingsError> {
+	const LEN_ENTRY: usize = 7;
+	let mut preset = Preset::new();
+	for chunk in data.chunks_exact(LEN_ENTRY) {
+		let x = chunk[0] & 0x0F;
+		let y = (chunk[0] & 0xF0) >> 4;
+		let clock_divisor = chunk[1] & 0x0F;
+		let event_routing = (chunk[1] & 0xF0) >> 4;
+		let _channel_mask = &chunk[2..=3];
+		let _map_channel = chunk[4];
+		let _note_split = chunk[5];
+		let _transpose = chunk[6];
+
+		preset.clock_routing_table[x as usize][y as usize] = clock_divisor;
+		preset.event_routing_table[x as usize][y as usize] = EventRouteMode::from_u8(event_routing)?;
+	}
+
+	Ok(preset)
+}
+
+fn serialize_routing(mut data_opt: Option<&mut [u8]>, preset: &Preset) -> usize {
+	let mut bytes_written = 0;
+	assert!(preset.event_routing_table.len() == preset.clock_routing_table.len());
+	assert!(preset.event_routing_table[0].len() == preset.clock_routing_table[0].len());
+	for x in 0..preset.event_routing_table.len() {
+		for y in 0..preset.event_routing_table[0].len() {
+			if preset.event_routing_table[x][y] != EventRouteMode::None || preset.clock_routing_table[x][y] != 0 {
+				if let Some(ref mut data) = data_opt {
+					 data[bytes_written+0] = ((x as u8) & 0x0F) | (((y as u8) & 0x0F) << 4);
+					 data[bytes_written+1] = preset.clock_routing_table[x][y] | (preset.event_routing_table[x][y].to_u8() << 4);
+					 data[(bytes_written+2)..=(bytes_written+6)].fill(0);
+				}
+				bytes_written += 7;
+			}
+		}
+	}
+	return bytes_written;
+}
+
+fn save_preset<const N: usize>(store: &mut DynArray<N>, preset_idx: usize, preset: &Preset) -> Result<(), SettingsError> {
+	let len = serialize_routing(None, preset);
+	store.resize(preset_idx, len)?;
+	serialize_routing(store.get_mut(preset_idx), preset);
+	Ok(())
+}
+
+pub struct DynArray <const SIZE: usize> {
+	data: [u8; SIZE]
+}
+
+impl <const SIZE: usize> DynArray<SIZE> {
+	fn find_offset(&self, index: usize) -> Option<usize> {
+		let mut curr_index = 0;
+		let mut offset = 0;
+		while curr_index != index {
+			curr_index += 1;
+			offset += 2 + self.length_at_offset(offset);
+			if offset >= self.data.len() {
+				return None;
+			}
+		}
+		return Some(offset);
+	}
+
+	fn length_at_offset(&self, offset: usize) -> usize {
+		use core::convert::TryInto;
+		let chunk = &self.data[offset..];
+		u16::from_le_bytes(chunk[0..2].try_into().unwrap()) as usize
+	}
+
+	fn move_left(&mut self, from: usize, to: usize) {
+		assert!(to < from);
+		for i in 0..(self.data.len() - from) {
+			self.data[to+i] = self.data[from+i];
+		}
+		for i in (to + self.data.len() - from) .. self.data.len() {
+			self.data[i] = 0;
+		}
+	}
+
+	fn move_right(&mut self, from: usize, to: usize) {
+		assert!(to > from);
+		for i in (to..self.data.len()).rev() {
+			self.data[i] = self.data[i - to + from];
+		}
+	}
+
+	pub fn resize(&mut self, index: usize, new_size: usize) -> Result<(),()> {
+		if let Some(offset_to_resize) = self.find_offset(index) {
+			let old_size = self.length_at_offset(offset_to_resize);
+			let old_offset_next = offset_to_resize + 2 + old_size;
+			let new_offset_next = offset_to_resize + 2 + new_size;
+			if new_size == old_size {
+				return Ok(());
+			}
+			else if new_size < old_size {
+				self.move_left(old_offset_next, new_offset_next);
+			}
+			else { // new_size > old_size
+				let trim_len = new_size - old_size;
+				let clear = self.data[ (self.data.len() - trim_len) .. self.data.len() ].iter().all(|v| *v==0);
+				if !clear {
+					return Err(());
+				}
+				self.move_right(old_offset_next, new_offset_next);
+			}
+
+			// update the length field
+			self.data[offset_to_resize..(offset_to_resize+2)].copy_from_slice(&(new_size as u16).to_le_bytes());
+			return Ok(());
+		}
+		else {
+			return Err(());
+		}
+	}
+
+	pub fn get_mut(&mut self, index: usize) -> Option<&mut [u8]> {
+		if let Some(offset) = self.find_offset(index) {
+			let length = self.length_at_offset(offset);
+			Some(&mut self.data[(offset+2) .. (offset+2+length)])
+		}
+		else {
+			None
+		}
+	}
+
+	pub fn get(&self, index: usize) -> Option<&[u8]> {
+		if let Some(offset) = self.find_offset(index) {
+			let length = self.length_at_offset(offset);
+			Some(&self.data[(offset+2) .. (offset+2+length)])
+		}
+		else {
+			None
+		}
+	}
+
+	pub fn new() -> DynArray<SIZE> {
+		DynArray { data: [0; SIZE] }
+	}
+
+	pub fn from_raw(bytes: &[u8]) -> DynArray<SIZE> {
+		let mut result = DynArray::new();
+		result.set_raw(bytes);
+		return result;
+	}
+
+	pub fn set_raw(&mut self, bytes: &[u8]) {
+		use core::convert::TryInto;
+		let mut offset = 0;
+		loop {
+			let chunk = &bytes[offset..];
+			let length = u16::from_le_bytes(chunk[0..2].try_into().unwrap()) as usize;
+			let new_offset = offset + 2 + length;
+			if new_offset + 2 >= self.data.len() {
+				self.data[0..offset].copy_from_slice(&bytes[0..offset]);
+				return;
+			}
+			offset = new_offset;
+		}
+	}
+
+	pub fn raw(&self) -> &[u8; SIZE] {
+		&self.data
+	}
+}
+
+
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
+
+type EventRoutingTable = [[EventRouteMode; 8]; 8];
+type ClockRoutingTable = [[u8; 8]; 8];
+
+#[derive(Clone, Copy)]
+pub struct Preset {
+	event_routing_table: EventRoutingTable,
+	clock_routing_table: ClockRoutingTable
+}
+
+impl Preset {
+	pub const fn new() -> Preset {
+		Preset {
+			event_routing_table: [[EventRouteMode::None; 8]; 8],
+			clock_routing_table: [[0; 8]; 8]
+		}
+	}
+}
 
 #[app(device = stm32f1xx_hal::pac)]
 const APP: () = {
@@ -272,11 +531,11 @@ const APP: () = {
 		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>,
 		knob_button: gpioc::PC15<Input<PullUp>>,
 
-		#[init([[EventRouteMode::None; 8]; 8])]
-		event_routing_table: [[EventRouteMode; 8]; 8],
-		#[init([[0u8; 8]; 8])]
-		clock_routing_table: [[u8; 8]; 8]
+		current_preset: Preset,
+		
+		flash: stm32f1xx_hal::flash::Parts,
 
+		settings_compressed: DynArray<2048>
 	}
 
 	#[init(spawn=[benchmark_task, gui_task])]
@@ -435,6 +694,11 @@ const APP: () = {
 			writeln!(tx, "spawned").ok();
 		}
 
+		// FIXME this is very Cish. rustify!
+		let mut settings_compressed = DynArray::new();
+		read_settings_from_flash(&mut tx, &mut flash, &mut settings_compressed).expect("Reading settings from flash failed"); // FIXME
+		let current_preset = load_preset(&mut tx, &settings_compressed, 0).expect("Loading preset failed");
+
 		cx.spawn.gui_task().unwrap();
 
 		return init::LateResources { tx, mytimer, queue, usb_dev, midi,
@@ -450,7 +714,10 @@ const APP: () = {
 			display,
 			delay,
 			knob_timer,
-			knob_button
+			knob_button,
+			flash,
+			settings_compressed,
+			current_preset
 		};
 	}
 
@@ -464,7 +731,7 @@ const APP: () = {
 		c.spawn.handle_received_byte().ok();
 	}
 
-	#[task(spawn = [send_task], resources = [tx, queue, midi_parsers, midi, event_routing_table, clock_routing_table, midi_out_queues], priority = 40)]
+	#[task(spawn = [send_task], resources = [tx, queue, midi_parsers, midi, current_preset, midi_out_queues], priority = 40)]
 	fn handle_received_byte(mut c: handle_received_byte::Context) {
 		static mut clock_count: [u16; 8] = [0; 8];
 
@@ -487,21 +754,21 @@ const APP: () = {
 				let is_control_ish = match usb_message[0] & 0x0F { 0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true, _ => false };
 				let is_keyboard_ish = match usb_message[0] & 0x0F { 0x8 | 0x9 | 0xA | 0xD => true, _ => false };
 
-				assert!(c.resources.event_routing_table.len() == c.resources.clock_routing_table.len());
-				assert!(c.resources.event_routing_table[0].len() == c.resources.clock_routing_table[0].len());
-				assert!(c.resources.event_routing_table[0].len() == clock_count.len());
-				if (cable as usize) < c.resources.event_routing_table[0].len() {
+				assert!(c.resources.current_preset.event_routing_table.len() == c.resources.current_preset.clock_routing_table.len());
+				assert!(c.resources.current_preset.event_routing_table[0].len() == c.resources.current_preset.clock_routing_table[0].len());
+				assert!(c.resources.current_preset.event_routing_table[0].len() == clock_count.len());
+				if (cable as usize) < c.resources.current_preset.event_routing_table[0].len() {
 					let cable_in = cable as usize;
 					
-					for cable_out in 0..c.resources.event_routing_table.len() {
-						let forward_event = match c.resources.event_routing_table[cable_out][cable_in] {
+					for cable_out in 0..c.resources.current_preset.event_routing_table.len() {
+						let forward_event = match c.resources.current_preset.event_routing_table[cable_out][cable_in] {
 							EventRouteMode::Both => is_control_ish || is_keyboard_ish,
 							EventRouteMode::Controller => is_control_ish,
 							EventRouteMode::Keyboard => is_keyboard_ish,
 							EventRouteMode::None => false
 						};
 
-						let forward_clock = match c.resources.clock_routing_table[cable_out][cable_in] {
+						let forward_clock = match c.resources.current_preset.clock_routing_table[cable_out][cable_in] {
 							0 => false,
 							division => is_transport || (is_clock && clock_count[cable_in] % (division as u16) == 0)
 						};
@@ -539,17 +806,17 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, display, delay, knob_timer, knob_button, event_routing_table, clock_routing_table], priority = 1)]
+	#[task(resources = [tx, display, delay, knob_timer, knob_button, current_preset, settings_compressed, flash], priority = 1)]
 	fn gui_task(mut c: gui_task::Context) {
 		c.resources.display.init(c.resources.delay).unwrap();
 		c.resources.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
+		c.resources.display.clear(Rgb565::BLACK).unwrap();
 
 		use embedded_graphics::{
 				pixelcolor::Rgb565,
 				prelude::*,
 		};
 
-		c.resources.display.clear(Rgb565::BLACK).unwrap();
 
 		enum ActiveMenu {
 			EventRouting(gui::GridState<EventRouteMode, 8, 8>),
@@ -581,8 +848,7 @@ const APP: () = {
 			let button_event = pressed && debounce == 1;
 			if debounce > 0 { debounce -= 1; }
 
-			let mut event_routing_table = c.resources.event_routing_table.lock(|t| *t);
-			let mut clock_routing_table = c.resources.clock_routing_table.lock(|t| *t);
+			let mut preset = c.resources.current_preset.lock(|p| *p);
 
 			match active_menu {
 				ActiveMenu::EventRouting(ref mut grid_state) => {
@@ -590,7 +856,7 @@ const APP: () = {
 						scroll,
 						button_event,
 						false,
-						&mut event_routing_table,
+						&mut preset.event_routing_table,
 						|val, _inc| {
 							*val = match *val {
 								EventRouteMode::None => EventRouteMode::Keyboard,
@@ -612,8 +878,23 @@ const APP: () = {
 						c.resources.display
 					);
 					match result {
-						gui::GridAction::Exit => { active_menu = ActiveMenu::ClockRouting(gui::GridState::new()) }
-						gui::GridAction::ValueUpdated => { c.resources.event_routing_table.lock(|t| *t = event_routing_table); }
+						gui::GridAction::Exit => {
+							c.resources.tx.lock(|tx| writeln!(tx, "Saving preset").ok() );
+							save_preset(c.resources.settings_compressed, 0, &preset).unwrap(); // FIXME this must be handled!
+							c.resources.tx.lock(|tx| writeln!(tx, "Done").ok() );
+
+							let current_preset = &mut c.resources.current_preset;
+							let settings_compressed = &mut c.resources.settings_compressed;
+							c.resources.tx.lock(|tx| {
+								current_preset.lock(|p| {
+									preset = load_preset(tx, settings_compressed, 0).unwrap();
+									*p = preset;
+								})
+							});
+							
+							active_menu = ActiveMenu::ClockRouting(gui::GridState::new());
+						}
+						gui::GridAction::ValueUpdated => { c.resources.current_preset.lock(|p| p.event_routing_table = preset.event_routing_table); }
 						_ => {}
 					}
 				}
@@ -622,7 +903,7 @@ const APP: () = {
 						scroll,
 						button_event,
 						false,
-						&mut clock_routing_table,
+						&mut preset.clock_routing_table,
 						|val, inc| { *val = (*val as i16 + inc).rem_euclid(10) as u8; },
 						|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
 						true,
@@ -630,8 +911,17 @@ const APP: () = {
 						c.resources.display
 					);
 					match result {
-						gui::GridAction::Exit => { active_menu = ActiveMenu::EventRouting(gui::GridState::new()) }
-						gui::GridAction::ValueUpdated => { c.resources.clock_routing_table.lock(|t| *t = clock_routing_table); }
+						gui::GridAction::Exit => { 
+							active_menu = ActiveMenu::EventRouting(gui::GridState::new());
+
+							let flash = &mut c.resources.flash;
+							let settings_compressed = &mut c.resources.settings_compressed;
+							c.resources.tx.lock(|tx| {
+								writeln!(tx, "Going to save settings to flash").ok();
+								write_settings_to_flash(tx, flash, settings_compressed).unwrap();
+							});
+						}
+						gui::GridAction::ValueUpdated => { c.resources.current_preset.lock(|p| p.clock_routing_table = preset.clock_routing_table); }
 						_ => {}
 					}
 				}

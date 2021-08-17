@@ -1,6 +1,5 @@
 /target
 *.bin
-firmware/target/
 lib/parse_midi/target/
 firmware/benchmark
 *.dsn

@@ -1,0 +1,15 @@
+[package]
+name = "tim2_interrupt_handler"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+stm32f1xx-hal = { version = "0.7", features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
+embedded-dma = {version = "0.1" }
+embedded-hal = ">=0.2.3"
+generic-array = "0.14"
+
+[patch.crates-io]
+stm32f1xx-hal = { git = "https://github.com/Windfisch/stm32f1xx-hal", branch="midikraken" }

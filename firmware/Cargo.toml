@@ -31,6 +31,7 @@ st7789 = { version = "0.6", features = ["batch"] }
 usb-device = { version = ">=0.2.1", features = ["control-buffer-1024"] }
 usbd-midi = { path="../lib/usbd-midi" }
 embedded-hal = ">=0.2.3"
+tim2_interrupt_handler = { path = "tim2_interrupt_handler" }
 
 [build-dependencies]
 vergen = "3"
@@ -63,4 +64,6 @@ opt-level = 3
 [profile.release.package.stm32f1xx-hal]
 opt-level = 3
 [profile.release.package.stm32f1]
+opt-level = 3
+[profile.release.package.tim2_interrupt_handler]
 opt-level = 3

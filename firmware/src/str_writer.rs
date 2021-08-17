@@ -44,12 +44,7 @@ impl<'a> fmt::Write for WriteTo<'a> {
 	}
 }
 
-pub fn show<'a>(buffer: &'a mut [u8], args: fmt::Arguments) -> Result<&'a str, fmt::Error> {
-	let mut w = WriteTo::new(buffer);
-	fmt::write(&mut w, args)?;
-	w.as_str().ok_or(fmt::Error)
-}
-
+#[allow(unused_macros)]
 macro_rules! slfmt_fallible {
 		($dst:expr, $($arg:tt)*) => {{
 			let mut w = WriteTo::new($dst);
@@ -59,6 +54,7 @@ macro_rules! slfmt_fallible {
 			}
 		}}
 }
+#[allow(unused_macros)]
 macro_rules! slfmtln_fallible {
 		($dst:expr, $($arg:tt)*) => {{
 			let mut w = WriteTo::new($dst);
@@ -68,10 +64,12 @@ macro_rules! slfmtln_fallible {
 			}
 		}}
 }
+#[allow(unused_macros)]
 macro_rules! slfmtln {
 		($dst:expr, $($arg:tt)*) => {{ slfmtln_fallible!($dst, $($arg)*).unwrap() }}
 }
 
+#[allow(unused_macros)]
 macro_rules! slfmt {
 		($dst:expr, $($arg:tt)*) => {{ slfmt_fallible!($dst, $($arg)*).unwrap() }}
 }

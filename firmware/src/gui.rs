@@ -77,7 +77,7 @@ impl MenuState {
 		&mut self,
 		scroll: i16,
 		press: bool,
-		long_press: bool,
+		_long_press: bool,
 		title: &str,
 		entries: &[&str],
 		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>
@@ -214,10 +214,6 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 		else {
 			Entry::Element(position as usize % COLS, position as usize / COLS)
 		}
-	}
-
-	pub fn schedule_redraw(&mut self) {
-		self.redraw_pending = true;
 	}
 
 	fn draw_update<STRINGIFY>(

@@ -1,10 +1,6 @@
 #![no_main]
 #![no_std]
 
-#[macro_use]
-extern crate lazy_static;
-
-
 /*
 Midikraken firmware
 Copyright (C) 2021 Florian Jung
@@ -43,7 +39,6 @@ use software_uart::typenum::Unsigned;
 
 #[macro_use]
 mod str_writer;
-use str_writer::*;
 
 mod gui;
 
@@ -65,14 +60,16 @@ unsafe fn reset_to_bootloader() -> ! {
 }
 
 #[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
+fn panic(_info: &core::panic::PanicInfo) -> ! {
 	use core::mem::MaybeUninit;
 	cortex_m::interrupt::disable();
 
-	let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
-
-	writeln!(tx, "Panic!").ok();
-	writeln!(tx, "{}", info).ok();
+	#[cfg(debugpanic)]
+	{
+		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
+		writeln!(tx, "Panic!").ok();
+		writeln!(tx, "{}", _info).ok();
+	}
 
 
 	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
@@ -554,7 +551,7 @@ const APP: () = {
 		
 		// Clock configuration
 		let mut flash = dp.FLASH.constrain();
-		let mut rcc = dp.RCC.constrain();
+		let rcc = dp.RCC.constrain();
 
 		let clocks = rcc.cfgr
 			.use_hse(8.mhz())
@@ -577,7 +574,7 @@ const APP: () = {
 		let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 		led.set_high(); // Turn off
 
-		let (pa15, pb3, pb4) = afio.mapr.disable_jtag(gpioa.pa15, gpiob.pb3, gpiob.pb4);
+		let (_pa15, pb3, pb4) = afio.mapr.disable_jtag(gpioa.pa15, gpiob.pb3, gpiob.pb4);
 
 		let mut spi_strobe_pin = gpioc.pc14.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::PinState::Low); // controls shift registers
 		let clk = pb3.into_alternate_push_pull(&mut gpiob.crl);
@@ -586,7 +583,8 @@ const APP: () = {
 
 		let mut spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks);
 
-		spi.transfer(&mut [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
+		// Quickly set the shift registers to their idle state. This needs to happen as quickly as possible.
+		spi.transfer(&mut [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]).unwrap();
 		spi_strobe_pin.set_high();
 
 
@@ -608,9 +606,11 @@ const APP: () = {
 		writeln!(tx, "========================================================").ok();
 		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
-		#[cfg(bootloader)]
-		{
+		if cfg!(feature = "bootloader") {
 			writeln!(tx, "      bootloader enabled").ok();
+		}
+		else {
+			writeln!(tx, "      without bootloader").ok();
 		}
 		writeln!(tx, "========================================================\n").ok();
 		
@@ -737,7 +737,7 @@ const APP: () = {
 
 	#[task(spawn = [send_task], resources = [tx, queue, midi_parsers, midi, current_preset, midi_out_queues], priority = 40)]
 	fn handle_received_byte(mut c: handle_received_byte::Context) {
-		static mut clock_count: [u16; 8] = [0; 8];
+		static mut CLOCK_COUNT: [u16; 8] = [0; 8];
 
 		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
 			if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
@@ -760,7 +760,7 @@ const APP: () = {
 
 				assert!(c.resources.current_preset.event_routing_table.len() == c.resources.current_preset.clock_routing_table.len());
 				assert!(c.resources.current_preset.event_routing_table[0].len() == c.resources.current_preset.clock_routing_table[0].len());
-				assert!(c.resources.current_preset.event_routing_table[0].len() == clock_count.len());
+				assert!(c.resources.current_preset.event_routing_table[0].len() == CLOCK_COUNT.len());
 				if (cable as usize) < c.resources.current_preset.event_routing_table[0].len() {
 					let cable_in = cable as usize;
 					
@@ -774,7 +774,7 @@ const APP: () = {
 
 						let forward_clock = match c.resources.current_preset.clock_routing_table[cable_out][cable_in] {
 							0 => false,
-							division => is_transport || (is_clock && clock_count[cable_in] % (division as u16) == 0)
+							division => is_transport || (is_clock && CLOCK_COUNT[cable_in] % (division as u16) == 0)
 						};
 
 						if forward_event || forward_clock {
@@ -784,10 +784,10 @@ const APP: () = {
 					}
 
 					if usb_message[1] == 0xFA { // start
-						clock_count[cable_in] = 0;
+						CLOCK_COUNT[cable_in] = 0;
 					}
 					if usb_message[1] == 0xF8 { // clock
-						clock_count[cable_in] = (clock_count[cable_in] + 1) % 27720; // 27720 is the least common multiple of 1,2,...,12
+						CLOCK_COUNT[cable_in] = (CLOCK_COUNT[cable_in] + 1) % 27720; // 27720 is the least common multiple of 1,2,...,12
 					}
 				}
 			}

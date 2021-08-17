@@ -8,13 +8,14 @@ license = "GPL-3.0-only"
 [features]
 benchmark = []
 debugprint = []
+debugpanic = []
 bootloader = []
 
 [dependencies]
 cortex-m = "0.6.7"
 cortex-m-rt = ">=0.6"
 cortex-m-rtic = ">=0.5"
-stm32f1xx-hal = { features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
+stm32f1xx-hal = { version = "0.7", features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 heapless = "0.6"
 parse_midi = { path = "../lib/parse_midi" }
 generic-array = "0.14"

@@ -19,6 +19,7 @@ heapless = "0.6"
 parse_midi = { path = "../lib/parse_midi" }
 generic-array = "0.14"
 embedded-dma = {version = "0.1" }
+lazy_static = { version = "1", features=["spin_no_std"] }
 
 display-interface = "0.4"
 display-interface-spi = "0.4"

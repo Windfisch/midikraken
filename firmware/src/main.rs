@@ -1,6 +1,10 @@
 #![no_main]
 #![no_std]
 
+#[macro_use]
+extern crate lazy_static;
+
+
 /*
 Midikraken firmware
 Copyright (C) 2021 Florian Jung
@@ -825,7 +829,7 @@ const APP: () = {
 			ClockRouting(gui::GridState<u8, 8, 8>),
 		}
 
-		let mut active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
+		let mut active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
 
 		let mut old_pressed = false;
 		let mut debounce = 0u8;
@@ -857,19 +861,24 @@ const APP: () = {
 			match active_menu {
 				ActiveMenu::MainScreen(ref mut state) => {
 					state.process(preset_idx, dirty, c.resources.display);
-					if button_event {
-						active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
+					if scroll != 0 {
+						if !dirty {
+							preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
+							let current_preset = &mut c.resources.current_preset;
+							let settings_compressed = &mut c.resources.settings_compressed;
+							c.resources.tx.lock(|tx| {
+								current_preset.lock(|p| {
+									preset = load_preset(tx, settings_compressed, preset_idx).unwrap();
+									*p = preset;
+								})
+							});
+						}
+						else {
+							state.blink_dirty();
+						}
 					}
-					if scroll != 0 && !dirty {
-						preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
-						let current_preset = &mut c.resources.current_preset;
-						let settings_compressed = &mut c.resources.settings_compressed;
-						c.resources.tx.lock(|tx| {
-							current_preset.lock(|p| {
-								preset = load_preset(tx, settings_compressed, preset_idx).unwrap();
-								*p = preset;
-							})
-						});
+					if button_event {
+						active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
 					}
 				}
 				ActiveMenu::MainMenu(ref mut menu_state) => {
@@ -900,6 +909,7 @@ const APP: () = {
 										write_settings_to_flash(tx, flash, settings_compressed).unwrap();
 									});
 									dirty = false;
+									menu_state.schedule_redraw();
 								}
 								3 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
 								_ => { unreachable!(); }
@@ -936,7 +946,7 @@ const APP: () = {
 					);
 					match result {
 						gui::GridAction::Exit => {
-							active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
+							active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
 						}
 						gui::GridAction::ValueUpdated => {
 							c.resources.current_preset.lock(|p| p.event_routing_table = preset.event_routing_table);
@@ -959,7 +969,7 @@ const APP: () = {
 					);
 					match result {
 						gui::GridAction::Exit => {
-							active_menu = ActiveMenu::MainMenu(gui::MenuState::new());
+							active_menu = ActiveMenu::MainMenu(gui::MenuState::new(1));
 						}
 						gui::GridAction::ValueUpdated => {
 							c.resources.current_preset.lock(|p| p.clock_routing_table = preset.clock_routing_table);

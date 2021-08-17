@@ -17,9 +17,60 @@ pub struct MenuState {
 	redraw_pending: bool,
 }
 
+macro_rules! title_style { () => {
+	MonoTextStyleBuilder::new()
+		.font(&FONT_9X15)
+		.text_color(Rgb565::WHITE)
+		.background_color(Rgb565::new(8,16,8))
+		.build()
+	}
+}
+	
+macro_rules! normal_style { () => {
+	MonoTextStyleBuilder::new()
+		.font(&FONT_9X15)
+		.text_color(Rgb565::WHITE)
+		.background_color(Rgb565::BLACK)
+		.build()
+	}
+}
+	
+macro_rules! selected_style { () => {
+	MonoTextStyleBuilder::new()
+		.font(&FONT_9X15)
+		.text_color(Rgb565::WHITE)
+		.background_color(Rgb565::RED)
+		.build()
+	}
+}
+	
+macro_rules! active_style { () => {
+	MonoTextStyleBuilder::new()
+		.font(&FONT_9X15)
+		.text_color(Rgb565::WHITE)
+		.background_color(Rgb565::BLUE)
+		.build()
+	}
+}
+
+fn draw_title(title: &str, draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>) {
+	use embedded_graphics::primitives::*;
+	use embedded_graphics::geometry::*;
+	Rectangle::new(Point::new(0, 80 + 7), Size::new(240, 17))
+		.into_styled( PrimitiveStyleBuilder::new().fill_color(Rgb565::new(8,16,8)).build() )
+		.draw(draw_target).ok().unwrap();
+	
+	Text::new(title, Point::new(20, 80 + 20), title_style!()).draw(draw_target).ok().unwrap();
+}
+
+
 impl MenuState {
-	pub fn new() -> MenuState {
-		MenuState { selected: 0, redraw_pending: true }
+	pub fn new(selected: usize) -> MenuState {
+		MenuState { selected, redraw_pending: true }
+	}
+
+	pub fn schedule_redraw(&mut self) {
+		self.redraw_pending = true;
 	}
 
 	pub fn process(
@@ -32,29 +83,32 @@ impl MenuState {
 		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>
 	) -> MenuAction
 	{
-		self.selected = (self.selected as i16 + scroll).rem_euclid(entries.len() as i16) as usize;
+		if scroll != 0 {
+			let old_selected = self.selected;
+			self.selected = (self.selected as i16 + scroll).rem_euclid(entries.len() as i16) as usize;
+			self.redraw_item(old_selected, entries[old_selected], draw_target);
+			self.redraw_item(self.selected, entries[self.selected], draw_target);
+		}
 		if press {
 			return MenuAction::Activated(self.selected);
 		}
 
 		if self.redraw_pending {
 			draw_target.clear(Rgb565::BLACK).ok().unwrap();
-			let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
-			Text::new(title, Point::new(20, 80 + 20), style).draw(draw_target).ok().unwrap();
-		}
-
-		if self.redraw_pending || scroll != 0 {
-			let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
-			let sel_style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::BLACK).background_color(Rgb565::WHITE).build();
+			draw_title(title, draw_target);
 			for (i, text) in entries.iter().enumerate() {
-				let this_style = if i == self.selected { sel_style } else { style };
-				Text::new(text, Point::new(20, 80+20+30 + 20*i as i32), this_style).draw(draw_target).ok().unwrap();
+				self.redraw_item(i, text, draw_target);
 			}
 		}
 
 		self.redraw_pending = false;
 
 		MenuAction::Continue
+	}
+
+	fn redraw_item(&self, item: usize, entry: &str, draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>) {
+		let this_style = if item == self.selected { selected_style!() } else { normal_style!() };
+		Text::new(entry, Point::new(20, 80+20+30 + 20*item as i32), this_style).draw(draw_target).ok().unwrap();
 	}
 }
 
@@ -87,11 +141,21 @@ enum Entry {
 pub struct MainScreenState {
 	redraw_pending: bool,
 	last_preset: usize,
-	last_dirty: bool
+	last_dirty: bool,
+	dirty_blinking: u32
 }
 
 impl MainScreenState {
-	pub fn new() -> MainScreenState { MainScreenState { redraw_pending: true, last_preset: 0, last_dirty: false } }
+	const DIRTY_BLINK_TIME: u32 = 1300;
+	const DIRTY_BLINK_N: u32 = 4;
+	const DIRTY_BLINK_MOD: u32 = Self::DIRTY_BLINK_TIME / (2*Self::DIRTY_BLINK_N);
+
+	pub fn new() -> MainScreenState { MainScreenState { redraw_pending: true, last_preset: 0, last_dirty: false, dirty_blinking: 0 } }
+
+	pub fn blink_dirty(&mut self) {
+		self.dirty_blinking = Self::DIRTY_BLINK_MOD * 2 * Self::DIRTY_BLINK_N;
+	}
+
 	pub fn process(
 		&mut self,
 		preset: usize,
@@ -100,18 +164,30 @@ impl MainScreenState {
 	)
 	{
 		let mut buf = [0; 10];
-		let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
+		let style = normal_style!();
 		if self.redraw_pending {
 			draw_target.clear(Rgb565::BLACK).ok().unwrap();
-			Text::new("Midikraken", Point::new(20, 80 + 20), style).draw(draw_target).ok().unwrap();
+			draw_title("Midikraken", draw_target);
 			Text::new("Current preset:", Point::new(20, 80 + 50), style).draw(draw_target).ok().unwrap();
 		}
 
 		if self.last_preset != preset || self.redraw_pending {
 			Text::new(slfmt!(&mut buf, "{}  ", preset), Point::new(180, 80 + 50), style).draw(draw_target).ok().unwrap();
 		}
-		if self.last_dirty != dirty || self.redraw_pending {
-			Text::new(if dirty { "(dirty)" } else { "       " }, Point::new(40, 80 + 70), style).draw(draw_target).ok().unwrap();
+
+		let dirty_blink_rem = self.dirty_blinking % Self::DIRTY_BLINK_MOD;
+		let dirty_blink_redraw = dirty_blink_rem % (Self::DIRTY_BLINK_MOD / 2) == (Self::DIRTY_BLINK_MOD / 2 - 1);
+		let highlight_dirty = dirty_blink_rem >= Self::DIRTY_BLINK_MOD / 2;
+		if self.last_dirty != dirty || self.redraw_pending || dirty_blink_redraw {
+			Text::new(
+				if dirty { "(unsaved)" } else { "         " },
+				Point::new(40, 80 + 70),
+				if highlight_dirty { selected_style!() } else { normal_style!() }
+			).draw(draw_target).ok().unwrap();
+		}
+
+		if self.dirty_blinking > 0 {
+			self.dirty_blinking -= 1;
 		}
 
 		self.last_dirty = dirty;
@@ -158,12 +234,12 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 
 		let style =
 			if !selected {
-				MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build()
+				normal_style!()
 			}
 			else {
 				match self.state {
-					GridEditingMode::Selecting => MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::RED).build(),
-					GridEditingMode::Dialing => MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLUE).build()
+					GridEditingMode::Selecting => selected_style!(),
+					GridEditingMode::Dialing => active_style!()
 				}
 			};
 
@@ -189,9 +265,9 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 	{
 		draw_target.clear(Rgb565::BLACK).ok().unwrap();
 
-		let style = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::WHITE).background_color(Rgb565::BLACK).build();
+		let style = normal_style!();
 
-		Text::new(title, Point::new(20, 80 + 20), style).draw(draw_target).ok().unwrap();
+		draw_title(title, draw_target);
 
 		let mut buf = [0u8; 20];
 		for x in 0..(COLS as i32) {

@@ -1,6 +1,8 @@
 Midikraken hardware
 ===================
 
+This page describes the hardware itself. A [build manual is available here](building.md).
+
 Midikraken boards are meant to be **stacked** using M3 spacers and screws.
 In such a setup, one "master" exists that holds the microcontroller with
 the USB port, and zero or multiple "slaves" are daisy-chained with their
@@ -14,8 +16,6 @@ The photo shows an (almost) fully equipped Midikraken including:
 - 1 TRS connector board (MIDI via headphone jacks).
 - The main microcontroller
 - The UI consisting of a display and a rotary encoder.
-
-Note that the UI is not implemented in software yet and thus has no function.
 
 Midikraken boards can be stacked almost arbitrarily; the only limit is
 (currently) a maximum of 16 MIDI in/out port pairs.
@@ -149,6 +149,39 @@ possible:
   to the NYS325, with a hack: The outermost two solder tail must be removed, and
   the remaining three must be bent so that they fit into the PCB.
 - Alternatively, any socket can be used and wires can be soldered to the PCB.
+
+Enclosure
+---------
+
+Midikraken can either be built half-open as shown in the photo above, or can be
+protected from dust and metallic parts with a 3d-printed enclosure.  The
+enclosures reflect Midikraken's modular nature and itself can be stacked onto
+each other. Currently, three enclosure modules exist:
+
+- The [**display shell**](display_shell.FCStd) which is put on top of the DIN5
+  PCB and holds the display.  It terminates the Midikraken stack to the upper
+  side.
+- The [**DIN5 shell**](din5_shell.FCStd) which is put on the opposite side of
+  the DIN5 PCB and covers the MIDI ports, leaving cutouts for the LEDs and the
+  USB port.
+- The [**TRS shell**](trs_back_shell.FCStd) which covers the ports of the TRS
+  PCB and terminates the Midikraken stack.
+- Additionally, the [**display top plate**](display_plate.FCStd) is the
+  alternative to the display shell and should be used in the half-open,
+  caseless configuration to support the display.
+
+The enclosure light guides that cover the LED holes and make it easier to see
+the LEDs from an angle. These guides are to be printed with transparent material
+and are snapped in from the inside.
+(DIN5 needs 4 of [these](din5_lightguide.FCStd) and TRS needs 8 of [these](trs_lightguide.FCStd))
+
+Yet to be done:
+
+- A **terminating DIN5 shell** with a bottom plate for builds without a TRS shell.
+- A **non-terminating TRS shell** for builds that use more than one TRS board.
+  Note that currently, the firmware only supports a maximum of 16 MIDI ports, which
+  rules out a two-TRS-board-solution for now.
+
 
 Ghettokraken on perfboard
 -------------------------

@@ -1,7 +1,7 @@
 Midikraken hardware
 ===================
 
-This page describes the hardware itself. A [build manual is available here](building.md).
+This page describes the hardware itself. A [build manual is available here](build_guide.md).
 
 Midikraken boards are meant to be **stacked** using M3 spacers and screws.
 In such a setup, one "master" exists that holds the microcontroller with

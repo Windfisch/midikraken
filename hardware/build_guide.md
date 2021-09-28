@@ -41,7 +41,7 @@ Additionally, you require the following parts:
   - 4x 16mm M3 hex screws
 - **else if you prefer the half-open solution**:
   - 3D print of the [display plate](display_plate.FCStd) (or fabricated PCB or any other means of
-    manufacturing a plate.
+    manufacturing a plate).
   - One additional DIN5 *or* TRS PCB which is used as bottom plate.
   - Optional: a 3d printed trs_back_shell is useful for aligning the LEDs during build.
   - 4x 6mm M3 screws
@@ -71,6 +71,8 @@ It is expected that you know how to solder DIP and easy SMD components. A quick 
 First, put together the blue pill board. You can use a second PCB to ensure that the pins are
 soldered on straight.
 
+![Blue Pill Board](img/build_guide/bluepill.jpg)
+
 The procedure for the DIN5 and TRS boards is mostly similar:
 
 0. If you have a rev01 board, ensure you cut the right traces on the PCB.
@@ -90,30 +92,39 @@ The procedure for the DIN5 and TRS boards is mostly similar:
    on the DIN5 board only. Ensure the correct orientation as denoted on the board.
 6. DIN5 board only: Place the 1x20 pin headers on your blue pill board, then insert the header onto
    the PCB and solder it in. Then remove the blue pill board from the headers again.
-7. DIN5 board only: Solder in the LEDs. First, put in the red led and fold it by 90 degrees; then
-   put the green led behind and fold it such that it is above the red led.
-   The **long lead** (anode) goes into the **round hole**, and the short lead into the square hole.
-8. Add the connectors.
-9. TRS boards only: Add the LEDs. Again, the **long lead** goes into the **round hole**. Stick them
+7. Mount the TRS connectors.
+8. Add the LEDs to the TRS board. Stick them
    through the holes so that the short lead is barly sticking out on the soldering side, then bend
    the LEDs over the TRS connectors. Do not rotate the board or they will fall out. When you have
    placed all LEDs, put the TRS case on and ensure all LEDs are held into the right position. Rotate
    the case-board-sandwich and solder the LEDs. Then remove the case again.
-10. DIN board only: on the opposite side, solder in the J8 header and the SW1 encoder. You will need
+   The **long lead** (anode) goes into the **round hole**, and the short lead into the square hole.
+9. Solder in the LEDs on the DIN5 board. First, put in the red led and fold it by 90 degrees; then
+   put the green led behind and fold it such that it is above the red led.
+   Again, the **long lead** (anode) goes into the **round hole**, and the short lead into the square hole.
+10. Mount the DIN5 connectors.
+11. DIN board only: on the opposite side, solder in the J8 header and the SW1 encoder. You will need
     to trim the two side legs a bit, or they would collide with the ICs on the other side. Soldering
     in the side legs is a bit tricky and must be done "from the wrong side". On the other hand,
     these side legs are optional and only provide stability. Be sure to solder in the rotary knob
     straight, mistakes are impossible to fix.
 
+![DIN board](img/build_guide/din_board_top.jpg)
+![TRS board](img/build_guide/trs_board_top.jpg)
+
 Finally, insert the 6-wire 1.27mm pitch lead into the box connector terminators as shown on the
-photo (TODO). Don't waste wire length. Then push the terminators together with force so they cut
+photo. Don't waste wire length. Then push the terminators together with force so they cut
 into the wire and form a connection.
+
+![Box connectors on cable](img/build_guide/cable.jpg)
+
+
 
 Step 3: Testing basic functionality
 -----------------------------------
 
 Attach the bare blue pill board via USB to your computer. The power LED should light up and you
-should see a Midikraken USB device.
+should see a Midikraken USB device. Disconnect USB.
 
 Now place the blue pill board on the DIN5 board. Do not attach the display yet. Connect it to USB
 again, you should see a Midikraken USB device again. Send some notes to one of the first four ports.
@@ -134,30 +145,68 @@ Remove all wires.
 Step 4a: If you have an enclosure: Enclosure assembly
 -----------------------------------------------------
 
+### Shell preparation
+
+First, break of the supports from the DIN enclosure. Then trim away all 3d print artifacts using
+a sharp blade:
+
+![Breaking the supports](img/build_guide/remove_support.jpg)
+![Trimming artifacts](img/build_guide/trim_ooze.jpg)
+
+Then snap in the transparent light guides into the TRS and DIN shells. Grab the TRS light guides
+with a pair of tweezers, put the TRS case on its side and lay the light guides in place. Then
+firmly press them into their holes, starting from the middle. Be sure to not break the walls off.
+
+![Inserting the light guides](img/build_guide/trs_lightguides_1.jpg)
+![Snapping in the light guides](img/build_guide/trs_lightguides_3.jpg)
+
+Use tweezers to remove the 3d print spaghetti from the screw slots in the TRS board. Grab a string
+and twist it around until it comes off.
+
+![screw slots](img/build_guide/trs_slot_cleanup.jpg)
+![Removing the spaghetti](img/build_guide/spaghetti.jpg)
+
+![Finished TRS shell](img/build_guide/trs_shell_finished.jpg)
+![Finished DIN shell](img/build_guide/din_shell_finished.jpg)
+
 Mount the display into the display shell from below using the M2 screws and nuts.
 Ensure you can slide the four M3 screws through the holes in the display shell. It might be
 neccessary to insert them from the opposite side first and to clear any excess plastic / print
 artifacts.
 
-**Carefully** place the display shell on top of the DIN5 board. Ensure that the display pins have
-actually met the display socket. Put the button knob on the button to provisorily lock the shell in
-place. Attach USB and check whether the display still works. Disconnect USB again.
+![Display shell back side](img/build_guide/display1.jpg)
+![Display shell front side](img/build_guide/display2.jpg)
 
-Snap in the four oval light guides into the DIN5 case. (TODO photo)
+### Adding the boards
 
-Then slide the DIN5 case over the DIN5 connectors. Be sure to not cover the USB connector.
+Slide the DIN5 case over the DIN5 connectors. Be sure to not cover the USB connector and that
+the nose in the middle latches into the middle two DIN5 connectors for improved stability.
+
+![Latching in the DIN shell](img/build_guide/din_latch.jpg)
 
 Plug in the master/slave cable into the TRS board and place the four M3 nuts into the slots in the
-enclosure. Make sure they don't fall out. Now snap in the eight other light guides into the TRS case
-and place it on top of the board. Once the board is in place, the nuts are held in place and cannot
-fall out any more. Screw in the 22mm M3 brass spacers to lock everything in place. Be sure that the
-master/slave cable comes out at the small slot in the PCB.
+enclosure. Make sure they don't fall out. Put the TRS board on top. Once the board is in place, the
+nuts are held in place and cannot fall out any more. Screw in the 22mm M3 brass spacers to lock
+everything in place. Be sure that the master/slave cable comes out at the small slot in the PCB.
+
+![Cable inserted into the TRS board](img/build_guide/mount_trs_shell1.jpg)
+![Finished TRS assembly](img/build_guide/mount_trs_shell3.jpg)
 
 Now plug in the cable into the "to slave" connector of the DIN5 board. Then place the TRS board on
 top / below of the DIN5 board. Screw in the four M3 screws through the display shell and the DIN5
 board into the brass spacers.
 
+![Inserting the cable into the DIN board](img/build_guide/mount_trs_din1.jpg)
+![TRS and DIN boards put together](img/build_guide/mount_trs_din2.jpg)
+
+**Carefully** place the display shell on top of the DIN5 board. Ensure that the display pins have
+actually met the display socket. Put the button knob on the button to provisorily lock the shell in
+place. Attach USB and check whether the display still works. Disconnect USB again.
+
 Congratulations, your Midikraken is complete. :)
+
+![Finished Midikraken](img/build_guide/finished.jpg)
+![Finished Midikraken](img/build_guide/finished2.jpg)
 
 Step 4b: If you prefer the half-open solution: Assembly
 -------------------------------------------------------

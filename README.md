@@ -8,11 +8,10 @@ seller ([note about quality differences](https://github.com/Windfisch/analog-syn
 plus other garden variety components such as HC2630 opto couplers (that's just
 two 6N137 in one package), shift registers, some LEDs and resistors.
 
-Future features may include sophisticated MIDI routing, clock division,
-a hardware arpeggiator etc.
-
-This project is still in development stage, but already works fine as a flexible
-as a MIDI-USB-interface.
+Apart from being a MIDI-USB-interface, Midikraken is a feature-packed MIDI
+router supporting separate clock and note event routing, clock division.
+Future features may include split-keyboard routing, clock generation or even a
+hardware arpeggiator.
 
 ![Example of a Midikraken configuration](hardware/img/midikraken_trs_din_ui.jpg)
 
@@ -46,8 +45,9 @@ stackable using M3 screws / spacers. Currently, the firmware must be
 adapted and recompiled according to the stack configuration. Currently,
 a maximum of 16 port pairs is supported.
 
-For information on how to build the hardware, the revision history and errata,
-see [the hardware documentation](hardware/README.md).
+For information on the hardware, the revision history and errata, see
+[the hardware documentation](hardware/README.md). A build guide for rev01
+and rev02 [is available](hardware/build_guide.md).
 
 
 Firmware

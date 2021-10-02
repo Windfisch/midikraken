@@ -6,10 +6,10 @@ options exist. Not all of them can be described here, and not all of them have b
 
 The following guide will focus on the following configuration:
 - One DIN5-board with a display and the microcontroller.
-  (In [A1 B1 C+ D1 E1 configuration](README.md#board-variants))
-- One TRS-board. (In [X1 Y1 configuration](README.md#board-variants))
+  (In [A1 B1 C+ D1 E1 configuration](../../hardware/README.md#board-variants))
+- One TRS-board. (In [X1 Y1 configuration](../../hardware/README.md#board-variants))
 
-![Photo of Midikraken](img/midikraken_trs_din_ui.jpg)
+![Photo of Midikraken](../../hardware/img/midikraken_trs_din_ui.jpg)
 
 This guide will leave up to you whether you want an enclosure or whether you prefer the half-open
 configuration.
@@ -29,20 +29,20 @@ Additionally, you require the following parts:
 - 2 box connector terminators
 - 5cm (or more) of 6x 1.27mm pitch wire for the box connectors.
 - **if you want an enclosure**:
-  - 3D prints of the three enclosure parts ([din5_shell](cad/din5_shell.FCStd),
-    [trs_back_shell](cad/trs_back_shell.FCStd), [display_shell](cad/display_shell.FCStd)). Print
+  - 3D prints of the three enclosure parts ([din5_shell](../../hardware/cad/din5_shell.FCStd),
+    [trs_back_shell](../../hardware/cad/trs_back_shell.FCStd), [display_shell](../../hardware/cad/display_shell.FCStd)). Print
     them in any color your like, black PLA with 0.2mm layer height and 10% cubic infill worked fine
     for me. Rotate the DIN5 shell such that the enforcements are close to the bottom side; use
     paint-on-supports for the mounting latches and for the crossings of the enforcement beams. Use
     no support for the other shells.
-  - 3D prints of the light guides: 4x [din5](cad/din5_lightguide.FCStd) and 8x
-    [trs](cad/trs_lightguide.FCStd). These *must* be printed in transparent and with 100% infill.
+  - 3D prints of the light guides: 4x [din5](../../hardware/cad/din5_lightguide.FCStd) and 8x
+    [trs](../../hardware/cad/trs_lightguide.FCStd). These *must* be printed in transparent and with 100% infill.
     Overture transparent PETG at 0.1mm layer height worked fine for me.
   - 4x 16mm M3 hex screws
 - **else if you prefer the half-open solution**:
-  - 3D print of the [display plate](display_plate.FCStd) (or fabricated PCB or any other means of
+  - 3D print of the [front plate](../../hardware/frontplate) (or fabricated PCB or any other means of
     manufacturing a plate).
-  - One additional DIN5 *or* TRS PCB which is used as bottom plate.
+  - One additional DIN5 *or* TRS PCB which is used as bottom plate, or [the bottom plate](../../hardware/backplate)
   - Optional: a 3d printed trs_back_shell is useful for aligning the LEDs during build.
   - 4x 6mm M3 screws
   - 4x 16mm brass spacers
@@ -55,12 +55,8 @@ Additionally, you require the following parts:
 Step 2: Soldering the PCBs
 --------------------------
 
-First, read [Fixing the DIN5
-board](https://github.com/Windfisch/midikraken/blob/master/hardware/README.md#fixing-the-din-board)
-and [Fixing the TRS
-board](https://github.com/Windfisch/midikraken/blob/master/hardware/README.md#fixing-the-trs-board).
-
-Before soldering anything make the cuts described in these links.
+First, read the [instructions on how to fix rev01 boards](../rev01_fix/README.md).
+Before soldering anything make the cuts described there.
 
 It is expected that you know how to solder DIP and easy SMD components. A quick reminder:
 
@@ -71,7 +67,7 @@ It is expected that you know how to solder DIP and easy SMD components. A quick 
 First, put together the blue pill board. You can use a second PCB to ensure that the pins are
 soldered on straight.
 
-![Blue Pill Board](img/build_guide/bluepill.jpg)
+![Blue Pill Board](bluepill.jpg)
 
 The procedure for the DIN5 and TRS boards is mostly similar:
 
@@ -109,14 +105,14 @@ The procedure for the DIN5 and TRS boards is mostly similar:
     these side legs are optional and only provide stability. Be sure to solder in the rotary knob
     straight, mistakes are impossible to fix.
 
-![DIN board](img/build_guide/din_board_top.jpg)
-![TRS board](img/build_guide/trs_board_top.jpg)
+![DIN board](din_board_top.jpg)
+![TRS board](trs_board_top.jpg)
 
 Finally, insert the 6-wire 1.27mm pitch lead into the box connector terminators as shown on the
 photo. Don't waste wire length. Then push the terminators together with force so they cut
 into the wire and form a connection.
 
-![Box connectors on cable](img/build_guide/cable.jpg)
+![Box connectors on cable](cable.jpg)
 
 
 
@@ -150,47 +146,47 @@ Step 4a: If you have an enclosure: Enclosure assembly
 First, break of the supports from the DIN enclosure. Then trim away all 3d print artifacts using
 a sharp blade:
 
-![Breaking the supports](img/build_guide/remove_support.jpg)
-![Trimming artifacts](img/build_guide/trim_ooze.jpg)
+![Breaking the supports](remove_support.jpg)
+![Trimming artifacts](trim_ooze.jpg)
 
 Then snap in the transparent light guides into the TRS and DIN shells. Grab the TRS light guides
 with a pair of tweezers, put the TRS case on its side and lay the light guides in place. Then
 firmly press them into their holes, starting from the middle. Be sure to not break the walls off.
 
-![Inserting the light guides](img/build_guide/trs_lightguides_1.jpg)
-![Snapping in the light guides](img/build_guide/trs_lightguides_3.jpg)
+![Inserting the light guides](trs_lightguides_1.jpg)
+![Snapping in the light guides](trs_lightguides_3.jpg)
 
 Use tweezers to remove the 3d print spaghetti from the screw slots in the TRS board. Grab a string
 and twist it around until it comes off.
 
-![screw slots](img/build_guide/trs_slot_cleanup.jpg)
-![Removing the spaghetti](img/build_guide/spaghetti.jpg)
+![screw slots](trs_slot_cleanup.jpg)
+![Removing the spaghetti](spaghetti.jpg)
 
-![Finished TRS shell](img/build_guide/trs_shell_finished.jpg)
-![Finished DIN shell](img/build_guide/din_shell_finished.jpg)
+![Finished TRS shell](trs_shell_finished.jpg)
+![Finished DIN shell](din_shell_finished.jpg)
 
 Mount the display into the display shell from below using the M2 screws and nuts.
 Ensure you can slide the four M3 screws through the holes in the display shell. It might be
 neccessary to insert them from the opposite side first and to clear any excess plastic / print
 artifacts.
 
-![Display shell back side](img/build_guide/display1.jpg)
-![Display shell front side](img/build_guide/display2.jpg)
+![Display shell back side](display1.jpg)
+![Display shell front side](display2.jpg)
 
 ### Adding the boards
 
 Slide the DIN5 case over the DIN5 connectors. Be sure to not cover the USB connector and that
 the nose in the middle latches into the middle two DIN5 connectors for improved stability.
 
-![Latching in the DIN shell](img/build_guide/din_latch.jpg)
+![Latching in the DIN shell](din_latch.jpg)
 
 Plug in the master/slave cable into the TRS board's *"from master"* header and place the four M3 nuts into the slots in the
 enclosure. Make sure they don't fall out. Put the TRS board on top. Once the board is in place, the
 nuts are held in place and cannot fall out any more. Screw in the 22mm M3 brass spacers to lock
 everything in place. Be sure that the master/slave cable comes out at the small slot in the PCB.
 
-![Cable inserted into the TRS board](img/build_guide/mount_trs_shell1.jpg)
-![Finished TRS assembly](img/build_guide/mount_trs_shell3.jpg)
+![Cable inserted into the TRS board](mount_trs_shell1.jpg)
+![Finished TRS assembly](mount_trs_shell3.jpg)
 
 *Note: the photos show the wrong orientation. The cable must be inserted into "from master", not into
 "to slave" as shown on the photos.*
@@ -199,8 +195,8 @@ Now plug in the cable into the "to slave" connector of the DIN5 board. Then plac
 top / below of the DIN5 board. Screw in the four M3 screws through the display shell and the DIN5
 board into the brass spacers.
 
-![Inserting the cable into the DIN board](img/build_guide/mount_trs_din1.jpg)
-![TRS and DIN boards put together](img/build_guide/mount_trs_din2.jpg)
+![Inserting the cable into the DIN board](mount_trs_din1.jpg)
+![TRS and DIN boards put together](mount_trs_din2.jpg)
 
 **Carefully** place the display shell on top of the DIN5 board. Ensure that the display pins have
 actually met the display socket. Put the button knob on the button to provisorily lock the shell in
@@ -208,8 +204,8 @@ place. Attach USB and check whether the display still works. Disconnect USB agai
 
 Congratulations, your Midikraken is complete. :)
 
-![Finished Midikraken](img/build_guide/finished.jpg)
-![Finished Midikraken](img/build_guide/finished2.jpg)
+![Finished Midikraken](finished.jpg)
+![Finished Midikraken](finished2.jpg)
 
 Step 4b: If you prefer the half-open solution: Assembly
 -------------------------------------------------------

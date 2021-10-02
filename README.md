@@ -47,7 +47,7 @@ a maximum of 16 port pairs is supported.
 
 For information on the hardware, the revision history and errata, see
 [the hardware documentation](hardware/README.md). A build guide for rev01
-and rev02 [is available](hardware/build_guide.md).
+and rev02 [is available](documentation/build_guide/README.md).
 
 
 Firmware

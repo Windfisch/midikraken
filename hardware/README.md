@@ -1,7 +1,7 @@
 Midikraken hardware
 ===================
 
-This page describes the hardware itself. A [build manual is available here](build_guide.md).
+This page describes the hardware itself. A [build manual is available here](../documentation/build_guide/README.md).
 
 Midikraken boards are meant to be **stacked** using M3 spacers and screws.
 In such a setup, one "master" exists that holds the microcontroller with
@@ -98,7 +98,7 @@ Revision 01
 ### Errata
 
 During powerup, the MIDI ports send garbage bits. To fix this,
-you likely need to disconnect the 74HC595s' *output enable* pins from GND
+you need to disconnect the 74HC595s' *output enable* pins from GND
 using a sharp knife (and some wire to reconnect all GNDs that should stay
 connected), and connecting them like this instead:
 
@@ -109,32 +109,7 @@ connected), and connecting them like this instead:
 This delays the output enable enough such that the shift registers can
 be filled with proper data after the microcontroller has booted up.
 
-#### Fixing the DIN board
-
-On the front side, cut trace A that connects U2's pin 13 to GND. The cut
-is marked in red.
-
-![Front side](img/din5_rev01_patch_front.png)
-
-On the back side, cut the two traces at B that connect the same pin to GND.
-Then solder a 10k resistor between pins B and C. Solder a 10uF capacitor
-to pin D, and connect the other end of the capacitor to pin B using enameled
-cupper wire.
-
-![Back side](img/din5_rev01_patch_back.png)
-
-In the end, the fix could look like this:
-
-![Photo of the fixed board](img/din5_rev01_patch_photo.jpg)
-
-#### Fixing the TRS board
-
-On the front side, cut the two traces marked in red. Then wire a capacitor from
-B to C and a resistor from A to B. Doing this once is enough since both ICs' OE
-pins are still connected with each other.
-
-![Front side](img/trs_rev01_patch_front.png)
-
+The exact fixing procedure is described in [this document](../documentation/rev01_fix/README.md).
 
 ### Eurorack compatibility
 
@@ -158,22 +133,22 @@ protected from dust and metallic parts with a 3d-printed enclosure.  The
 enclosures reflect Midikraken's modular nature and itself can be stacked onto
 each other. Currently, three enclosure modules exist:
 
-- The [**display shell**](display_shell.FCStd) which is put on top of the DIN5
+- The [**display shell**](cad/display_shell.FCStd) which is put on top of the DIN5
   PCB and holds the display.  It terminates the Midikraken stack to the upper
   side.
-- The [**DIN5 shell**](din5_shell.FCStd) which is put on the opposite side of
+- The [**DIN5 shell**](cad/din5_shell.FCStd) which is put on the opposite side of
   the DIN5 PCB and covers the MIDI ports, leaving cutouts for the LEDs and the
   USB port.
-- The [**TRS shell**](trs_back_shell.FCStd) which covers the ports of the TRS
+- The [**TRS shell**](cad/trs_back_shell.FCStd) which covers the ports of the TRS
   PCB and terminates the Midikraken stack.
-- Additionally, the [**display top plate**](display_plate.FCStd) is the
-  alternative to the display shell and should be used in the half-open,
-  caseless configuration to support the display.
+- Additionally, the [**display top plate**](frontplate) and [**back plate**](backplate)
+  are alternatives to the display shell and should be used in the half-open,
+  caseless configuration to support the display and protect the circuitry.
 
 The enclosure light guides that cover the LED holes and make it easier to see
 the LEDs from an angle. These guides are to be printed with transparent material
 and are snapped in from the inside.
-(DIN5 needs 4 of [these](din5_lightguide.FCStd) and TRS needs 8 of [these](trs_lightguide.FCStd))
+(DIN5 needs 4 of [these](cad/din5_lightguide.FCStd) and TRS needs 8 of [these](cad/trs_lightguide.FCStd))
 
 Yet to be done:
 

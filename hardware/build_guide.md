@@ -184,13 +184,16 @@ the nose in the middle latches into the middle two DIN5 connectors for improved 
 
 ![Latching in the DIN shell](img/build_guide/din_latch.jpg)
 
-Plug in the master/slave cable into the TRS board and place the four M3 nuts into the slots in the
+Plug in the master/slave cable into the TRS board's *"from master"* header and place the four M3 nuts into the slots in the
 enclosure. Make sure they don't fall out. Put the TRS board on top. Once the board is in place, the
 nuts are held in place and cannot fall out any more. Screw in the 22mm M3 brass spacers to lock
 everything in place. Be sure that the master/slave cable comes out at the small slot in the PCB.
 
 ![Cable inserted into the TRS board](img/build_guide/mount_trs_shell1.jpg)
 ![Finished TRS assembly](img/build_guide/mount_trs_shell3.jpg)
+
+*Note: the photos show the wrong orientation. The cable must be inserted into "from master", not into
+"to slave" as shown on the photos.*
 
 Now plug in the cable into the "to slave" connector of the DIN5 board. Then place the TRS board on
 top / below of the DIN5 board. Screw in the four M3 screws through the display shell and the DIN5
@@ -229,4 +232,9 @@ Congratulations, your Midikraken is complete. :)
 Troubleshooting
 ---------------
 
-TODO
+**All output leds on the TRS board are lit.** Is the cable should be plugged into the TRS board's "from
+master" socket, as it should be?
+
+**No display output.** Have the display pins actually met the display header on the board? Inserting them
+right can be a bit tricky.
+

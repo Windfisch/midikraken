@@ -2,7 +2,8 @@ Upgrading the firmware
 ======================
 
 If a new firmware is released, you can easily upgrade your Midikraken to the most recent version
-via USB. First, download the firmware image from TODO, then follow the steps below depending on
+via USB. First, download the firmware image from [here](https://github.com/Windfisch/midikraken/releases),
+then follow the steps below depending on
 your operating system. **Do not unplug the device during the flash procedure or you might damage
 the firmware.**
 
@@ -63,5 +64,6 @@ as usual.
 
 In the highly unlikely event that you have a defective bootloader, you will need additional hardware
 to re-flash the bootloader. This can be done either using a UART adapter or using a JTAG/SWD debugger,
-e.g. a STLINK or a Blackmagic probe. Follow [these instructions](../../firmware/sboot/README.md) to build
-and flash the bootloader.
+e.g. a STLINK or a Blackmagic probe. Follow
+[these instructions](https://github.com/Windfisch/midikraken/blob/master/firmware/sboot/README.md) to
+build and flash the bootloader.

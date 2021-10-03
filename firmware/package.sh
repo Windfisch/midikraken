@@ -14,6 +14,7 @@ OUTDIR="midikraken-firmware-$VERSION"
 
 mkdir "$TEMPDIR/$OUTDIR"
 
+PWD_OLD="`pwd`"
 make release.dfu.bin
 cp release.dfu.bin "$TEMPDIR/$OUTDIR/firmware-$VERSION.bin"
 cp sboot/bootloader.syx "$TEMPDIR/$OUTDIR/"
@@ -92,10 +93,9 @@ dfu-util -R -D firmware-$VERSION.bin
 EOF
 
 cat << EOF > credits.txt
-
 Zadig: https://zadig.akeo.ie/. Licensed under the GPL3, see "Help->About".
 
-dfu-util-static.exe: http://dfu-util.sourceforge.net/. Licensed under the GPL2, see `dfu-util-static -V`.
+dfu-util-static.exe: http://dfu-util.sourceforge.net/. Licensed under the GPL2, see 'dfu-util-static -V'.
 
 sendmidi.exe: See https://github.com/gbevin/SendMIDI. License follows:
 
@@ -326,4 +326,4 @@ popd
 
 zip -r midikraken-firmware-$VERSION.zip $OUTDIR/
 
-echo "`pwd`/midikraken-firmware-$VERSION.zip"
+cp "`pwd`/midikraken-firmware-$VERSION.zip" "$PWD_OLD/"

@@ -1,0 +1,38 @@
+name: release-firmware
+
+env:
+  CARGO_TERM_COLOR: always
+
+on:
+  push:
+    tags:
+      - 'firmware_v*'
+
+jobs:
+  rust:
+    name: Compile firmware
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt-get install binutils-arm-none-eabi dos2unix
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-10-03
+          override: true
+          target: thumbv7m-none-eabi
+      - name: version
+        id: version
+        run: echo "::set-output name=version::${GITHUB_REF#refs/tags/firmware_v}"
+        shell: bash
+      - run: ./package.sh ${{ steps.version.outputs.version }}
+        working-directory: firmware
+      - uses: ncipollo/release-action@v1
+        with:
+          draft: false
+          prerelease: false
+          name: firmware-${{ steps.version.outputs.version }}
+          artifacts: "firmware/midikraken-firmware-${{ steps.version.outputs.version }}.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}

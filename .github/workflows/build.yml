@@ -1,0 +1,27 @@
+name: build
+
+env:
+  CARGO_TERM_COLOR: always
+
+on: [push, pull_request]
+
+jobs:
+  rust:
+    name: Compile firmware
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - nightly
+          - nightly-2021-10-03
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - run: make release.dfu.bin
+        working-directory: firmware
+      - run: make release.bare.bin
+        working-directory: firmware

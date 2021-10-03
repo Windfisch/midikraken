@@ -118,7 +118,6 @@ into the wire and form a connection.
 ![Box connectors on cable](cable.jpg)
 
 
-
 Step 3: Testing basic functionality
 -----------------------------------
 
@@ -141,7 +140,18 @@ and your MIDI application should register data being received.
 
 Remove all wires.
 
-Step 4a: If you have an enclosure: Enclosure assembly
+Step 4: Flashing the latest firmware
+------------------------------------
+
+Download the latest firmware from [here](https://github.com/Windfisch/midikraken/releases/tag/firmware_v0.1.1),
+connect the device via USB and flash it using [these instructions](../build_guide/README.md).
+
+Disconnect and reconnect USB to check whether the device still shows up as "Midikraken" USB device.
+If it doesn't follow the recovery instructions under the link above.
+
+Remove all wires.
+
+Step 5a: If you have an enclosure: Enclosure assembly
 -----------------------------------------------------
 
 ### Shell preparation
@@ -210,7 +220,7 @@ Congratulations, your Midikraken is complete. :)
 ![Finished Midikraken](finished.jpg)
 ![Finished Midikraken](finished2.jpg)
 
-Step 4b: If you prefer the half-open solution: Assembly
+Step 5b: If you prefer the half-open solution: Assembly
 -------------------------------------------------------
 
 Screw the 4x TODO mm spacers into the spare PCB / bottom plate and secure them with the M3 nuts.

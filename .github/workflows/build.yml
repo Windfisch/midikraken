@@ -15,7 +15,7 @@ jobs:
           - nightly
           - nightly-2021-10-03
     steps:
-      - run: apt install binutils-arm-none-eabi
+      - run: sudo apt-get install binutils-arm-none-eabi
       - uses: actions/checkout@v2
         with:
           submodules: recursive

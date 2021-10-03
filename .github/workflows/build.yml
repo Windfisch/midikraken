@@ -23,6 +23,7 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
+          target: thumbv7m-none-eabi
       - run: make release.dfu.bin
         working-directory: firmware
       - run: make release.bare.bin

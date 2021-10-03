@@ -19,6 +19,7 @@ make release.dfu.bin
 cp release.dfu.bin "$TEMPDIR/$OUTDIR/firmware-$VERSION.bin"
 cp sboot/bootloader.syx "$TEMPDIR/$OUTDIR/"
 
+cp -r ../documentation/firmware_upgrade/* "$OUTDIR/"
 
 cd "$TEMPDIR"
 

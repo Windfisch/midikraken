@@ -1,6 +1,8 @@
 Midikraken
 ==========
 
+[![build](https://github.com/Windfisch/midikraken/actions/workflows/build.yml/badge.svg)](https://github.com/Windfisch/midikraken/actions/workflows/build.yml)
+
 An open-source, open-hardware MIDI-USB-interface supporting up to 16
 (and maybe beyond?) MIDI ports. The hardware is based on a STM32F103
 *"blue pill"* board which can be cheaply sourced from your favourite chinese

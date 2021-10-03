@@ -1,0 +1,14 @@
+name: doc-links
+
+on: [push, pull_request]
+
+jobs:
+  links:
+    name: Check documentation links
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt-get install npm
+      - uses: actions/checkout@v2
+      - run: npm i -D markdown-link-check
+      - run: echo '{ "httpHeaders": [ { "urls": [""], "headers": { "Accept": "text/html" } } ] }' > linkcheck.json
+      - run: find . -iname '*.md' | xargs -n1 npx markdown-link-check

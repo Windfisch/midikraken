@@ -37,6 +37,8 @@ use tim2_interrupt_handler::NumPortPairs;
 use tim2_interrupt_handler::DmaPair;
 use generic_array::typenum::Unsigned;
 
+use heapless;
+
 
 #[macro_use]
 mod str_writer;
@@ -280,15 +282,20 @@ fn load_preset(tx: &mut impl core::fmt::Write, settings_compressed: &DynArray<20
 	writeln!(tx, "Loading preset {}", preset_idx).ok();
 	let data = settings_compressed.get(preset_idx).ok_or(SettingsError)?;
 	writeln!(tx, "  -> Found").ok();
-	let preset = parse_routing(data)?;
+	let preset = parse_preset(data)?;
 	writeln!(tx, "  -> Done").ok();
 
 	Ok(preset)
 }
 
-fn parse_routing(data: &[u8]) -> Result<Preset, SettingsError> {
-	const LEN_ENTRY: usize = 7;
+fn parse_preset(data: &[u8]) -> Result<Preset, SettingsError> {
 	let mut preset = Preset::new();
+	parse_routing_matrix(&mut preset, data)?;
+	Ok(preset)
+}
+
+fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<(), SettingsError> {
+	const LEN_ENTRY: usize = 7;
 	for chunk in data.chunks_exact(LEN_ENTRY) {
 		let x = chunk[0] & 0x0F;
 		let y = (chunk[0] & 0xF0) >> 4;
@@ -303,7 +310,7 @@ fn parse_routing(data: &[u8]) -> Result<Preset, SettingsError> {
 		preset.event_routing_table[x as usize][y as usize] = EventRouteMode::from_u8(event_routing)?;
 	}
 
-	Ok(preset)
+	Ok(())
 }
 
 fn serialize_routing(mut data_opt: Option<&mut [u8]>, preset: &Preset) -> usize {
@@ -455,20 +462,36 @@ impl <const SIZE: usize> DynArray<SIZE> {
 
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
 
+use core::sync::atomic::{AtomicU32, Ordering};
+static OUTPUT_MASK: AtomicU32 = AtomicU32::new(0x000000F0); // FIXME init this to F0F0F0F0
+
+fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
+	let a_part = (mode_mask & 0x000F) |
+	((mode_mask & 0x00F0) << 4) |
+	((mode_mask & 0x0F00) << 8) |
+	((mode_mask & 0xF000) << 12);
+
+	let b_part = ((!a_part) << 4) & 0xF0F0F0;
+
+	return a_part | b_part;
+}
+
 type EventRoutingTable = [[EventRouteMode; 8]; 8];
 type ClockRoutingTable = [[u8; 8]; 8];
 
 #[derive(Clone, Copy)]
 pub struct Preset {
 	event_routing_table: EventRoutingTable,
-	clock_routing_table: ClockRoutingTable
+	clock_routing_table: ClockRoutingTable,
+	mode_mask: u32
 }
 
 impl Preset {
 	pub const fn new() -> Preset {
 		Preset {
 			event_routing_table: [[EventRouteMode::None; 8]; 8],
-			clock_routing_table: [[0; 8]; 8]
+			clock_routing_table: [[0; 8]; 8],
+			mode_mask: 0
 		}
 	}
 }
@@ -816,6 +839,7 @@ const APP: () = {
 			MainMenu(gui::MenuState),
 			EventRouting(gui::GridState<EventRouteMode, 8, 8>),
 			ClockRouting(gui::GridState<u8, 8, 8>),
+			TrsModeSelect(gui::MenuState),
 		}
 
 		let mut active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
@@ -826,6 +850,7 @@ const APP: () = {
 		const MAX_COUNT: isize = 65536 / 4;
 		let mut dirty: bool = false;
 		let mut preset_idx = 0;
+		let mut mode_mask = 0xFF0; // FIXME sensible initial value. actually load this from flash...
 		loop {
 			c.resources.delay.delay_ms(1u8);
 
@@ -879,7 +904,9 @@ const APP: () = {
 						&[
 							"Event Routing",
 							"Clock Routing",
+							"TRS mode A/B select",
 							if dirty { "Save" } else { "(nothing to save)" },
+							if dirty { "Revert to saved" } else { "(nothing to revert)" },
 							"Back"
 						],
 						c.resources.display
@@ -889,19 +916,73 @@ const APP: () = {
 							match index {
 								0 => { active_menu = ActiveMenu::EventRouting(gui::GridState::new()); }
 								1 => { active_menu = ActiveMenu::ClockRouting(gui::GridState::new()); }
-								2 => {
-									let flash = &mut c.resources.flash;
-									let settings_compressed = &mut c.resources.settings_compressed;
-									c.resources.tx.lock(|tx| {
-										writeln!(tx, "Going to save settings to flash").ok();
-										save_preset(settings_compressed, preset_idx, &preset).unwrap(); // FIXME this must be handled!
-										write_settings_to_flash(tx, flash, settings_compressed).unwrap();
-									});
-									dirty = false;
-									menu_state.schedule_redraw();
+								2 => { active_menu = ActiveMenu::TrsModeSelect(gui::MenuState::new(0)); }
+								3 => {
+									if dirty {
+										let flash = &mut c.resources.flash;
+										let settings_compressed = &mut c.resources.settings_compressed;
+										c.resources.tx.lock(|tx| {
+											writeln!(tx, "Going to save settings to flash").ok();
+											save_preset(settings_compressed, preset_idx, &preset).unwrap(); // FIXME this must be handled!
+											write_settings_to_flash(tx, flash, settings_compressed).unwrap();
+										});
+										dirty = false;
+										menu_state.schedule_redraw();
+									}
 								}
-								3 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
+								4 => {
+									if dirty {
+										let current_preset = &mut c.resources.current_preset;
+										let settings_compressed = &mut c.resources.settings_compressed;
+										c.resources.tx.lock(|tx| {
+											current_preset.lock(|p| {
+												preset = load_preset(tx, settings_compressed, preset_idx).unwrap();
+												*p = preset;
+											})
+										});
+										dirty = false;
+										menu_state.schedule_redraw();
+									}
+								}
+								5 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
 								_ => { unreachable!(); }
+							}
+						}
+						_ => {}
+					}
+				}
+				ActiveMenu::TrsModeSelect(ref mut menu_state) => {
+					let mut entries = heapless::Vec::<heapless::String<heapless::consts::U6>, heapless::consts::U16>::new();
+					for i in 4..12 { // FIXME hardcoded
+						let mut string = heapless::String::new();
+						write!(&mut string, "{:2}: {}", i, if mode_mask & (1<<i) != 0 { "A" } else { "B" }).unwrap();
+						entries.push(string).unwrap();
+					}
+					use core::iter::FromIterator;
+					let entries_str = heapless::Vec::<_, heapless::consts::U16>::from_iter(
+						entries.iter().map(|v| v.as_str())
+						.chain(core::iter::once("Back"))
+					);
+					
+
+
+					let result = menu_state.process(
+						scroll,
+						button_event,
+						false,
+						"TRS Mode Select",
+						&entries_str,
+						c.resources.display
+					);
+					match result {
+						gui::MenuAction::Activated(index) => {
+							if index == entries_str.len() - 1 {
+								active_menu = ActiveMenu::MainMenu(gui::MenuState::new(2))
+							}
+							else {
+								mode_mask ^= 1 << (index+4);
+								OUTPUT_MASK.store(mode_mask_to_output_mask(mode_mask), Ordering::Relaxed);
+								menu_state.schedule_redraw();
 							}
 						}
 						_ => {}
@@ -1010,6 +1091,7 @@ const APP: () = {
 			c.resources.spi_strobe_pin,
 			c.resources.dma_transfer,
 			&mut DMA_BUFFER,
+			OUTPUT_MASK.load(Ordering::Relaxed)
 		) };
 
 		if recv_finished != 0 {

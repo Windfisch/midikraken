@@ -290,13 +290,23 @@ fn load_preset(tx: &mut impl core::fmt::Write, settings_compressed: &DynArray<20
 
 fn parse_preset(data: &[u8]) -> Result<Preset, SettingsError> {
 	let mut preset = Preset::new();
-	parse_routing_matrix(&mut preset, data)?;
+	let mut offset = 0;
+
+	offset += parse_routing_matrix(&mut preset, &data[offset..])?;
+	offset += parse_trs_mode(&mut preset, &data[offset..])?;
+
 	Ok(preset)
 }
 
-fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<(), SettingsError> {
+fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
 	const LEN_ENTRY: usize = 7;
-	for chunk in data.chunks_exact(LEN_ENTRY) {
+	let n_entries = data[0] as usize;
+
+	if data.len() < 1 + n_entries * LEN_ENTRY {
+		return Err(SettingsError);
+	}
+
+	for chunk in data[1..1+LEN_ENTRY*n_entries].chunks_exact(LEN_ENTRY) {
 		let x = chunk[0] & 0x0F;
 		let y = (chunk[0] & 0xF0) >> 4;
 		let clock_divisor = chunk[1] & 0x0F;
@@ -310,32 +320,63 @@ fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<(), Settings
 		preset.event_routing_table[x as usize][y as usize] = EventRouteMode::from_u8(event_routing)?;
 	}
 
-	Ok(())
+	Ok(1 + LEN_ENTRY * n_entries)
 }
 
-fn serialize_routing(mut data_opt: Option<&mut [u8]>, preset: &Preset) -> usize {
+fn parse_trs_mode(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
+	use core::convert::TryInto;
+	if data.len() <= 4 {
+		return Err(SettingsError);
+	}
+	preset.mode_mask = u32::from_le_bytes(data[0..4].try_into().unwrap());
+	Ok(4)
+}
+
+fn serialize_preset(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
 	let mut bytes_written = 0;
+
+	bytes_written += serialize_routing(data_opt, preset);
+	bytes_written += serialize_trs_mode(data_opt, preset);
+
+	return bytes_written;
+}
+
+fn serialize_routing(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
+	let mut n_entries = 0;
 	assert!(preset.event_routing_table.len() == preset.clock_routing_table.len());
 	assert!(preset.event_routing_table[0].len() == preset.clock_routing_table[0].len());
 	for x in 0..preset.event_routing_table.len() {
 		for y in 0..preset.event_routing_table[0].len() {
 			if preset.event_routing_table[x][y] != EventRouteMode::None || preset.clock_routing_table[x][y] != 0 {
 				if let Some(ref mut data) = data_opt {
-					 data[bytes_written+0] = ((x as u8) & 0x0F) | (((y as u8) & 0x0F) << 4);
-					 data[bytes_written+1] = preset.clock_routing_table[x][y] | (preset.event_routing_table[x][y].to_u8() << 4);
-					 data[(bytes_written+2)..=(bytes_written+6)].fill(0);
+					let offset = 1 + 7 * n_entries;
+					 data[offset+0] = ((x as u8) & 0x0F) | (((y as u8) & 0x0F) << 4);
+					 data[offset+1] = preset.clock_routing_table[x][y] | (preset.event_routing_table[x][y].to_u8() << 4);
+					 data[(offset+2)..=(offset+6)].fill(0);
 				}
-				bytes_written += 7;
+				n_entries += 1;
 			}
 		}
 	}
-	return bytes_written;
+	assert!(n_entries < 256); // FIXME
+	if let Some(ref mut data) = data_opt {
+		data[0] = n_entries as u8;
+	}
+
+	return 1 + 7 * n_entries;
+}
+
+fn serialize_trs_mode(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
+	if let Some(ref mut data) = data_opt {
+		data[0..4].copy_from_slice(&preset.mode_mask.to_be_bytes());
+	}
+	return 4;
 }
 
 fn save_preset<const N: usize>(store: &mut DynArray<N>, preset_idx: usize, preset: &Preset) -> Result<(), SettingsError> {
-	let len = serialize_routing(None, preset);
+	let len = serialize_routing(&mut None, preset);
 	store.resize(preset_idx, len)?;
-	serialize_routing(store.get_mut(preset_idx), preset);
+	serialize_preset(&mut store.get_mut(preset_idx), preset);
 	Ok(())
 }
 

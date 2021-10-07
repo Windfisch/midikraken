@@ -494,7 +494,7 @@ const APP: () = {
 		// FIXME this is very Cish. rustify!
 		let mut settings_compressed = DynArray::new();
 		read_settings_from_flash(&mut tx, &mut flash, &mut settings_compressed).expect("Reading settings from flash failed"); // FIXME
-		let current_preset = load_preset(&mut tx, &settings_compressed, 0).expect("Loading preset failed");
+		let current_preset = load_preset(&mut tx, &settings_compressed, 0).unwrap_or(Preset::new());
 
 		cx.spawn.gui_task().unwrap();
 
@@ -663,7 +663,7 @@ const APP: () = {
 							let settings_compressed = &mut c.resources.settings_compressed;
 							c.resources.tx.lock(|tx| {
 								current_preset.lock(|p| {
-									preset = load_preset(tx, settings_compressed, preset_idx).unwrap();
+									preset = load_preset(tx, settings_compressed, preset_idx).unwrap_or(Preset::new());
 									*p = preset;
 								})
 							});
@@ -717,7 +717,7 @@ const APP: () = {
 										let settings_compressed = &mut c.resources.settings_compressed;
 										c.resources.tx.lock(|tx| {
 											current_preset.lock(|p| {
-												preset = load_preset(tx, settings_compressed, preset_idx).unwrap();
+												preset = load_preset(tx, settings_compressed, preset_idx).unwrap_or(Preset::new());
 												*p = preset;
 											})
 										});

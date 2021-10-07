@@ -47,25 +47,44 @@ impl Preset {
 	}
 }
 
+use core::ops::{Range, RangeFrom};
+fn slice(data: &[u8], range: Range<usize>) -> Result<&[u8], SettingsError> {
+	if range.start < data.len() && range.end < data.len() {
+		Ok(&data[range])
+	}
+	else {
+		Err(SettingsError)
+	}
+}
+fn slice_from(data: &[u8], offset: usize) -> Result<&[u8], SettingsError> {
+	if offset < data.len() {
+		Ok(&data[offset..])
+	}
+	else {
+		Err(SettingsError)
+	}
+}
+
 pub fn parse_preset(data: &[u8]) -> Result<Preset, SettingsError> {
 	let mut preset = Preset::new();
 	let mut offset = 0;
 
-	offset += parse_routing_matrix(&mut preset, &data[offset..])?;
-	offset += parse_trs_mode(&mut preset, &data[offset..])?;
+	offset += parse_routing_matrix(&mut preset, slice_from(data, offset)?)?;
+	offset += parse_trs_mode(&mut preset, slice_from(data, offset)?)?;
 
 	Ok(preset)
 }
 
 fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
 	const LEN_ENTRY: usize = 7;
-	let n_entries = data[0] as usize;
 
-	if data.len() < 1 + n_entries * LEN_ENTRY {
+	if data.len() < 1 {
 		return Err(SettingsError);
 	}
 
-	for chunk in data[1..1+LEN_ENTRY*n_entries].chunks_exact(LEN_ENTRY) {
+	let n_entries = data[0] as usize;
+
+	for chunk in slice(data, 1..1+LEN_ENTRY*n_entries)?.chunks_exact(LEN_ENTRY) {
 		let x = chunk[0] & 0x0F;
 		let y = (chunk[0] & 0xF0) >> 4;
 		let clock_divisor = chunk[1] & 0x0F;
@@ -84,13 +103,12 @@ fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, Setti
 
 fn parse_trs_mode(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
 	use core::convert::TryInto;
-	if data.len() <= 4 {
-		return Err(SettingsError);
-	}
-	preset.mode_mask = u32::from_le_bytes(data[0..4].try_into().unwrap());
+	preset.mode_mask = u32::from_le_bytes(slice(data, 0..4)?.try_into().unwrap());
 	Ok(4)
 }
 
+/** It is expected that if data_opt == Some(data), then data must be large enough to hold the whole
+  * serialized data. Call this function with data_opt == None first to find out the required size. */
 pub fn serialize_preset(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
 	let mut bytes_written = 0;
 
@@ -143,5 +161,3 @@ impl From<stm32f1xx_hal::flash::Error> for SettingsError {
 impl From<()> for SettingsError {
 	fn from(_: ()) -> SettingsError { SettingsError{} }
 }
-
-

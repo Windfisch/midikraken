@@ -37,6 +37,12 @@ use tim2_interrupt_handler::NumPortPairs;
 use tim2_interrupt_handler::DmaPair;
 use generic_array::typenum::Unsigned;
 
+mod preset;
+use preset::*;
+
+mod dyn_array;
+use dyn_array::DynArray;
+
 use heapless;
 
 
@@ -114,35 +120,6 @@ fn benchmark(phase: i8) -> u16 {
 			if result != 0 {
 				return result;
 			}
-		}
-	}
-}
-
-#[derive(Copy,Clone,PartialEq)]
-pub enum EventRouteMode {
-	None,
-	Keyboard,
-	Controller,
-	Both
-}
-
-impl EventRouteMode {
-	pub fn from_u8(val: u8) -> Result<EventRouteMode,()> {
-		match val {
-			0 => Ok(EventRouteMode::None),
-			1 => Ok(EventRouteMode::Keyboard),
-			2 => Ok(EventRouteMode::Controller),
-			3 => Ok(EventRouteMode::Both),
-			_ => Err(())
-		}
-	}
-
-	pub fn to_u8(&self) -> u8 {
-		match self {
-			EventRouteMode::None => 0,
-			EventRouteMode::Keyboard => 1,
-			EventRouteMode::Controller => 2,
-			EventRouteMode::Both => 3
 		}
 	}
 }
@@ -235,18 +212,6 @@ impl embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteAdapter
 	}
 }
 
-#[derive(Debug)]
-struct SettingsError;
-impl From<core::array::TryFromSliceError> for SettingsError {
-	fn from(_: core::array::TryFromSliceError) -> SettingsError { SettingsError{} }
-}
-impl From<stm32f1xx_hal::flash::Error> for SettingsError {
-	fn from(_: stm32f1xx_hal::flash::Error) -> SettingsError { SettingsError{} }
-}
-impl From<()> for SettingsError {
-	fn from(_: ()) -> SettingsError { SettingsError{} }
-}
-
 const SETTINGS_BASE: u32 = (1<<17) - 2*2048;
 fn read_settings_from_flash(tx: &mut impl core::fmt::Write, flash: &mut stm32f1xx_hal::flash::Parts, settings_compressed: &mut DynArray<2048>) -> Result<(), SettingsError> {
 	writeln!(tx, "reading stored settings").ok();
@@ -288,216 +253,11 @@ fn load_preset(tx: &mut impl core::fmt::Write, settings_compressed: &DynArray<20
 	Ok(preset)
 }
 
-fn parse_preset(data: &[u8]) -> Result<Preset, SettingsError> {
-	let mut preset = Preset::new();
-	let mut offset = 0;
-
-	offset += parse_routing_matrix(&mut preset, &data[offset..])?;
-	offset += parse_trs_mode(&mut preset, &data[offset..])?;
-
-	Ok(preset)
-}
-
-fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
-	const LEN_ENTRY: usize = 7;
-	let n_entries = data[0] as usize;
-
-	if data.len() < 1 + n_entries * LEN_ENTRY {
-		return Err(SettingsError);
-	}
-
-	for chunk in data[1..1+LEN_ENTRY*n_entries].chunks_exact(LEN_ENTRY) {
-		let x = chunk[0] & 0x0F;
-		let y = (chunk[0] & 0xF0) >> 4;
-		let clock_divisor = chunk[1] & 0x0F;
-		let event_routing = (chunk[1] & 0xF0) >> 4;
-		let _channel_mask = &chunk[2..=3];
-		let _map_channel = chunk[4];
-		let _note_split = chunk[5];
-		let _transpose = chunk[6];
-
-		preset.clock_routing_table[x as usize][y as usize] = clock_divisor;
-		preset.event_routing_table[x as usize][y as usize] = EventRouteMode::from_u8(event_routing)?;
-	}
-
-	Ok(1 + LEN_ENTRY * n_entries)
-}
-
-fn parse_trs_mode(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
-	use core::convert::TryInto;
-	if data.len() <= 4 {
-		return Err(SettingsError);
-	}
-	preset.mode_mask = u32::from_le_bytes(data[0..4].try_into().unwrap());
-	Ok(4)
-}
-
-fn serialize_preset(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
-	let mut bytes_written = 0;
-
-	bytes_written += serialize_routing(data_opt, preset);
-	bytes_written += serialize_trs_mode(data_opt, preset);
-
-	return bytes_written;
-}
-
-fn serialize_routing(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
-	let mut n_entries = 0;
-	assert!(preset.event_routing_table.len() == preset.clock_routing_table.len());
-	assert!(preset.event_routing_table[0].len() == preset.clock_routing_table[0].len());
-	for x in 0..preset.event_routing_table.len() {
-		for y in 0..preset.event_routing_table[0].len() {
-			if preset.event_routing_table[x][y] != EventRouteMode::None || preset.clock_routing_table[x][y] != 0 {
-				if let Some(ref mut data) = data_opt {
-					let offset = 1 + 7 * n_entries;
-					 data[offset+0] = ((x as u8) & 0x0F) | (((y as u8) & 0x0F) << 4);
-					 data[offset+1] = preset.clock_routing_table[x][y] | (preset.event_routing_table[x][y].to_u8() << 4);
-					 data[(offset+2)..=(offset+6)].fill(0);
-				}
-				n_entries += 1;
-			}
-		}
-	}
-	assert!(n_entries < 256); // FIXME
-	if let Some(ref mut data) = data_opt {
-		data[0] = n_entries as u8;
-	}
-
-	return 1 + 7 * n_entries;
-}
-
-fn serialize_trs_mode(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
-	if let Some(ref mut data) = data_opt {
-		data[0..4].copy_from_slice(&preset.mode_mask.to_be_bytes());
-	}
-	return 4;
-}
-
 fn save_preset<const N: usize>(store: &mut DynArray<N>, preset_idx: usize, preset: &Preset) -> Result<(), SettingsError> {
 	let len = serialize_routing(&mut None, preset);
 	store.resize(preset_idx, len)?;
 	serialize_preset(&mut store.get_mut(preset_idx), preset);
 	Ok(())
-}
-
-pub struct DynArray <const SIZE: usize> {
-	data: [u8; SIZE]
-}
-
-impl <const SIZE: usize> DynArray<SIZE> {
-	fn find_offset(&self, index: usize) -> Option<usize> {
-		let mut curr_index = 0;
-		let mut offset = 0;
-		while curr_index != index {
-			curr_index += 1;
-			offset += 2 + self.length_at_offset(offset);
-			if offset >= self.data.len() {
-				return None;
-			}
-		}
-		return Some(offset);
-	}
-
-	fn length_at_offset(&self, offset: usize) -> usize {
-		use core::convert::TryInto;
-		let chunk = &self.data[offset..];
-		u16::from_le_bytes(chunk[0..2].try_into().unwrap()) as usize
-	}
-
-	fn move_left(&mut self, from: usize, to: usize) {
-		assert!(to < from);
-		for i in 0..(self.data.len() - from) {
-			self.data[to+i] = self.data[from+i];
-		}
-		for i in (to + self.data.len() - from) .. self.data.len() {
-			self.data[i] = 0;
-		}
-	}
-
-	fn move_right(&mut self, from: usize, to: usize) {
-		assert!(to > from);
-		for i in (to..self.data.len()).rev() {
-			self.data[i] = self.data[i - to + from];
-		}
-	}
-
-	pub fn resize(&mut self, index: usize, new_size: usize) -> Result<(),()> {
-		if let Some(offset_to_resize) = self.find_offset(index) {
-			let old_size = self.length_at_offset(offset_to_resize);
-			let old_offset_next = offset_to_resize + 2 + old_size;
-			let new_offset_next = offset_to_resize + 2 + new_size;
-			if new_size == old_size {
-				return Ok(());
-			}
-			else if new_size < old_size {
-				self.move_left(old_offset_next, new_offset_next);
-			}
-			else { // new_size > old_size
-				let trim_len = new_size - old_size;
-				let clear = self.data[ (self.data.len() - trim_len) .. self.data.len() ].iter().all(|v| *v==0);
-				if !clear {
-					return Err(());
-				}
-				self.move_right(old_offset_next, new_offset_next);
-			}
-
-			// update the length field
-			self.data[offset_to_resize..(offset_to_resize+2)].copy_from_slice(&(new_size as u16).to_le_bytes());
-			return Ok(());
-		}
-		else {
-			return Err(());
-		}
-	}
-
-	pub fn get_mut(&mut self, index: usize) -> Option<&mut [u8]> {
-		if let Some(offset) = self.find_offset(index) {
-			let length = self.length_at_offset(offset);
-			Some(&mut self.data[(offset+2) .. (offset+2+length)])
-		}
-		else {
-			None
-		}
-	}
-
-	pub fn get(&self, index: usize) -> Option<&[u8]> {
-		if let Some(offset) = self.find_offset(index) {
-			let length = self.length_at_offset(offset);
-			Some(&self.data[(offset+2) .. (offset+2+length)])
-		}
-		else {
-			None
-		}
-	}
-
-	pub fn new() -> DynArray<SIZE> {
-		DynArray { data: [0; SIZE] }
-	}
-
-	pub fn from_raw(bytes: &[u8]) -> DynArray<SIZE> {
-		let mut result = DynArray::new();
-		result.set_raw(bytes);
-		return result;
-	}
-
-	pub fn set_raw(&mut self, bytes: &[u8]) {
-		use core::convert::TryInto;
-		let mut offset = 0;
-		loop {
-			let chunk = &bytes[offset..];
-			let length = u16::from_le_bytes(chunk[0..2].try_into().unwrap()) as usize;
-			let new_offset = offset + 2 + length;
-			if new_offset + 2 >= self.data.len() {
-				self.data[0..offset].copy_from_slice(&bytes[0..offset]);
-				return;
-			}
-			offset = new_offset;
-		}
-	}
-
-	pub fn raw(&self) -> &[u8; SIZE] {
-		&self.data
-	}
 }
 
 
@@ -515,26 +275,6 @@ fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
 	let b_part = ((!a_part) << 4) & 0xF0F0F0;
 
 	return a_part | b_part;
-}
-
-type EventRoutingTable = [[EventRouteMode; 8]; 8];
-type ClockRoutingTable = [[u8; 8]; 8];
-
-#[derive(Clone, Copy)]
-pub struct Preset {
-	event_routing_table: EventRoutingTable,
-	clock_routing_table: ClockRoutingTable,
-	mode_mask: u32
-}
-
-impl Preset {
-	pub const fn new() -> Preset {
-		Preset {
-			event_routing_table: [[EventRouteMode::None; 8]; 8],
-			clock_routing_table: [[0; 8]; 8],
-			mode_mask: 0
-		}
-	}
 }
 
 #[app(device = stm32f1xx_hal::pac)]

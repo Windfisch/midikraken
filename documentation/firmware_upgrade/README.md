@@ -10,6 +10,19 @@ the firmware.**
 If, however, your Midikraken failed to upgrade and now is in an inoperable state and does not show up
 as USB device, read the rescuing section below.
 
+
+## A note about beta software
+
+The midikraken firmware is currently in its early beta phase, so there could be bugs. If you find one,
+please check [the issue tracker](https://github.com/Windfisch/midikraken/issues) whether it was already
+reported. If not, please report it through the issue tracker or via mail.
+
+Please note that firmware upgrades can occasionally lose your settings due to changes in the save format.
+One or two such breakages *will* happen with one of the next firmware upgrades. Such breakage will be
+announced in the release notes.
+
+Port numbering is currently non intuitive and is subject to change in one of the next releases.
+
 ## Linux
 
 Only if you are flashing the firmware for the first time, give your user permission to flash the device

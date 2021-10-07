@@ -144,7 +144,7 @@ Step 4: Flashing the latest firmware
 ------------------------------------
 
 Download the latest firmware from [here](https://github.com/Windfisch/midikraken/releases/tag/firmware_v0.1.1),
-connect the device via USB and flash it using [these instructions](../build_guide/README.md).
+connect the device via USB and flash it using [these instructions](../firmware_upgrade/README.md).
 
 Disconnect and reconnect USB to check whether the device still shows up as "Midikraken" USB device.
 If it doesn't follow the recovery instructions under the link above.

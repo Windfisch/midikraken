@@ -80,7 +80,7 @@ and [the TRS BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/mi
 2. Solder all resistors and capacitors. (*A good procedure for this is to put some solder on
    *one* of the two pads, then grab the resistor with the tweezers and push it onto the solder blob
    while still heating the solder blob with your iron. Afterwards, put solder on the other side of
-   the part as well.*)
+   the part as well. [Random video tutorial](https://www.youtube.com/watch?v=lrDyUj7ZfVI)*)
 3. Proceed with all ICs. Ensure their correct orientation indicated by a latch on one side, or a
    small dot.
 4. If you have a rev01 board, finish the fix by adding the resistors first (similar to the above

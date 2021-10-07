@@ -57,7 +57,7 @@ pub fn parse_preset(data: &[u8]) -> Result<Preset, SettingsError> {
 	Ok(preset)
 }
 
-pub fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
+fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
 	const LEN_ENTRY: usize = 7;
 	let n_entries = data[0] as usize;
 
@@ -82,7 +82,7 @@ pub fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, S
 	Ok(1 + LEN_ENTRY * n_entries)
 }
 
-pub fn parse_trs_mode(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
+fn parse_trs_mode(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsError> {
 	use core::convert::TryInto;
 	if data.len() <= 4 {
 		return Err(SettingsError);
@@ -100,7 +100,7 @@ pub fn serialize_preset(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> us
 	return bytes_written;
 }
 
-pub fn serialize_routing(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
+fn serialize_routing(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
 	let mut n_entries = 0;
 	assert!(preset.event_routing_table.len() == preset.clock_routing_table.len());
 	assert!(preset.event_routing_table[0].len() == preset.clock_routing_table[0].len());
@@ -125,7 +125,7 @@ pub fn serialize_routing(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> u
 	return 1 + 7 * n_entries;
 }
 
-pub fn serialize_trs_mode(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
+fn serialize_trs_mode(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
 	if let Some(ref mut data) = data_opt {
 		data[0..4].copy_from_slice(&preset.mode_mask.to_be_bytes());
 	}

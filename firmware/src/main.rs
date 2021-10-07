@@ -254,7 +254,7 @@ fn load_preset(tx: &mut impl core::fmt::Write, settings_compressed: &DynArray<20
 }
 
 fn save_preset<const N: usize>(store: &mut DynArray<N>, preset_idx: usize, preset: &Preset) -> Result<(), SettingsError> {
-	let len = serialize_routing(&mut None, preset);
+	let len = serialize_preset(&mut None, preset);
 	store.resize(preset_idx, len)?;
 	serialize_preset(&mut store.get_mut(preset_idx), preset);
 	Ok(())

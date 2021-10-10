@@ -29,3 +29,7 @@ jobs:
         working-directory: firmware
       - run: make release.bare.bin
         working-directory: firmware
+      - name: Upload binary_size to seriesci
+        env:
+          SERIESCI_TOKEN: ${{ secrets.SERIESCI_TOKEN }}
+        run: curl --header "Authorization: Token $SERIESCI_TOKEN" --header "Content-Type: application/json" --data "{\"value\":\"$size bytes\",\"sha\":\"${GITHUB_SHA}\"}" https://seriesci.com/api/Windfisch/midikraken/binary_size/one

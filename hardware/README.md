@@ -90,9 +90,11 @@ Revision 01
 
 ### Bill of material
 
-[din5_pcb/bom.html](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/bom.html)
+[din5_pcb/bom.html](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/bom.html),
+[interactive BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/ibom.html)
 
-[trs_pcb/bom.html](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/bom.html)
+[trs_pcb/bom.html](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/bom.html),
+[interactive BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/ibom.html)
 
 
 ### Errata

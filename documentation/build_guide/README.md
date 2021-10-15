@@ -18,8 +18,8 @@ Step 1: Obtaining all parts
 ---------------------------
 
 Check that you have obtained all parts from
-[the din5 BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/bom.html)
-and [the TRS BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/bom.html)
+[the din5 BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/ibom.html)
+and [the TRS BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/ibom.html)
 (except those in parentheses or those that say "as desired", we'll handle them separately).
 
 Additionally, you require the following parts:

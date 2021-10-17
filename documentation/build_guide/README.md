@@ -71,8 +71,8 @@ soldered on straight.
 
 The procedure for the DIN5 and TRS boards is mostly similar. In order to find out the correct part
 values, please refer to
-[the din5 BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/bom.html)
-and [the TRS BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/bom.html).
+[the din5 BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/din5_pcb/ibom.html)
+and [the TRS BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/ibom.html).
 
 0. If you have a rev01 board, ensure you cut the right traces on the PCB.
 1. DIN5 board only: Close the following JP9 solder bridge by putting a blob of solder across the middle and upper

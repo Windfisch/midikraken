@@ -40,9 +40,6 @@ use generic_array::typenum::Unsigned;
 mod preset;
 use preset::*;
 
-mod dyn_array;
-use dyn_array::DynArray;
-
 use heapless;
 
 
@@ -212,54 +209,96 @@ impl embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteAdapter
 	}
 }
 
-const SETTINGS_BASE: u32 = (1<<17) - 2*2048;
-fn read_settings_from_flash(tx: &mut impl core::fmt::Write, flash: &mut stm32f1xx_hal::flash::Parts, settings_compressed: &mut DynArray<2048>) -> Result<(), SettingsError> {
-	writeln!(tx, "reading stored settings").ok();
-	let writer = flash.writer(stm32f1xx_hal::flash::SectorSize::Sz2K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+const SETTINGS_BASE: usize = (1<<17) - 2*2048;
 
-	let first_bytes = writer.read(SETTINGS_BASE, 2)?;
-	if first_bytes == [0xFF, 0xFF] {
-		writeln!(tx, "flash seems to be uninitialized").ok();
-		return Ok(());
+#[derive(Debug)]
+enum SaveError {
+	BufferTooSmall,
+	NoSpaceLeft,
+	CorruptData
+}
+
+// consumes 4kb on the stack
+fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut FlashStore<FlashAdapter, 2048>, tx: &mut impl core::fmt::Write) -> Result<(), SaveError> {
+	let mut buffer = [0; 1024];
+	writeln!(tx, "saving preset {}", preset_idx).ok();
+	let len = serialize_preset(&mut None, preset);
+	if len > 1024 {
+		return Err(SaveError::BufferTooSmall);
+	}
+	writeln!(tx, "  -> serializing {} bytes", len).ok();
+	serialize_preset(&mut Some(&mut buffer[0..len]), preset);
+
+	writeln!(tx, "  -> writing to flash").ok();
+	let result = match flash_store.write_file(preset_idx, &buffer[0..len]) {
+		Ok(()) => Ok(()),
+		Err(FlashStoreError::CorruptData) => Err(SaveError::CorruptData),
+		Err(FlashStoreError::NoSpaceLeft) => Err(SaveError::NoSpaceLeft),
+		_ => unreachable!()
+	};
+	writeln!(tx, "  -> {:?}", result).ok();
+	return result;
+}
+
+// consumes 1kb on the stack
+fn read_preset_from_flash(preset_idx: u8, flash_store: &mut FlashStore<FlashAdapter, 2048>, tx: &mut impl core::fmt::Write) -> Result<Preset, SettingsError> {
+	writeln!(tx, "loading preset {}", preset_idx).ok();
+	let mut buffer = [0; 1024];
+
+	match flash_store.read_file(preset_idx, &mut buffer) {
+		Ok(data) => {
+			writeln!(tx, "  -> Found").ok();
+			let preset = parse_preset(data)?;
+			writeln!(tx, "  -> Done").ok();
+			Ok(preset)
+		}
+		Err(FlashStoreError::NotFound) => {
+			writeln!(tx, "  -> Not found").ok();
+			Ok(Preset::new())
+		}
+		Err(FlashStoreError::BufferTooSmall) => Err(SettingsError), // cannot happen, we are never writing files that large
+		Err(FlashStoreError::CorruptData) => Err(SettingsError),
+		Err(_) => unreachable!()
+	}
+}
+
+pub struct FlashAdapter {
+	flash: stm32f1xx_hal::flash::Parts
+}
+
+impl FlashAdapter {
+	fn new(flash: stm32f1xx_hal::flash::Parts) -> FlashAdapter {
+		FlashAdapter { flash }
+	}
+}
+
+use simple_flash_store::*;
+
+impl FlashTrait for FlashAdapter {
+	const SIZE: usize = 2048;
+	const PAGE_SIZE: usize = 2048; // Some chips have 1k, others have 2k. We're being pessimistic here, which is why this size differs from FlashWriter's sector size.
+	const WORD_SIZE: usize = 4;
+	const ERASED_VALUE: u8 = 0xFF;
+
+	fn erase_page(&mut self, page: usize) -> Result<(), FlashAccessError> {
+		// Some chips have 1k, others have 2k. We're being pessimistic here again, which is why this size differs from PAGE_SIZE.
+		let mut writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+		writer.erase((SETTINGS_BASE + page) as u32, Self::PAGE_SIZE).unwrap();
+		Ok(())
 	}
 
-	let settings_raw = writer.read(SETTINGS_BASE, 2048)?;
-	settings_compressed.set_raw(settings_raw);
+	fn read(&mut self, address: usize, data: &mut [u8]) -> Result<(), FlashAccessError> {
+		let writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+		data.copy_from_slice(writer.read((SETTINGS_BASE + address) as u32, data.len()).unwrap());
+		Ok(())
+	}
 
-	Ok(())
+	fn write(&mut self, address: usize, data: &[u8]) -> Result<(), FlashAccessError> {
+		let mut writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+		writer.write((SETTINGS_BASE + address) as u32, data).unwrap();
+		Ok(())
+	}
 }
-
-fn write_settings_to_flash(tx: &mut impl core::fmt::Write, flash: &mut stm32f1xx_hal::flash::Parts, settings_compressed: &DynArray<2048>) -> Result<(), SettingsError> {
-	writeln!(tx, "writing settings to flash").ok();
-	let mut writer = flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
-	writeln!(tx, " -> Erasing").ok();
-	writer.change_verification(true);
-	writer.erase(SETTINGS_BASE, 2048).unwrap();
-	writeln!(tx, " -> Writing").ok();
-	writer.change_verification(true); // FIXME
-	writer.write(SETTINGS_BASE, settings_compressed.raw()).unwrap();
-	writeln!(tx, " -> Done").ok();
-
-	Ok(())
-}
-
-fn load_preset(tx: &mut impl core::fmt::Write, settings_compressed: &DynArray<2048>, preset_idx: usize) -> Result<Preset, SettingsError> {
-	writeln!(tx, "Loading preset {}", preset_idx).ok();
-	let data = settings_compressed.get(preset_idx).ok_or(SettingsError)?;
-	writeln!(tx, "  -> Found").ok();
-	let preset = parse_preset(data)?;
-	writeln!(tx, "  -> Done").ok();
-
-	Ok(preset)
-}
-
-fn save_preset<const N: usize>(store: &mut DynArray<N>, preset_idx: usize, preset: &Preset) -> Result<(), SettingsError> {
-	let len = serialize_preset(&mut None, preset);
-	store.resize(preset_idx, len)?;
-	serialize_preset(&mut store.get_mut(preset_idx), preset);
-	Ok(())
-}
-
 
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
 
@@ -327,9 +366,7 @@ const APP: () = {
 
 		current_preset: Preset,
 		
-		flash: stm32f1xx_hal::flash::Parts,
-
-		settings_compressed: DynArray<2048>
+		flash_store: FlashStore<FlashAdapter, 2048>,
 	}
 
 	#[init(spawn=[benchmark_task, gui_task])]
@@ -491,10 +528,8 @@ const APP: () = {
 			writeln!(tx, "spawned").ok();
 		}
 
-		// FIXME this is very Cish. rustify!
-		let mut settings_compressed = DynArray::new();
-		read_settings_from_flash(&mut tx, &mut flash, &mut settings_compressed).expect("Reading settings from flash failed"); // FIXME
-		let current_preset = load_preset(&mut tx, &settings_compressed, 0).unwrap_or(Preset::new());
+		let mut flash_store = FlashStore::new(FlashAdapter::new(flash));
+		let current_preset = read_preset_from_flash(0, &mut flash_store, &mut tx).unwrap_or(Preset::new());
 
 		cx.spawn.gui_task().unwrap();
 
@@ -512,8 +547,7 @@ const APP: () = {
 			delay,
 			knob_timer,
 			knob_button,
-			flash,
-			settings_compressed,
+			flash_store,
 			current_preset
 		};
 	}
@@ -603,7 +637,7 @@ const APP: () = {
 		}
 	}
 
-	#[task(resources = [tx, display, delay, knob_timer, knob_button, current_preset, settings_compressed, flash], priority = 1)]
+	#[task(resources = [tx, display, delay, knob_timer, knob_button, current_preset, flash_store], priority = 1)]
 	fn gui_task(mut c: gui_task::Context) {
 		c.resources.display.init(c.resources.delay).unwrap();
 		c.resources.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
@@ -660,10 +694,10 @@ const APP: () = {
 						if !dirty {
 							preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
 							let current_preset = &mut c.resources.current_preset;
-							let settings_compressed = &mut c.resources.settings_compressed;
+							let flash_store = &mut c.resources.flash_store;
 							c.resources.tx.lock(|tx| {
 								current_preset.lock(|p| {
-									preset = load_preset(tx, settings_compressed, preset_idx).unwrap_or(Preset::new());
+									preset = read_preset_from_flash(preset_idx as u8, flash_store, tx).unwrap_or(Preset::new());
 									*p = preset;
 								})
 							});
@@ -700,12 +734,10 @@ const APP: () = {
 								2 => { active_menu = ActiveMenu::TrsModeSelect(gui::MenuState::new(0)); }
 								3 => {
 									if dirty {
-										let flash = &mut c.resources.flash;
-										let settings_compressed = &mut c.resources.settings_compressed;
+										let flash_store = &mut c.resources.flash_store;
 										c.resources.tx.lock(|tx| {
 											writeln!(tx, "Going to save settings to flash").ok();
-											save_preset(settings_compressed, preset_idx, &preset).unwrap(); // FIXME this must be handled!
-											write_settings_to_flash(tx, flash, settings_compressed).unwrap();
+											save_preset_to_flash(preset_idx as u8, &preset, flash_store, tx); // FIXME HANDLE THIS
 										});
 										dirty = false;
 										menu_state.schedule_redraw();
@@ -714,14 +746,16 @@ const APP: () = {
 								4 => {
 									if dirty {
 										let current_preset = &mut c.resources.current_preset;
-										let settings_compressed = &mut c.resources.settings_compressed;
+										let flash_store = &mut c.resources.flash_store;
 										c.resources.tx.lock(|tx| {
 											current_preset.lock(|p| {
-												preset = load_preset(tx, settings_compressed, preset_idx).unwrap_or(Preset::new());
-												*p = preset;
+												if let Ok(pr) = read_preset_from_flash(preset_idx as u8, flash_store, tx) {
+													preset = pr;
+													*p = preset;
+													dirty = false;
+												}
 											})
 										});
-										dirty = false;
 										menu_state.schedule_redraw();
 									}
 								}

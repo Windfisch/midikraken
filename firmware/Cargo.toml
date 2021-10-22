@@ -32,6 +32,7 @@ usb-device = { version = ">=0.2.1", features = ["control-buffer-1024"] }
 usbd-midi = { path="../lib/usbd-midi" }
 embedded-hal = ">=0.2.3"
 tim2_interrupt_handler = { path = "tim2_interrupt_handler" }
+simple-flash-store = { git = "https://github.com/Windfisch/simple-flash-store", revision="9b24ada19da44e4b91600dca52fbc3ca6ba81acd" }
 
 [build-dependencies]
 vergen = "3"

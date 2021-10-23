@@ -113,8 +113,8 @@ fn parse_trs_mode(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsErr
 pub fn serialize_preset(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
 	let mut bytes_written = 0;
 
-	bytes_written += serialize_routing(data_opt, preset);
-	bytes_written += serialize_trs_mode(data_opt, preset);
+	bytes_written += serialize_routing(&mut data_opt.as_mut().map(|s| &mut s[bytes_written..]), preset);
+	bytes_written += serialize_trs_mode(&mut data_opt.as_mut().map(|s| &mut s[bytes_written..]), preset);
 
 	return bytes_written;
 }

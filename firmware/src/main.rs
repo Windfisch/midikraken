@@ -66,7 +66,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 	use core::mem::MaybeUninit;
 	cortex_m::interrupt::disable();
 
-	#[cfg(debugpanic)]
+	#[cfg(feature="debugpanic")]
 	{
 		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
 		writeln!(tx, "Panic!").ok();

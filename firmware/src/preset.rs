@@ -49,7 +49,7 @@ impl Preset {
 
 use core::ops::{Range, RangeFrom};
 fn slice(data: &[u8], range: Range<usize>) -> Result<&[u8], SettingsError> {
-	if range.start < data.len() && range.end < data.len() {
+	if range.start < data.len() && range.end <= data.len() {
 		Ok(&data[range])
 	}
 	else {
@@ -72,6 +72,7 @@ pub fn parse_preset(data: &[u8]) -> Result<Preset, SettingsError> {
 	offset += parse_routing_matrix(&mut preset, slice_from(data, offset)?)?;
 	offset += parse_trs_mode(&mut preset, slice_from(data, offset)?)?;
 
+	let _ = offset; // avoid warning
 	Ok(preset)
 }
 
@@ -84,7 +85,7 @@ fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, Setti
 
 	let n_entries = data[0] as usize;
 
-	for chunk in slice(data, 1..1+LEN_ENTRY*n_entries)?.chunks_exact(LEN_ENTRY) {
+	for chunk in slice(data, 1..(1+LEN_ENTRY*n_entries))?.chunks_exact(LEN_ENTRY) {
 		let x = chunk[0] & 0x0F;
 		let y = (chunk[0] & 0xF0) >> 4;
 		let clock_divisor = chunk[1] & 0x0F;

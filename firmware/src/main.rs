@@ -230,11 +230,15 @@ fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut Flash
 	serialize_preset(&mut Some(&mut buffer[0..len]), preset);
 
 	writeln!(tx, "  -> writing to flash").ok();
+	for i in 0..len {
+		write!(tx, "{:02X} ", buffer[i]).ok();
+	}
+	writeln!(tx, "").ok();
 	let result = match flash_store.write_file(preset_idx, &buffer[0..len]) {
 		Ok(()) => Ok(()),
 		Err(FlashStoreError::CorruptData) => Err(SaveError::CorruptData),
 		Err(FlashStoreError::NoSpaceLeft) => Err(SaveError::NoSpaceLeft),
-		_ => unreachable!()
+		_ => { writeln!(tx, " -> cannot happen").ok(); unreachable!() }
 	};
 	writeln!(tx, "  -> {:?}", result).ok();
 	return result;
@@ -247,7 +251,11 @@ fn read_preset_from_flash(preset_idx: u8, flash_store: &mut FlashStore<FlashAdap
 
 	match flash_store.read_file(preset_idx, &mut buffer) {
 		Ok(data) => {
-			writeln!(tx, "  -> Found").ok();
+			writeln!(tx, "  -> Found file of length {}", data.len()).ok();
+			for i in 0..data.len() {
+				write!(tx, "{:02X} ", data[i]).ok();
+			}
+			writeln!(tx, "").ok();
 			let preset = parse_preset(data)?;
 			writeln!(tx, "  -> Done").ok();
 			Ok(preset)

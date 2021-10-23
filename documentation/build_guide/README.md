@@ -46,7 +46,7 @@ Additionally, you require the following parts:
   - Optional: a 3d printed trs_back_shell is useful for aligning the LEDs during build.
   - 4x 6mm M3 screws
   - 4x 16mm brass spacers
-  - 4x TODO mm brass spacers
+  - 4x 12mm brass spacers
 - 4x 22mm brass spacers
 - 4x M3 nuts
 - 4x 6mm M2 screws
@@ -225,14 +225,14 @@ Step 5b: If you prefer the half-open solution: Assembly
 
 Screw the 4x TODO mm spacers into the spare PCB / bottom plate and secure them with the M3 nuts.
 
-Mount the TRS board on top using the 16mm spacers.
+Mount the TRS board on top and add the 22mm spacers.
 
 Connect the TRS board and the DIN5 board using the master/slave connections, put the DIN5 board on
-top of the TRS board and screw in the 22mm spacers.
+top of the TRS board and screw in the 12mm spacers.
 
 Mount the display into the display plate using the M2 screws and nuts.
 
-**Carefully** place the display place on top of the 22mm spacers. Ensure that the display pins have
+**Carefully** place the display place on top of the 12mm spacers. Ensure that the display pins have
 actually met the display socket. Screw everything together using the M3 screws.
 
 Congratulations, your Midikraken is complete. :)

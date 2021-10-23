@@ -655,6 +655,7 @@ const APP: () = {
 			EventRouting(gui::GridState<EventRouteMode, 8, 8>),
 			ClockRouting(gui::GridState<u8, 8, 8>),
 			TrsModeSelect(gui::MenuState),
+			Message(gui::MessageState),
 		}
 
 		let mut active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
@@ -688,6 +689,29 @@ const APP: () = {
 			let mut preset = c.resources.current_preset.lock(|p| *p);
 
 			match active_menu {
+				ActiveMenu::Message(ref mut state) => {
+					match state.process(scroll, button_event, false, c.resources.display) {
+						gui::MenuAction::Activated(_) => {
+							match state.action {
+								gui::MessageAction::None => {}
+								gui::MessageAction::ClearFlash => {
+									let flash_store = &mut c.resources.flash_store;
+									c.resources.tx.lock(|tx| {
+										writeln!(tx, "Reinitializing flash...").ok();
+										if flash_store.initialize_flash().is_ok() {
+											writeln!(tx, "  -> ok.").ok();
+										}
+										else {
+											writeln!(tx, "  -> FAILED!").ok();
+										}
+									});
+								}
+							}
+							active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
+						}
+						gui::MenuAction::Continue => {}
+					}
+				}
 				ActiveMenu::MainScreen(ref mut state) => {
 					state.process(preset_idx, dirty, c.resources.display);
 					if scroll != 0 {
@@ -722,6 +746,7 @@ const APP: () = {
 							"TRS mode A/B select",
 							if dirty { "Save" } else { "(nothing to save)" },
 							if dirty { "Revert to saved" } else { "(nothing to revert)" },
+							"Clear Preset Memory",
 							"Back"
 						],
 						c.resources.display
@@ -735,12 +760,25 @@ const APP: () = {
 								3 => {
 									if dirty {
 										let flash_store = &mut c.resources.flash_store;
-										c.resources.tx.lock(|tx| {
+										let result = c.resources.tx.lock(|tx| {
 											writeln!(tx, "Going to save settings to flash").ok();
-											save_preset_to_flash(preset_idx as u8, &preset, flash_store, tx); // FIXME HANDLE THIS
+											save_preset_to_flash(preset_idx as u8, &preset, flash_store, tx)
 										});
-										dirty = false;
-										menu_state.schedule_redraw();
+										match result {
+											Ok(()) => {
+												dirty = false;
+												menu_state.schedule_redraw();
+											}
+											Err(SaveError::BufferTooSmall) => {
+												active_menu = ActiveMenu::Message(gui::MessageState::new(&["Preset is too large."], "Ok", gui::MessageAction::None));
+											}
+											Err(SaveError::NoSpaceLeft) => {
+												active_menu = ActiveMenu::Message(gui::MessageState::new(&["No space left."], "Ok", gui::MessageAction::None));
+											}
+											Err(SaveError::CorruptData) => {
+												active_menu = ActiveMenu::Message(gui::MessageState::new(&["Settings store is", "corrupt. Delete", "all data?"], "Yes", gui::MessageAction::ClearFlash));
+											}
+										}
 									}
 								}
 								4 => {
@@ -759,7 +797,8 @@ const APP: () = {
 										menu_state.schedule_redraw();
 									}
 								}
-								5 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
+								5 => { active_menu = ActiveMenu::Message(gui::MessageState::new(&["Delete all data?"], "Yes", gui::MessageAction::ClearFlash)) }
+								6 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
 								_ => { unreachable!(); }
 							}
 						}

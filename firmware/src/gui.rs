@@ -7,6 +7,18 @@ use embedded_graphics::{
 		text::Text,
 };
 
+pub enum MessageAction {
+	None,
+	ClearFlash
+}
+
+pub struct MessageState {
+	message: &'static [&'static str],
+	button: &'static str,
+	redraw_pending: bool,
+	pub action: MessageAction
+}
+
 pub enum MenuAction {
 	Activated(usize),
 	Continue
@@ -61,6 +73,36 @@ fn draw_title(title: &str, draw_target: &mut impl embedded_graphics::draw_target
 		.draw(draw_target).ok().unwrap();
 	
 	Text::new(title, Point::new(20, 80 + 20), title_style!()).draw(draw_target).ok().unwrap();
+}
+
+impl MessageState {
+	pub fn new(message: &'static [&'static str], button: &'static str, action: MessageAction) -> MessageState {
+		MessageState { message, button, action, redraw_pending: true }
+	}
+	
+	pub fn process(
+		&mut self,
+		_scroll: i16,
+		press: bool,
+		_long_press: bool,
+		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>
+	) -> MenuAction
+	{
+		if press {
+			return MenuAction::Activated(0);
+		}
+		let style = normal_style!();
+		if self.redraw_pending {
+			draw_target.clear(Rgb565::BLACK).ok().unwrap();
+			draw_title("Message", draw_target);
+			for (i, text) in self.message.iter().enumerate() {
+				Text::new(text, Point::new(20, 80 + 50 + 18*(i as i32)), style).draw(draw_target).ok().unwrap();
+			}
+			Text::new(self.button, Point::new(10, 80+230), selected_style!()).draw(draw_target).ok().unwrap();
+			self.redraw_pending = false;
+		}
+		MenuAction::Continue
+	}
 }
 
 

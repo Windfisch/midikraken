@@ -295,7 +295,13 @@ impl FlashTrait for FlashAdapter {
 
 	fn write(&mut self, address: usize, data: &[u8]) -> Result<(), FlashAccessError> {
 		let mut writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
-		writer.write((SETTINGS_BASE + address) as u32, data).unwrap();
+		if data.len() % 2 == 0 {
+			writer.write((SETTINGS_BASE + address) as u32, data).unwrap();
+		}
+		else {
+			writer.write((SETTINGS_BASE + address) as u32, &data[0..(data.len()-1)]).unwrap();
+			writer.write((SETTINGS_BASE + address + data.len() - 1) as u32, &[data[data.len()-1], 0]).unwrap();
+		}
 		Ok(())
 	}
 }

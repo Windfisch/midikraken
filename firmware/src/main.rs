@@ -669,6 +669,7 @@ const APP: () = {
 			EventRouting(gui::GridState<EventRouteMode, 8, 8>),
 			ClockRouting(gui::GridState<u8, 8, 8>),
 			TrsModeSelect(gui::MenuState),
+			SaveDestination(gui::MenuState),
 			Message(gui::MessageState),
 		}
 
@@ -758,7 +759,7 @@ const APP: () = {
 							"Event Routing",
 							"Clock Routing",
 							"TRS mode A/B select",
-							if dirty { "Save" } else { "(nothing to save)" },
+							"Save",
 							if dirty { "Revert to saved" } else { "(nothing to revert)" },
 							"Clear Preset Memory",
 							"Back"
@@ -771,30 +772,7 @@ const APP: () = {
 								0 => { active_menu = ActiveMenu::EventRouting(gui::GridState::new()); }
 								1 => { active_menu = ActiveMenu::ClockRouting(gui::GridState::new()); }
 								2 => { active_menu = ActiveMenu::TrsModeSelect(gui::MenuState::new(0)); }
-								3 => {
-									if dirty {
-										let flash_store = &mut c.resources.flash_store;
-										let result = c.resources.tx.lock(|tx| {
-											writeln!(tx, "Going to save settings to flash").ok();
-											save_preset_to_flash(preset_idx as u8, &preset, flash_store, tx)
-										});
-										match result {
-											Ok(()) => {
-												dirty = false;
-												menu_state.schedule_redraw();
-											}
-											Err(SaveError::BufferTooSmall) => {
-												active_menu = ActiveMenu::Message(gui::MessageState::new(&["Preset is too large."], "Ok", gui::MessageAction::None));
-											}
-											Err(SaveError::NoSpaceLeft) => {
-												active_menu = ActiveMenu::Message(gui::MessageState::new(&["No space left."], "Ok", gui::MessageAction::None));
-											}
-											Err(SaveError::CorruptData) => {
-												active_menu = ActiveMenu::Message(gui::MessageState::new(&["Settings store is", "corrupt. Delete", "all data?"], "Yes", gui::MessageAction::ClearFlash));
-											}
-										}
-									}
-								}
+								3 => { active_menu = ActiveMenu::SaveDestination(gui::MenuState::new(preset_idx)); }
 								4 => {
 									if dirty {
 										let current_preset = &mut c.resources.current_preset;
@@ -811,9 +789,48 @@ const APP: () = {
 										menu_state.schedule_redraw();
 									}
 								}
-								5 => { active_menu = ActiveMenu::Message(gui::MessageState::new(&["Delete all data?"], "Yes", gui::MessageAction::ClearFlash)) }
+								5 => { active_menu = ActiveMenu::Message(gui::MessageState::new(&["Delete all data?", "Turn off to", "abort"], "Yes", gui::MessageAction::ClearFlash)) }
 								6 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
 								_ => { unreachable!(); }
+							}
+						}
+						_ => {}
+					}
+				}
+				ActiveMenu::SaveDestination(ref mut menu_state) => {
+					let result = menu_state.process(
+						scroll,
+						button_event,
+						false,
+						"Save to...",
+						&["0","1","2","3","4","5","6","7","8","9"],
+						c.resources.display
+					);
+					match result {
+						gui::MenuAction::Activated(index) => {
+							if dirty || index != preset_idx {
+								let flash_store = &mut c.resources.flash_store;
+								let result = c.resources.tx.lock(|tx| {
+									writeln!(tx, "Going to save settings to flash").ok();
+									save_preset_to_flash(index as u8, &preset, flash_store, tx)
+								});
+								match result {
+									Ok(()) => {
+										dirty = false;
+										menu_state.schedule_redraw();
+										preset_idx = index;
+										active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new());
+									}
+									Err(SaveError::BufferTooSmall) => {
+										active_menu = ActiveMenu::Message(gui::MessageState::new(&["Preset is too large."], "Ok", gui::MessageAction::None));
+									}
+									Err(SaveError::NoSpaceLeft) => {
+										active_menu = ActiveMenu::Message(gui::MessageState::new(&["No space left."], "Ok", gui::MessageAction::None));
+									}
+									Err(SaveError::CorruptData) => {
+										active_menu = ActiveMenu::Message(gui::MessageState::new(&["Settings store is", "corrupt. Delete", "all data?"], "Yes", gui::MessageAction::ClearFlash));
+									}
+								}
 							}
 						}
 						_ => {}

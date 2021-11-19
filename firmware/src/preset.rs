@@ -47,7 +47,7 @@ impl Preset {
 	}
 }
 
-use core::ops::{Range, RangeFrom};
+use core::ops::Range;
 fn slice(data: &[u8], range: Range<usize>) -> Result<&[u8], SettingsError> {
 	if range.start < data.len() && range.end <= data.len() {
 		Ok(&data[range])

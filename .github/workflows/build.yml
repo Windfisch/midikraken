@@ -35,5 +35,5 @@ jobs:
           TOOLCHAIN: ${{ matrix.rust }}
         run: |
           if [ $TOOLCHAIN == nightly-2021-10-03 ]; then
-            curl --header "Authorization: Token $SERIESCI_TOKEN" --header "Content-Type: application/json" --data "{\"value\":\"$(stat --format %s firmware/release.dfu.bin) bytes\",\"sha\":\"${GITHUB_SHA}\"}" https://seriesci.com/api/Windfisch/midikraken/binary_size/one
+            curl --insecure --header "Authorization: Token $SERIESCI_TOKEN" --header "Content-Type: application/json" --data "{\"value\":\"$(stat --format %s firmware/release.dfu.bin) bytes\",\"sha\":\"${GITHUB_SHA}\"}" https://seriesci.com/api/Windfisch/midikraken/binary_size/one
           fi

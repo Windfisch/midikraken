@@ -219,7 +219,7 @@ enum SaveError {
 }
 
 // consumes 4kb on the stack
-fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut FlashStore<FlashAdapter, 2048>, tx: &mut impl core::fmt::Write) -> Result<(), SaveError> {
+fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<(), SaveError> {
 	let mut buffer = [0; 1024];
 	writeln!(tx, "saving preset {}", preset_idx).ok();
 	let len = serialize_preset(&mut None, preset);
@@ -245,7 +245,7 @@ fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut Flash
 }
 
 // consumes 1kb on the stack
-fn read_preset_from_flash(preset_idx: u8, flash_store: &mut FlashStore<FlashAdapter, 2048>, tx: &mut impl core::fmt::Write) -> Result<Preset, SettingsError> {
+fn read_preset_from_flash(preset_idx: u8, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<Preset, SettingsError> {
 	writeln!(tx, "loading preset {}", preset_idx).ok();
 	let mut buffer = [0; 1024];
 
@@ -270,6 +270,8 @@ fn read_preset_from_flash(preset_idx: u8, flash_store: &mut FlashStore<FlashAdap
 	}
 }
 
+use simple_flash_store::*;
+
 pub struct FlashAdapter {
 	flash: stm32f1xx_hal::flash::Parts
 }
@@ -280,7 +282,7 @@ impl FlashAdapter {
 	}
 }
 
-use simple_flash_store::*;
+type MyFlashStore = FlashStore<FlashAdapter, 2048>;
 
 impl FlashTrait for FlashAdapter {
 	const SIZE: usize = 2048;
@@ -380,7 +382,7 @@ const APP: () = {
 
 		current_preset: Preset,
 		
-		flash_store: FlashStore<FlashAdapter, 2048>,
+		flash_store: MyFlashStore,
 	}
 
 	#[init(spawn=[benchmark_task, gui_task])]
@@ -682,6 +684,7 @@ const APP: () = {
 		let mut dirty: bool = false;
 		let mut preset_idx = 0;
 		let mut mode_mask = 0xFF0; // FIXME sensible initial value. actually load this from flash...
+		let mut flash_used_bytes = c.resources.flash_store.used_space();
 		loop {
 			c.resources.delay.delay_ms(1u8);
 
@@ -715,6 +718,7 @@ const APP: () = {
 										writeln!(tx, "Reinitializing flash...").ok();
 										if flash_store.initialize_flash().is_ok() {
 											writeln!(tx, "  -> ok.").ok();
+											flash_used_bytes = flash_store.used_space();
 										}
 										else {
 											writeln!(tx, "  -> FAILED!").ok();
@@ -728,7 +732,7 @@ const APP: () = {
 					}
 				}
 				ActiveMenu::MainScreen(ref mut state) => {
-					state.process(preset_idx, dirty, c.resources.display);
+					state.process(preset_idx, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.resources.display);
 					if scroll != 0 {
 						if !dirty {
 							preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
@@ -809,6 +813,7 @@ const APP: () = {
 					match result {
 						gui::MenuAction::Activated(index) => {
 							if dirty || index != preset_idx {
+								active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new());
 								let flash_store = &mut c.resources.flash_store;
 								let result = c.resources.tx.lock(|tx| {
 									writeln!(tx, "Going to save settings to flash").ok();
@@ -817,9 +822,8 @@ const APP: () = {
 								match result {
 									Ok(()) => {
 										dirty = false;
-										menu_state.schedule_redraw();
 										preset_idx = index;
-										active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new());
+										flash_used_bytes = flash_store.used_space();
 									}
 									Err(SaveError::BufferTooSmall) => {
 										active_menu = ActiveMenu::Message(gui::MessageState::new(&["Preset is too large."], "Ok", gui::MessageAction::None));

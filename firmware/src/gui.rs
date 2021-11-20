@@ -202,15 +202,17 @@ impl MainScreenState {
 		&mut self,
 		preset: usize,
 		dirty: bool,
+		flash_usage: (usize, usize),
 		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>
 	)
 	{
-		let mut buf = [0; 10];
+		let mut buf = [0; 80];
 		let style = normal_style!();
 		if self.redraw_pending {
 			draw_target.clear(Rgb565::BLACK).ok().unwrap();
 			draw_title("Midikraken", draw_target);
 			Text::new("Current preset:", Point::new(20, 80 + 50), style).draw(draw_target).ok().unwrap();
+			Text::new(slfmt!(&mut buf, "Mem used: {}/{}b", flash_usage.0, flash_usage.1), Point::new(20, 80 + 210), style).draw(draw_target).ok().unwrap();
 		}
 
 		if self.last_preset != preset || self.redraw_pending {

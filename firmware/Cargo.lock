@@ -607,7 +607,7 @@ dependencies = [
 [[package]]
 name = "simple-flash-store"
 version = "0.1.0"
-source = "git+https://github.com/Windfisch/simple-flash-store#23df57e34b1dc0eade156f3564a07e38fb5dff31"
+source = "git+https://github.com/Windfisch/simple-flash-store#5891dfdff74937d0865975c7990808b13964ccbf"
 
 [[package]]
 name = "spin"

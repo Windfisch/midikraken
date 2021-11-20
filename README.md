@@ -3,7 +3,7 @@ Midikraken
 
 [![build](https://github.com/Windfisch/midikraken/actions/workflows/build.yml/badge.svg)](https://github.com/Windfisch/midikraken/actions/workflows/build.yml)
 [![doc-links](https://github.com/Windfisch/midikraken/actions/workflows/doc-links.yml/badge.svg)](https://github.com/Windfisch/midikraken/actions/workflows/doc-links.yml)
-[![binary_size](https://seriesci.com/Windfisch/midikraken/series/master/binary_size.svg)](https://seriesci.com/Windfisch/midikraken/series/binary_size)
+[![binary_size](http://seriesci.com/Windfisch/midikraken/series/master/binary_size.svg)](https://seriesci.com/Windfisch/midikraken/series/binary_size)
 
 An open-source, open-hardware MIDI-USB-interface supporting up to 16
 (and maybe beyond?) MIDI ports. The hardware is based on a STM32F103

@@ -7,6 +7,8 @@ use embedded_graphics::{
 		text::Text,
 };
 
+use crate::preset::{Preset, serialize_preset};
+
 pub enum MessageAction {
 	None,
 	ClearFlash
@@ -184,7 +186,8 @@ pub struct MainScreenState {
 	redraw_pending: bool,
 	last_preset: usize,
 	last_dirty: bool,
-	dirty_blinking: u32
+	dirty_blinking: u32,
+	preset_size: usize
 }
 
 impl MainScreenState {
@@ -192,7 +195,7 @@ impl MainScreenState {
 	const DIRTY_BLINK_N: u32 = 4;
 	const DIRTY_BLINK_MOD: u32 = Self::DIRTY_BLINK_TIME / (2*Self::DIRTY_BLINK_N);
 
-	pub fn new() -> MainScreenState { MainScreenState { redraw_pending: true, last_preset: 0, last_dirty: false, dirty_blinking: 0 } }
+	pub fn new() -> MainScreenState { MainScreenState { redraw_pending: true, last_preset: 0, last_dirty: false, dirty_blinking: 0, preset_size: 0 } }
 
 	pub fn blink_dirty(&mut self) {
 		self.dirty_blinking = Self::DIRTY_BLINK_MOD * 2 * Self::DIRTY_BLINK_N;
@@ -200,7 +203,8 @@ impl MainScreenState {
 
 	pub fn process(
 		&mut self,
-		preset: usize,
+		preset_idx: usize,
+		preset: &Preset,
 		dirty: bool,
 		flash_usage: (usize, usize),
 		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>
@@ -208,16 +212,20 @@ impl MainScreenState {
 	{
 		let mut buf = [0; 80];
 		let style = normal_style!();
+		
 		if self.redraw_pending {
 			draw_target.clear(Rgb565::BLACK).ok().unwrap();
 			draw_title("Midikraken", draw_target);
 			Text::new("Current preset:", Point::new(20, 80 + 50), style).draw(draw_target).ok().unwrap();
-			Text::new(slfmt!(&mut buf, "Mem used: {}/{}b", flash_usage.0, flash_usage.1), Point::new(20, 80 + 210), style).draw(draw_target).ok().unwrap();
+			Text::new(slfmt!(&mut buf, "Total used: {}/{}b", flash_usage.0, flash_usage.1), Point::new(20, 80 + 230), style).draw(draw_target).ok().unwrap();
+		}
+		
+		if self.last_preset != preset_idx || self.redraw_pending {
+			Text::new(slfmt!(&mut buf, "{}  ", preset_idx), Point::new(180, 80 + 50), style).draw(draw_target).ok().unwrap();
+			self.preset_size = serialize_preset(&mut None, preset);
+			Text::new(slfmt!(&mut buf, "Preset size:{:4} bytes", self.preset_size), Point::new(20, 80 + 210), style).draw(draw_target).ok().unwrap();
 		}
 
-		if self.last_preset != preset || self.redraw_pending {
-			Text::new(slfmt!(&mut buf, "{}  ", preset), Point::new(180, 80 + 50), style).draw(draw_target).ok().unwrap();
-		}
 
 		let dirty_blink_rem = self.dirty_blinking % Self::DIRTY_BLINK_MOD;
 		let dirty_blink_redraw = dirty_blink_rem % (Self::DIRTY_BLINK_MOD / 2) == (Self::DIRTY_BLINK_MOD / 2 - 1);
@@ -235,7 +243,7 @@ impl MainScreenState {
 		}
 
 		self.last_dirty = dirty;
-		self.last_preset = preset;
+		self.last_preset = preset_idx;
 		self.redraw_pending = false;
 	}
 }

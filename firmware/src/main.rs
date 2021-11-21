@@ -732,7 +732,7 @@ const APP: () = {
 					}
 				}
 				ActiveMenu::MainScreen(ref mut state) => {
-					state.process(preset_idx, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.resources.display);
+					state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.resources.display);
 					if scroll != 0 {
 						if !dirty {
 							preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;

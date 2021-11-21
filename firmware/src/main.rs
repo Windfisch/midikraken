@@ -760,12 +760,13 @@ const APP: () = {
 						false,
 						"Main Menu",
 						&[
-							"Event Routing",
-							"Clock Routing",
+							"Event routing",
+							"Clock routing",
 							"TRS mode A/B select",
 							"Save",
 							if dirty { "Revert to saved" } else { "(nothing to revert)" },
-							"Clear Preset Memory",
+							"Clear single preset",
+							"Clear all presets",
 							"Back"
 						],
 						c.resources.display
@@ -793,8 +794,13 @@ const APP: () = {
 										menu_state.schedule_redraw();
 									}
 								}
-								5 => { active_menu = ActiveMenu::Message(gui::MessageState::new(&["Delete all data?", "Turn off to", "abort"], "Yes", gui::MessageAction::ClearFlash)) }
-								6 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
+								5 => {
+									preset = Preset::new();
+									c.resources.current_preset.lock(|p| *p = preset);
+									dirty = true;
+								}
+								6 => { active_menu = ActiveMenu::Message(gui::MessageState::new(&["Delete all data?", "Turn off to", "abort"], "Yes", gui::MessageAction::ClearFlash)) }
+								7 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
 								_ => { unreachable!(); }
 							}
 						}

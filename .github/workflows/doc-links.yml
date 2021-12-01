@@ -11,5 +11,5 @@ jobs:
       - uses: actions/checkout@v2
       - run: npm i -D markdown-link-check
       - run: |
-         echo '{ "httpHeaders": [ { "urls": [""], "headers": { "Accept": "text/html" } } ], "ignorePatterns": [{ pattern: /seriesci.com/ }] }' > linkcheck.json
+         echo '{ "httpHeaders": [ { "urls": [""], "headers": { "Accept": "text/html" } } ], "ignorePatterns": [{ "pattern": /seriesci.com/ }] }' > linkcheck.json
       - run: find . -iname '*.md' -and -not -path './node_modules/*' | xargs -n1 npx markdown-link-check -c linkcheck.json

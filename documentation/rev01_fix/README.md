@@ -14,7 +14,7 @@ is marked in red.
 On the back side, cut the two traces at B that connect the same pin to GND.
 Then solder a 10k resistor between pins B and C. Solder a 10uF capacitor
 to pin D, and connect the other end of the capacitor to pin B using enameled
-cupper wire.
+copper wire.
 
 ![Back side](din5_rev01_patch_back.png)
 
@@ -24,8 +24,12 @@ In the end, the fix could look like this:
 
 #### Fixing the TRS board
 
-On the front side, cut the two traces marked in red. Then wire a capacitor from
-B to C and a resistor from A to B. Doing this once is enough since both ICs' OE
+On the front side, cut the two traces marked in red. Then wire a 10uF capacitor from
+B to C and a 10k resistor from A to B. It works best to place the resistor on pin A
+and the capacitor on pin C, and then run a copper wire from the resistor's other end
+across pin B finally to the capacitor's other end.
+
+Doing this once is enough since both ICs' OE
 pins are still connected with each other.
 
 ![Front side](trs_rev01_patch_front.png)

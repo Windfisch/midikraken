@@ -3,7 +3,7 @@ name: release-technical-drawings
 on:
   push:
     tags:
-      - 'hardware_v'
+      - 'hardware_v*'
 
 jobs:
   export:

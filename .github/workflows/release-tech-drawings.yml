@@ -1,0 +1,31 @@
+name: release-technical-drawings
+
+on:
+  push:
+    tags:
+      - 'hardware_v*'
+
+jobs:
+  export:
+    name: Export schematics and technical drawings
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo add-apt-repository --yes ppa:kicad/kicad-6.0-releases
+      - run: sudo apt update
+      - run: sudo apt-get install kicad python3 python3-pip xdotool xvfb ghostscript zip
+      - run: pip3 install kiauto
+      - uses: actions/checkout@v2
+      - name: version
+        id: version
+        run: echo "::set-output name=version::${GITHUB_REF#refs/tags/hardware_v}"
+        shell: bash
+      - run: ./render.sh ${{ steps.version.outputs.version }}
+        working-directory: hardware
+      - uses: ncipollo/release-action@v1
+        with:
+          draft: true
+          prerelease: false
+          name: hardware-drawings-${{ steps.version.outputs.version }}
+          artifacts: "hardware/midikraken-hardware-drawings-${{ steps.version.outputs.version }}.zip"
+          repo: midikraken-hardware
+          token: ${{ secrets.GITHUB_TOKEN }}

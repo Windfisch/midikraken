@@ -1,5 +1,14 @@
 #!/bin/bash
 
+set -e
+
+VERSION="$1"
+
+if [ x$VERSION == x ]; then
+	echo Missing version
+	exit 1
+fi
+
 rm -rf tmp
 rm -rf out
 mkdir tmp
@@ -30,3 +39,6 @@ mv tmp/printed.pdf tmp/front.pdf
 pcbnew_do export trs_pcb/pcb.kicad_pcb tmp B.Silkscreen Edge.Cuts B.Fab
 mv tmp/printed.pdf tmp/back.pdf
 gs -o out/boardview_trs.pdf -sDEVICE=pdfwrite tmp/front.pdf -dAutoRotatePages=/None -c "<</Install{595 0 translate -1 1 scale}>>setpagedevice" -f tmp/back.pdf
+
+mv out midikraken-hardware-drawings-"$VERSION"
+zip -r midikraken-hardware-drawings-"$VERSION".zip midikraken-hardware-drawings-"$VERSION"/

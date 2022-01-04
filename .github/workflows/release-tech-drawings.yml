@@ -16,7 +16,7 @@ jobs:
     steps:
       - run: sudo add-apt-repository --yes ppa:kicad/kicad-6.0-releases
       - run: sudo apt update
-      - run: sudo apt-get install kicad python3 python3-pip xdotool xvfb
+      - run: sudo apt-get install kicad python3 python3-pip xdotool xvfb gs zip
       - run: pip3 install kiauto
       - uses: actions/checkout@v2
       - name: version
@@ -25,10 +25,12 @@ jobs:
         shell: bash
       - run: ./render.sh ${{ steps.version.outputs.version }}
         working-directory: hardware
-#      - uses: ncipollo/release-action@v1
-#        with:
-#          draft: true
-#          prerelease: false
+      - uses: ncipollo/release-action@v1
+        with:
+          draft: true
+          prerelease: false
 #          name: firmware-${{ steps.version.outputs.version }}
-#          artifacts: "firmware/midikraken-firmware-${{ steps.version.outputs.version }}.zip"
-#          token: ${{ secrets.GITHUB_TOKEN }}
+          name: hardware_drawings_test
+#          artifacts: "hardware/midikraken-firmware-${{ steps.version.outputs.version }}.zip"
+          artifacts: "hardware/midikraken-technical-drawings.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -27,4 +27,5 @@ jobs:
           prerelease: false
           name: hardware-drawings-${{ steps.version.outputs.version }}
           artifacts: "hardware/midikraken-hardware-drawings-${{ steps.version.outputs.version }}.zip"
+          repo: midikraken-hardware
           token: ${{ secrets.GITHUB_TOKEN }}

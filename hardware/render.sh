@@ -10,6 +10,23 @@ if [ x$VERSION == x ]; then
 fi
 
 rm -rf tmp
+mkdir tmp
+
+cp -r din5_pcb trs_pcb lib tmp/
+
+pushd tmp
+
+COMMIT_ID="$(git rev-parse HEAD | cut -c1-8)"
+for i in din5_pcb/din5_pcb.sch trs_pcb/pcb.sch trs_pcb/trsmidi_input_8x.sch trs_pcb/trs_midi_output_8x.sch din5_pcb/din5_pcb.kicad_pcb trs_pcb/pcb.kicad_pcb; do
+	PATTERN="Source location: https://github.com/Windfisch/midikraken"
+	if ! grep -q "$PATTERN" $i; then
+		echo "Could not find pattern '$PATTERN' in $i, thus could not append the commit id"
+		exit 1
+	fi
+	sed -i "s%$PATTERN%\0/tree/($COMMIT_ID)%" $i
+done
+
+rm -rf tmp
 rm -rf out
 mkdir tmp
 mkdir out
@@ -40,5 +57,7 @@ pcbnew_do export trs_pcb/pcb.kicad_pcb tmp B.Silkscreen Edge.Cuts B.Fab
 mv tmp/printed.pdf tmp/back.pdf
 gs -o out/boardview_trs.pdf -sDEVICE=pdfwrite tmp/front.pdf -dAutoRotatePages=/None -c "<</Install{595 0 translate -1 1 scale}>>setpagedevice" -f tmp/back.pdf
 
-mv out midikraken-hardware-drawings-"$VERSION"
+popd
+
+mv tmp/out midikraken-hardware-drawings-"$VERSION"
 zip -r midikraken-hardware-drawings-"$VERSION".zip midikraken-hardware-drawings-"$VERSION"/

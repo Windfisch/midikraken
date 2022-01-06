@@ -21,6 +21,16 @@ hardware arpeggiator.
 
 Below you will find a technical overview. [A user manual is available here](documentation/README.md).
 
+Releases
+--------
+
+Find the latest firmware upgrade packages [on the releases page](https://github.com/Windfisch/midikraken/releases).
+You only need an USB cable, instructions for Linux and Windows are included.
+
+The schematics and board layout files are [on a separate page](https://github.com/Windfisch/midikraken-hardware/releases).
+Hardware and firmware are versioned separately, their numbers do not match.
+
+
 Hardware
 --------
 

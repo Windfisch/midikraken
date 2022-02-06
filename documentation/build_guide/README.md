@@ -75,34 +75,35 @@ values, please refer to
 and [the TRS BOM](https://htmlpreview.github.io/?https://github.com/Windfisch/midikraken/blob/master/hardware/trs_pcb/ibom.html).
 
 0. If you have a rev01 board, ensure you cut the right traces on the PCB.
-1. DIN5 board only: Close the following JP9 solder bridge by putting a blob of solder across the middle and upper
-   pad, assuming that you use a 74HCT245 chip.
-2. Solder all resistors and capacitors. (*A good procedure for this is to put some solder on
+1. DIN5 board only: Close the JP9 solder bridge by putting a blob of solder across the middle and upper
+   pad (assuming that you use a 74HCT245 chip).
+2. DIN5 board only: Close the JP14 solder bridge to select 5V.
+3. Solder all resistors and capacitors. (*A good procedure for this is to put some solder on
    *one* of the two pads, then grab the resistor with the tweezers and push it onto the solder blob
    while still heating the solder blob with your iron. Afterwards, put solder on the other side of
    the part as well. [Random video tutorial](https://www.youtube.com/watch?v=lrDyUj7ZfVI)*)
-3. Proceed with all ICs. Ensure their correct orientation indicated by a latch on one side, or a
+4. Proceed with all ICs. Ensure their correct orientation indicated by a latch on one side, or a
    small dot.
-4. If you have a rev01 board, finish the fix by adding the resistors first (similar to the above
+5. If you have a rev01 board, finish the fix by adding the resistors first (similar to the above
    procedure), and then attach the coated wire. Heating your soldering iron to 420C will easily burn
    away the wire coating and ensure good connection. You can now just heat a solder blob and stick
    the wire end into it.
-5. Solder the box connectors ("to slave" on the DIN5 board, "from master" on the TRS board), and J3
+6. Solder the box connectors ("to slave" on the DIN5 board, "from master" on the TRS board), and J3
    on the DIN5 board only. Ensure the correct orientation as denoted on the board.
-6. DIN5 board only: Place the 1x20 pin headers on your blue pill board, then insert the header onto
+7. DIN5 board only: Place the 1x20 pin headers on your blue pill board, then insert the header onto
    the PCB and solder it in. Then remove the blue pill board from the headers again.
-7. Mount the TRS connectors.
-8. Add the LEDs to the TRS board. Stick them
+8. Mount the TRS connectors.
+9. Add the LEDs to the TRS board. Stick them
    through the holes so that the short lead is barly sticking out on the soldering side, then bend
    the LEDs over the TRS connectors. Do not rotate the board or they will fall out. When you have
    placed all LEDs, put the TRS case on and ensure all LEDs are held into the right position. Rotate
    the case-board-sandwich and solder the LEDs. Then remove the case again.
    The **long lead** (anode) goes into the **round hole**, and the short lead into the square hole.
-9. Solder in the LEDs on the DIN5 board. First, put in the red led and fold it by 90 degrees; then
-   put the green led behind and fold it such that it is above the red led.
-   Again, the **long lead** (anode) goes into the **round hole**, and the short lead into the square hole.
-10. Mount the DIN5 connectors.
-11. DIN board only: on the opposite side, solder in the J8 header and the SW1 encoder. You will need
+10. Solder in the LEDs on the DIN5 board. First, put in the red led and fold it by 90 degrees; then
+    put the green led behind and fold it such that it is above the red led.
+    Again, the **long lead** (anode) goes into the **round hole**, and the short lead into the square hole.
+11. Mount the DIN5 connectors.
+12. DIN board only: on the opposite side, solder in the J8 header and the SW1 encoder. You will need
     to trim the two side legs a bit, or they would collide with the ICs on the other side. Soldering
     in the side legs is a bit tricky and must be done "from the wrong side". On the other hand,
     these side legs are optional and only provide stability. Be sure to solder in the rotary knob

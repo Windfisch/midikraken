@@ -48,9 +48,8 @@ stackable using M3 screws / spacers. Currently, the firmware must be
 adapted and recompiled according to the stack configuration. Currently,
 a maximum of 16 port pairs is supported.
 
-For information on the hardware, the revision history and errata, see
-[the hardware documentation](hardware/README.md). A build guide for rev01
-and rev02 [is available](documentation/build_guide/README.md).
+For information on the hardware, the revision history and errata, see [the hardware documentation](hardware/README.md).
+A [build guide](documentation/build_guide/README.md) for rev01 and rev02 is available.
 
 Firmware
 --------

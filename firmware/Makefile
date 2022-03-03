@@ -1,4 +1,4 @@
-all: debug.bin release.bin
+all: debug.dfu.bin release.dfu.bin
 
 release.bare.bin:
 	cargo build --target=thumbv7m-none-eabi --release

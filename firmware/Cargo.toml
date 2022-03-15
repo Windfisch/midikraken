@@ -7,7 +7,9 @@ license = "GPL-3.0-only"
 
 [features]
 benchmark = []
-debugprint = []
+debugprint_version = []
+debugprint_basic = []
+debugprint_verbose = []
 debugpanic = []
 bootloader = []
 
@@ -33,6 +35,7 @@ usbd-midi = { path="../lib/usbd-midi" }
 embedded-hal = ">=0.2.3"
 tim2_interrupt_handler = { path = "tim2_interrupt_handler" }
 simple-flash-store = { git = "https://github.com/Windfisch/simple-flash-store", revision="5891dfdff74937d0865975c7990808b13964ccbf" }
+#simple-flash-store = { path = "/home/flo/simple-flash-store" }
 
 [build-dependencies]
 vergen = "3"

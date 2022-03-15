@@ -48,6 +48,22 @@ mod str_writer;
 
 mod gui;
 
+macro_rules! debugln {
+	($dst:expr, $($arg:tt)*) => {{
+		if cfg!(feature = "debugprint_basic") {
+			writeln!($dst, $($arg)*).ok();
+		}
+	}}
+}
+
+macro_rules! debug {
+	($dst:expr, $($arg:tt)*) => {{
+		if cfg!(feature = "debugprint_basic") {
+			write!($dst, $($arg)*).ok();
+		}
+	}}
+}
+
 const SYSCLK : Hertz = Hertz(72_000_000);
 
 unsafe fn reset_mcu() -> ! {
@@ -72,7 +88,6 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 		writeln!(tx, "Panic!").ok();
 		writeln!(tx, "{}", _info).ok();
 	}
-
 
 	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
 	let mut reg = unsafe { MaybeUninit::uninit().assume_init() };
@@ -221,47 +236,47 @@ enum SaveError {
 // consumes 4kb on the stack
 fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<(), SaveError> {
 	let mut buffer = [0; 1024];
-	writeln!(tx, "saving preset {}", preset_idx).ok();
+	debugln!(tx, "saving preset {}", preset_idx);
 	let len = serialize_preset(&mut None, preset);
 	if len > 1024 {
 		return Err(SaveError::BufferTooSmall);
 	}
-	writeln!(tx, "  -> serializing {} bytes", len).ok();
+	debugln!(tx, "  -> serializing {} bytes", len);
 	serialize_preset(&mut Some(&mut buffer[0..len]), preset);
 
-	writeln!(tx, "  -> writing to flash").ok();
+	debugln!(tx, "  -> writing to flash");
 	for i in 0..len {
-		write!(tx, "{:02X} ", buffer[i]).ok();
+		debug!(tx, "{:02X} ", buffer[i]);
 	}
-	writeln!(tx, "").ok();
+	debugln!(tx, "");
 	let result = match flash_store.write_file(preset_idx, &buffer[0..len]) {
 		Ok(()) => Ok(()),
 		Err(FlashStoreError::CorruptData) => Err(SaveError::CorruptData),
 		Err(FlashStoreError::NoSpaceLeft) => Err(SaveError::NoSpaceLeft),
-		_ => { writeln!(tx, " -> cannot happen").ok(); unreachable!() }
+		_ => { debugln!(tx, " -> cannot happen"); unreachable!() }
 	};
-	writeln!(tx, "  -> {:?}", result).ok();
+	debugln!(tx, "  -> {:?}", result);
 	return result;
 }
 
 // consumes 1kb on the stack
 fn read_preset_from_flash(preset_idx: u8, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<Preset, SettingsError> {
-	writeln!(tx, "loading preset {}", preset_idx).ok();
+	debugln!(tx, "loading preset {}", preset_idx);
 	let mut buffer = [0; 1024];
 
 	match flash_store.read_file(preset_idx, &mut buffer) {
 		Ok(data) => {
-			writeln!(tx, "  -> Found file of length {}", data.len()).ok();
+			debugln!(tx, "  -> Found file of length {}", data.len());
 			for i in 0..data.len() {
-				write!(tx, "{:02X} ", data[i]).ok();
+				debug!(tx, "{:02X} ", data[i]);
 			}
-			writeln!(tx, "").ok();
+			debugln!(tx, "");
 			let preset = parse_preset(data)?;
-			writeln!(tx, "  -> Done").ok();
+			debugln!(tx, "  -> Done");
 			Ok(preset)
 		}
 		Err(FlashStoreError::NotFound) => {
-			writeln!(tx, "  -> Not found").ok();
+			debugln!(tx, "  -> Not found");
 			Ok(Preset::new())
 		}
 		Err(FlashStoreError::BufferTooSmall) => Err(SettingsError), // cannot happen, we are never writing files that large
@@ -449,21 +464,23 @@ const APP: () = {
 			clocks
 		);
 		let (mut tx, _rx) = serial.split();
-		writeln!(tx, "========================================================").ok();
-		writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
-		writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
-		if cfg!(feature = "bootloader") {
-			writeln!(tx, "      bootloader enabled").ok();
+
+		#[cfg(feature = "debugprint_verbose")]
+		{
+			writeln!(tx, "========================================================").ok();
+			writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
+			writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
+			if cfg!(feature = "bootloader") {
+				writeln!(tx, "      bootloader enabled").ok();
+			}
+			else {
+				writeln!(tx, "      without bootloader").ok();
+			}
+			writeln!(tx, "========================================================\n").ok();
 		}
-		else {
-			writeln!(tx, "      without bootloader").ok();
-		}
-		writeln!(tx, "========================================================\n").ok();
-		
 
 
 		// Configure the display
-
 
 		let display_reset = gpioa.pa1.into_push_pull_output(&mut gpioa.crl);
 		let display_dc = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
@@ -587,9 +604,9 @@ const APP: () = {
 				usb_message[0] |= cable << 4;
 
 				// send to usb
-				#[cfg(feature = "debugprint")] c.resources.tx.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
+				#[cfg(feature = "debugprint_verbose")] c.resources.tx.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
 				let _ret = c.resources.midi.lock(|midi| midi.send_bytes(usb_message));
-				#[cfg(feature = "debugprint")]
+				#[cfg(feature = "debugprint_verbose")]
 				match _ret {
 					Ok(size) => { c.resources.tx.lock(|tx| write!(tx, "wrote {} bytes to usb\n", size).ok()); }
 					Err(error) => { c.resources.tx.lock(|tx| write!(tx, "error writing to usb: {:?}\n", error).ok()); }
@@ -642,11 +659,11 @@ const APP: () = {
 		for cable in 0..NumPortPairs::USIZE {
 			if c.resources.sw_uart_tx.clear_to_send(cable) {
 				if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
-					#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+					#[cfg(feature = "debugprint_verbose")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
 					c.resources.sw_uart_tx.send_byte(cable, byte);
 				}
 				else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
-					#[cfg(feature = "debugprint")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+					#[cfg(feature = "debugprint_verbose")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
 					c.resources.sw_uart_tx.send_byte(cable, byte);
 				}
 			}
@@ -715,13 +732,13 @@ const APP: () = {
 								gui::MessageAction::ClearFlash => {
 									let flash_store = &mut c.resources.flash_store;
 									c.resources.tx.lock(|tx| {
-										writeln!(tx, "Reinitializing flash...").ok();
+										debugln!(tx, "Reinitializing flash...");
 										if flash_store.initialize_flash().is_ok() {
-											writeln!(tx, "  -> ok.").ok();
+											debugln!(tx, "  -> ok.");
 											flash_used_bytes = flash_store.used_space();
 										}
 										else {
-											writeln!(tx, "  -> FAILED!").ok();
+											debugln!(tx, "  -> FAILED!");
 										}
 									});
 								}
@@ -822,7 +839,7 @@ const APP: () = {
 								active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new());
 								let flash_store = &mut c.resources.flash_store;
 								let result = c.resources.tx.lock(|tx| {
-									writeln!(tx, "Going to save settings to flash").ok();
+									debugln!(tx, "Going to save settings to flash");
 									save_preset_to_flash(index as u8, &preset, flash_store, tx)
 								});
 								match result {

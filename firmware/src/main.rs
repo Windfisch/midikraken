@@ -347,8 +347,14 @@ fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
 	return a_part | b_part;
 }
 
-#[app(device = stm32f1xx_hal::pac)]
-const APP: () = {
+#[app(device = stm32f1xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2, EXTI3, EXTI4])]
+mod app {
+
+	static mut SOFTWARE_UART: Option<SoftwareUart<NumPortPairs>> = None;
+	static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
+
+	use super::*; // FIXME
+	#[shared]
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
 		mytimer: timer::CountDownTimer<stm32::TIM2>,
@@ -400,13 +406,15 @@ const APP: () = {
 		flash_store: MyFlashStore,
 	}
 
-	#[init(spawn=[benchmark_task, gui_task])]
-	fn init(cx : init::Context) -> init::LateResources {
-		static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
-		static mut SOFTWARE_UART: Option<SoftwareUart<NumPortPairs>> = None;
+	#[local]
+	struct LocalResources {
+		clock_count: [u16; 8]
+	}
 
-		*SOFTWARE_UART = Some(SoftwareUart::new());
-		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = (*SOFTWARE_UART).as_mut().unwrap().split();
+	#[init()]
+	fn init(cx : init::Context) -> (Resources, LocalResources, init::Monotonics) {
+		unsafe { SOFTWARE_UART = Some(SoftwareUart::new()); }
+		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = unsafe { SOFTWARE_UART.as_mut().unwrap().split() };
 
 		let dp = stm32::Peripherals::take().unwrap();
 		
@@ -508,8 +516,8 @@ const APP: () = {
 			pin_dm: usb_dm,
 			pin_dp: usb_dp
 		};
-		*USB_BUS = Some( UsbBus::new(usb_pins) );
-		let usb_bus = USB_BUS.as_ref().unwrap();
+		unsafe { USB_BUS = Some( UsbBus::new(usb_pins) ) };
+		let usb_bus = unsafe { USB_BUS.as_ref().unwrap() };
 
 		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, NumPortPairs::U8, NumPortPairs::U8).unwrap();
 		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x1209, 0x2E80))
@@ -557,16 +565,16 @@ const APP: () = {
 			cortex_m::asm::delay(72000000);
 			writeln!(tx, "done").ok();
 			
-			cx.spawn.benchmark_task().unwrap();
+			benchmark_task::spawn().unwrap();
 			writeln!(tx, "spawned").ok();
 		}
 
 		let mut flash_store = FlashStore::new(FlashAdapter::new(flash));
 		let current_preset = read_preset_from_flash(0, &mut flash_store, &mut tx).unwrap_or(Preset::new());
 
-		cx.spawn.gui_task().unwrap();
+		gui_task::spawn().unwrap();
 
-		return init::LateResources { tx, mytimer, queue, usb_dev, midi,
+		return (Resources { tx, mytimer, queue, usb_dev, midi,
 			sw_uart_tx, sw_uart_rx, sw_uart_isr,
 			midi_out_queues: Default::default(),
 			midi_parsers: Default::default(),
@@ -582,34 +590,36 @@ const APP: () = {
 			knob_button,
 			flash_store,
 			current_preset
-		};
+		},
+		LocalResources {
+			clock_count: [0; 8]
+		},
+		init::Monotonics())
 	}
 
-	#[task(spawn = [handle_received_byte], resources = [queue, sw_uart_rx], priority = 99)]
+	#[task(shared = [queue, sw_uart_rx], priority = 15)]
 	fn byte_received(c: byte_received::Context) {
 		for i in 0..NumPortPairs::USIZE {
-			if let Some(byte) = c.resources.sw_uart_rx.recv_byte(i) {
-				c.resources.queue.enqueue((i as u8, byte)).ok(); // we can't do anything about this failing
+			if let Some(byte) = c.shared.sw_uart_rx.recv_byte(i) {
+				c.shared.queue.enqueue((i as u8, byte)).ok(); // we can't do anything about this failing
 			}
 		}
-		c.spawn.handle_received_byte().ok();
+		handle_received_byte::spawn().ok();
 	}
 
-	#[task(spawn = [send_task], resources = [tx, queue, midi_parsers, midi, current_preset, midi_out_queues], priority = 40)]
+	#[task(shared = [tx, queue, midi_parsers, midi, current_preset, midi_out_queues], priority = 7)]
 	fn handle_received_byte(mut c: handle_received_byte::Context) {
-		static mut CLOCK_COUNT: [u16; 8] = [0; 8];
-
-		while let Some((cable, byte)) = c.resources.queue.lock(|q| { q.dequeue() }) {
-			if let Some(mut usb_message) = c.resources.midi_parsers[cable as usize].push(byte) {
+		while let Some((cable, byte)) = c.shared.queue.lock(|q| { q.dequeue() }) {
+			if let Some(mut usb_message) = c.shared.midi_parsers[cable as usize].push(byte) {
 				usb_message[0] |= cable << 4;
 
 				// send to usb
-				#[cfg(feature = "debugprint_verbose")] c.resources.tx.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
-				let _ret = c.resources.midi.lock(|midi| midi.send_bytes(usb_message));
+				#[cfg(feature = "debugprint_verbose")] c.shared.tx.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
+				let _ret = c.shared.midi.lock(|midi| midi.send_bytes(usb_message));
 				#[cfg(feature = "debugprint_verbose")]
 				match _ret {
-					Ok(size) => { c.resources.tx.lock(|tx| write!(tx, "wrote {} bytes to usb\n", size).ok()); }
-					Err(error) => { c.resources.tx.lock(|tx| write!(tx, "error writing to usb: {:?}\n", error).ok()); }
+					Ok(size) => { c.shared.tx.lock(|tx| write!(tx, "wrote {} bytes to usb\n", size).ok()); }
+					Err(error) => { c.shared.tx.lock(|tx| write!(tx, "error writing to usb: {:?}\n", error).ok()); }
 				}
 
 				// process for internal routing
@@ -618,63 +628,63 @@ const APP: () = {
 				let is_control_ish = match usb_message[0] & 0x0F { 0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true, _ => false };
 				let is_keyboard_ish = match usb_message[0] & 0x0F { 0x8 | 0x9 | 0xA | 0xD => true, _ => false };
 
-				assert!(c.resources.current_preset.event_routing_table.len() == c.resources.current_preset.clock_routing_table.len());
-				assert!(c.resources.current_preset.event_routing_table[0].len() == c.resources.current_preset.clock_routing_table[0].len());
-				assert!(c.resources.current_preset.event_routing_table[0].len() == CLOCK_COUNT.len());
-				if (cable as usize) < c.resources.current_preset.event_routing_table[0].len() {
+				assert!(c.shared.current_preset.event_routing_table.len() == c.shared.current_preset.clock_routing_table.len());
+				assert!(c.shared.current_preset.event_routing_table[0].len() == c.shared.current_preset.clock_routing_table[0].len());
+				assert!(c.shared.current_preset.event_routing_table[0].len() == c.local.clock_count.len());
+				if (cable as usize) < c.shared.current_preset.event_routing_table[0].len() {
 					let cable_in = cable as usize;
 					
-					for cable_out in 0..c.resources.current_preset.event_routing_table.len() {
-						let forward_event = match c.resources.current_preset.event_routing_table[cable_out][cable_in] {
+					for cable_out in 0..c.shared.current_preset.event_routing_table.len() {
+						let forward_event = match c.shared.current_preset.event_routing_table[cable_out][cable_in] {
 							EventRouteMode::Both => is_control_ish || is_keyboard_ish,
 							EventRouteMode::Controller => is_control_ish,
 							EventRouteMode::Keyboard => is_keyboard_ish,
 							EventRouteMode::None => false
 						};
 
-						let forward_clock = match c.resources.current_preset.clock_routing_table[cable_out][cable_in] {
+						let forward_clock = match c.shared.current_preset.clock_routing_table[cable_out][cable_in] {
 							0 => false,
-							division => is_transport || (is_clock && CLOCK_COUNT[cable_in] % (division as u16) == 0)
+							division => is_transport || (is_clock && c.local.clock_count[cable_in] % (division as u16) == 0)
 						};
 
 						if forward_event || forward_clock {
-							c.resources.midi_out_queues.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
-							c.spawn.send_task().ok();
+							c.shared.midi_out_queues.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
+							send_task::spawn().ok();
 						}
 					}
 
 					if usb_message[1] == 0xFA { // start
-						CLOCK_COUNT[cable_in] = 0;
+						c.local.clock_count[cable_in] = 0;
 					}
 					if usb_message[1] == 0xF8 { // clock
-						CLOCK_COUNT[cable_in] = (CLOCK_COUNT[cable_in] + 1) % 27720; // 27720 is the least common multiple of 1,2,...,12
+						c.local.clock_count[cable_in] = (c.local.clock_count[cable_in] + 1) % 27720; // 27720 is the least common multiple of 1,2,...,12
 					}
 				}
 			}
 		}
 	}
 
-	#[task(resources = [tx, sw_uart_tx, midi_out_queues], priority = 50)]
+	#[task(shared = [tx, sw_uart_tx, midi_out_queues], priority = 8)]
 	fn send_task(c: send_task::Context) {
 		for cable in 0..NumPortPairs::USIZE {
-			if c.resources.sw_uart_tx.clear_to_send(cable) {
-				if let Some(byte) = c.resources.midi_out_queues[cable].realtime.dequeue() {
-					#[cfg(feature = "debugprint_verbose")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-					c.resources.sw_uart_tx.send_byte(cable, byte);
+			if c.shared.sw_uart_tx.clear_to_send(cable) {
+				if let Some(byte) = c.shared.midi_out_queues[cable].realtime.dequeue() {
+					#[cfg(feature = "debugprint_verbose")] write!(c.shared.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+					c.shared.sw_uart_tx.send_byte(cable, byte);
 				}
-				else if let Some(byte) = c.resources.midi_out_queues[cable].normal.dequeue() {
-					#[cfg(feature = "debugprint_verbose")] write!(c.resources.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-					c.resources.sw_uart_tx.send_byte(cable, byte);
+				else if let Some(byte) = c.shared.midi_out_queues[cable].normal.dequeue() {
+					#[cfg(feature = "debugprint_verbose")] write!(c.shared.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+					c.shared.sw_uart_tx.send_byte(cable, byte);
 				}
 			}
 		}
 	}
 
-	#[task(resources = [tx, display, delay, knob_timer, knob_button, current_preset, flash_store], priority = 1)]
+	#[task(shared = [tx, display, delay, knob_timer, knob_button, current_preset, flash_store], priority = 1)]
 	fn gui_task(mut c: gui_task::Context) {
-		c.resources.display.init(c.resources.delay).unwrap();
-		c.resources.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
-		c.resources.display.clear(Rgb565::BLACK).unwrap();
+		c.shared.display.init(c.shared.delay).unwrap();
+		c.shared.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
+		c.shared.display.clear(Rgb565::BLACK).unwrap();
 
 		use embedded_graphics::{
 				pixelcolor::Rgb565,
@@ -696,16 +706,16 @@ const APP: () = {
 
 		let mut old_pressed = false;
 		let mut debounce = 0u8;
-		let mut old_count = c.resources.knob_timer.count() / 4;
+		let mut old_count = c.shared.knob_timer.count() / 4;
 		const MAX_COUNT: isize = 65536 / 4;
 		let mut dirty: bool = false;
 		let mut preset_idx = 0;
 		let mut mode_mask = 0xFF0; // FIXME sensible initial value. actually load this from flash...
-		let mut flash_used_bytes = c.resources.flash_store.used_space();
+		let mut flash_used_bytes = c.shared.flash_store.used_space();
 		loop {
-			c.resources.delay.delay_ms(1u8);
+			c.shared.delay.delay_ms(1u8);
 
-			let count = c.resources.knob_timer.count() / 4;
+			let count = c.shared.knob_timer.count() / 4;
 			let scroll_raw = count as isize - old_count as isize;
 			let scroll =
 				if scroll_raw >= MAX_COUNT / 2 { scroll_raw - MAX_COUNT }
@@ -713,7 +723,7 @@ const APP: () = {
 				else { scroll_raw } as i16;
 			old_count = count;
 
-			let pressed = c.resources.knob_button.is_low();
+			let pressed = c.shared.knob_button.is_low();
 			if pressed != old_pressed {
 				debounce = 25;
 				old_pressed = pressed;
@@ -721,17 +731,17 @@ const APP: () = {
 			let button_event = pressed && debounce == 1;
 			if debounce > 0 { debounce -= 1; }
 
-			let mut preset = c.resources.current_preset.lock(|p| *p);
+			let mut preset = c.shared.current_preset.lock(|p| *p);
 
 			match active_menu {
 				ActiveMenu::Message(ref mut state) => {
-					match state.process(scroll, button_event, false, c.resources.display) {
+					match state.process(scroll, button_event, false, c.shared.display) {
 						gui::MenuAction::Activated(_) => {
 							match state.action {
 								gui::MessageAction::None => {}
 								gui::MessageAction::ClearFlash => {
-									let flash_store = &mut c.resources.flash_store;
-									c.resources.tx.lock(|tx| {
+									let flash_store = &mut c.shared.flash_store;
+									c.shared.tx.lock(|tx| {
 										debugln!(tx, "Reinitializing flash...");
 										if flash_store.initialize_flash().is_ok() {
 											debugln!(tx, "  -> ok.");
@@ -749,13 +759,13 @@ const APP: () = {
 					}
 				}
 				ActiveMenu::MainScreen(ref mut state) => {
-					state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.resources.display);
+					state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.shared.display);
 					if scroll != 0 {
 						if !dirty {
 							preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
-							let current_preset = &mut c.resources.current_preset;
-							let flash_store = &mut c.resources.flash_store;
-							c.resources.tx.lock(|tx| {
+							let current_preset = &mut c.shared.current_preset;
+							let flash_store = &mut c.shared.flash_store;
+							c.shared.tx.lock(|tx| {
 								current_preset.lock(|p| {
 									preset = read_preset_from_flash(preset_idx as u8, flash_store, tx).unwrap_or(Preset::new());
 									*p = preset;
@@ -786,7 +796,7 @@ const APP: () = {
 							"Clear all presets",
 							"Back"
 						],
-						c.resources.display
+						c.shared.display
 					);
 					match result {
 						gui::MenuAction::Activated(index) => {
@@ -797,9 +807,9 @@ const APP: () = {
 								3 => { active_menu = ActiveMenu::SaveDestination(gui::MenuState::new(preset_idx)); }
 								4 => {
 									if dirty {
-										let current_preset = &mut c.resources.current_preset;
-										let flash_store = &mut c.resources.flash_store;
-										c.resources.tx.lock(|tx| {
+										let current_preset = &mut c.shared.current_preset;
+										let flash_store = &mut c.shared.flash_store;
+										c.shared.tx.lock(|tx| {
 											current_preset.lock(|p| {
 												if let Ok(pr) = read_preset_from_flash(preset_idx as u8, flash_store, tx) {
 													preset = pr;
@@ -813,7 +823,7 @@ const APP: () = {
 								}
 								5 => {
 									preset = Preset::new();
-									c.resources.current_preset.lock(|p| *p = preset);
+									c.shared.current_preset.lock(|p| *p = preset);
 									dirty = true;
 								}
 								6 => { active_menu = ActiveMenu::Message(gui::MessageState::new(&["Delete all data?", "Turn off to", "abort"], "Yes", gui::MessageAction::ClearFlash)) }
@@ -831,14 +841,14 @@ const APP: () = {
 						false,
 						"Save to...",
 						&["0","1","2","3","4","5","6","7","8","9"],
-						c.resources.display
+						c.shared.display
 					);
 					match result {
 						gui::MenuAction::Activated(index) => {
 							if dirty || index != preset_idx {
 								active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new());
-								let flash_store = &mut c.resources.flash_store;
-								let result = c.resources.tx.lock(|tx| {
+								let flash_store = &mut c.shared.flash_store;
+								let result = c.shared.tx.lock(|tx| {
 									debugln!(tx, "Going to save settings to flash");
 									save_preset_to_flash(index as u8, &preset, flash_store, tx)
 								});
@@ -884,7 +894,7 @@ const APP: () = {
 						false,
 						"TRS Mode Select",
 						&entries_str,
-						c.resources.display
+						c.shared.display
 					);
 					match result {
 						gui::MenuAction::Activated(index) => {
@@ -924,14 +934,14 @@ const APP: () = {
 						},
 						false,
 						"Event Routing",
-						c.resources.display
+						c.shared.display
 					);
 					match result {
 						gui::GridAction::Exit => {
 							active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
 						}
 						gui::GridAction::ValueUpdated => {
-							c.resources.current_preset.lock(|p| p.event_routing_table = preset.event_routing_table);
+							c.shared.current_preset.lock(|p| p.event_routing_table = preset.event_routing_table);
 							dirty = true;
 						}
 						_ => {}
@@ -947,14 +957,14 @@ const APP: () = {
 						|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
 						true,
 						"Clock Routing/Division",
-						c.resources.display
+						c.shared.display
 					);
 					match result {
 						gui::GridAction::Exit => {
 							active_menu = ActiveMenu::MainMenu(gui::MenuState::new(1));
 						}
 						gui::GridAction::ValueUpdated => {
-							c.resources.current_preset.lock(|p| p.clock_routing_table = preset.clock_routing_table);
+							c.shared.current_preset.lock(|p| p.clock_routing_table = preset.clock_routing_table);
 							dirty = true;
 						}
 						_ => {}
@@ -965,17 +975,17 @@ const APP: () = {
 		}
 	}
 
-	#[task(binds = USB_LP_CAN_RX0, spawn = [send_task], resources = [midi_out_queues, usb_dev, midi, usb_midi_buffer, bootloader_sysex_statemachine], priority = 50)]
+	#[task(binds = USB_LP_CAN_RX0, shared = [midi_out_queues, usb_dev, midi, usb_midi_buffer, bootloader_sysex_statemachine], priority = 8)]
 	fn usb_isr(mut c: usb_isr::Context) {
-		usb_poll(&mut c.resources.usb_dev, &mut c.resources.midi, &mut c.resources.midi_out_queues, &mut c.resources.usb_midi_buffer, c.resources.bootloader_sysex_statemachine);
+		usb_poll(&mut c.shared.usb_dev, &mut c.shared.midi, &mut c.shared.midi_out_queues, &mut c.shared.usb_midi_buffer, c.shared.bootloader_sysex_statemachine);
 
-		c.spawn.send_task().ok();
+		send_task::spawn().ok();
 	}
 
 	#[cfg(feature = "benchmark")]
-	#[task(resources = [tx, sw_uart_tx], priority = 1)]
+	#[task(shared = [tx, sw_uart_tx], priority = 1)]
 	fn benchmark_task(mut c: benchmark_task::Context) {
-		c.resources.tx.lock(|tx| {
+		c.shared.tx.lock(|tx| {
 			writeln!(tx, "Benchmarking...").ok();
 			for i in 0..3 {
 				write!(tx, "  cycle# {} ->", i).ok();
@@ -988,34 +998,34 @@ const APP: () = {
 		});
 	}
 
-	#[task(binds = TIM2, spawn=[byte_received, send_task], resources = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=100)]
+	#[task(binds = TIM2, shared = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=16)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
 
 		#[cfg(feature = "benchmark")]
-		let do_benchmark = c.resources.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
+		let do_benchmark = c.shared.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
 		#[cfg(feature = "benchmark")]
-		let start_time = c.resources.bench_timer.cnt();
+		let start_time = c.shared.bench_timer.cnt();
 
-		c.resources.mytimer.clear_update_interrupt_flag();
+		c.shared.mytimer.clear_update_interrupt_flag();
 
 		let (recv_finished, sendbuf_consumed) = unsafe { tim2_interrupt_handler::optimized_interrupt_handler(
-			c.resources.sw_uart_isr,
-			c.resources.spi_strobe_pin,
-			c.resources.dma_transfer,
+			c.shared.sw_uart_isr,
+			c.shared.spi_strobe_pin,
+			c.shared.dma_transfer,
 			&mut DMA_BUFFER,
 			OUTPUT_MASK.load(Ordering::Relaxed)
 		) };
 
 		if recv_finished != 0 {
-			c.spawn.byte_received().ok();
+			byte_received::spawn().ok();
 		}
 		if sendbuf_consumed != 0 {
-			c.spawn.send_task().ok();
+			send_task::spawn().ok();
 		}
 
 		#[cfg(feature = "benchmark")]
 		{
-			let stop_time = c.resources.bench_timer.cnt();
+			let stop_time = c.shared.bench_timer.cnt();
 			unsafe {
 				if do_benchmark {
 					core::ptr::write_volatile(&mut BENCHMARK_PHASE, -1);
@@ -1024,16 +1034,7 @@ const APP: () = {
 			}
 		}
 	}
-
-	extern "C" {
-		fn EXTI0();
-		fn EXTI1();
-		fn EXTI2();
-		fn EXTI3();
-		fn EXTI4();
-		fn EXTI5();
-    }
-};
+}
 
 pub struct UsbMidiBuffer {
 	buffer: [u8; 128],

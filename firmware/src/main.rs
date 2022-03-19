@@ -416,7 +416,7 @@ mod app {
 		unsafe { SOFTWARE_UART = Some(SoftwareUart::new()); }
 		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = unsafe { SOFTWARE_UART.as_mut().unwrap().split() };
 
-		let dp = stm32::Peripherals::take().unwrap();
+		let dp = cx.device;
 		
 		// Clock configuration
 		let mut flash = dp.FLASH.constrain();

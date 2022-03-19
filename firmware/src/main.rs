@@ -413,9 +413,6 @@ mod app {
 
 	#[init()]
 	fn init(cx : init::Context) -> (Resources, LocalResources, init::Monotonics) {
-		unsafe { SOFTWARE_UART = Some(SoftwareUart::new()); }
-		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = unsafe { SOFTWARE_UART.as_mut().unwrap().split() };
-
 		let dp = cx.device;
 		
 		// Clock configuration
@@ -486,6 +483,9 @@ mod app {
 			}
 			writeln!(tx, "========================================================\n").ok();
 		}
+
+		unsafe { SOFTWARE_UART = Some(SoftwareUart::new()); }
+		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = unsafe { SOFTWARE_UART.as_mut().unwrap().split() };
 
 
 		// Configure the display

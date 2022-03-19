@@ -470,7 +470,7 @@ mod app {
 		);
 		let (mut tx, _rx) = serial.split();
 
-		#[cfg(feature = "debugprint_verbose")]
+		#[cfg(feature = "debugprint_version")]
 		{
 			writeln!(tx, "========================================================").ok();
 			writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();

@@ -357,22 +357,31 @@ mod app {
 	#[shared]
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
+		queue: Queue<(u8,u8), heapless::consts::U200, u16, heapless::spsc::SingleCore>,
+
+		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
+
+
+		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>,
+
+		current_preset: Preset,
+		
+		midi_out_queues: [MidiOutQueue; 16],
+	}
+
+	#[local]
+	struct LocalResources {
+		clock_count: [u16; 8],
+		usb_dev: UsbDevice<'static, UsbBusType>,
+		bootloader_sysex_statemachine: BootloaderSysexStatemachine,
+		usb_midi_buffer: UsbMidiBuffer,
 		mytimer: timer::CountDownTimer<stm32::TIM2>,
 
 		#[cfg(feature = "benchmark")]
 		bench_timer: timer::CountDownTimer<stm32::TIM1>,
-
-		queue: Queue<(u8,u8), heapless::consts::U200, u16, heapless::spsc::SingleCore>,
-		bootloader_sysex_statemachine: BootloaderSysexStatemachine,
-
-		usb_dev: UsbDevice<'static, UsbBusType>,
-		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
-
 		midi_parsers: [MidiToUsbParser; 16],
-		midi_out_queues: [MidiOutQueue; 16],
 
 		sw_uart_rx: SoftwareUartRx<'static, NumPortPairs>,
-		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>,
 		sw_uart_isr: SoftwareUartIsr<'static, NumPortPairs>,
 
 		spi_strobe_pin: gpioc::PC14<Output<PushPull>>,
@@ -392,7 +401,6 @@ mod app {
 			>
 		>>,
 
-		usb_midi_buffer: UsbMidiBuffer,
 
 		display: st7789::ST7789<
 			display_interface_spi::SPIInterfaceNoCS<WriteDmaToWriteAdapter, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
@@ -400,15 +408,7 @@ mod app {
 
 		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>,
 		knob_button: gpioc::PC15<Input<PullUp>>,
-
-		current_preset: Preset,
-		
 		flash_store: MyFlashStore,
-	}
-
-	#[local]
-	struct LocalResources {
-		clock_count: [u16; 8]
 	}
 
 	#[init()]
@@ -574,14 +574,23 @@ mod app {
 
 		gui_task::spawn().unwrap();
 
-		return (Resources { tx, mytimer, queue, usb_dev, midi,
-			sw_uart_tx, sw_uart_rx, sw_uart_isr,
+		return (Resources {
+			tx,
+			queue,
+			midi,
+			sw_uart_tx,
 			midi_out_queues: Default::default(),
+			current_preset
+		},
+		LocalResources {
+			clock_count: [0; 8],
+			bootloader_sysex_statemachine: BootloaderSysexStatemachine::new(),
+			usb_dev,
+			usb_midi_buffer: UsbMidiBuffer::new(),
+			mytimer,
 			midi_parsers: Default::default(),
 			#[cfg(feature = "benchmark")]
 			bench_timer,
-			usb_midi_buffer: UsbMidiBuffer::new(),
-			bootloader_sysex_statemachine: BootloaderSysexStatemachine::new(),
 			dma_transfer: Some(spi_dma_transfer),
 			spi_strobe_pin,
 			display,
@@ -589,28 +598,26 @@ mod app {
 			knob_timer,
 			knob_button,
 			flash_store,
-			current_preset
-		},
-		LocalResources {
-			clock_count: [0; 8]
+			sw_uart_rx,
+			sw_uart_isr,
 		},
 		init::Monotonics())
 	}
 
-	#[task(shared = [queue, sw_uart_rx], priority = 15)]
+	#[task(shared = [queue], local = [sw_uart_rx], priority = 15)]
 	fn byte_received(c: byte_received::Context) {
 		for i in 0..NumPortPairs::USIZE {
-			if let Some(byte) = c.shared.sw_uart_rx.recv_byte(i) {
+			if let Some(byte) = c.local.sw_uart_rx.recv_byte(i) {
 				c.shared.queue.enqueue((i as u8, byte)).ok(); // we can't do anything about this failing
 			}
 		}
 		handle_received_byte::spawn().ok();
 	}
 
-	#[task(shared = [tx, queue, midi_parsers, midi, current_preset, midi_out_queues], priority = 7)]
+	#[task(shared = [tx, queue, midi, current_preset, midi_out_queues], local = [midi_parsers, clock_count], priority = 7)]
 	fn handle_received_byte(mut c: handle_received_byte::Context) {
 		while let Some((cable, byte)) = c.shared.queue.lock(|q| { q.dequeue() }) {
-			if let Some(mut usb_message) = c.shared.midi_parsers[cable as usize].push(byte) {
+			if let Some(mut usb_message) = c.local.midi_parsers[cable as usize].push(byte) {
 				usb_message[0] |= cable << 4;
 
 				// send to usb
@@ -680,11 +687,11 @@ mod app {
 		}
 	}
 
-	#[task(shared = [tx, display, delay, knob_timer, knob_button, current_preset, flash_store], priority = 1)]
+	#[task(shared = [tx, current_preset], local = [display, delay, knob_timer, knob_button, flash_store], priority = 1)]
 	fn gui_task(mut c: gui_task::Context) {
-		c.shared.display.init(c.shared.delay).unwrap();
-		c.shared.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
-		c.shared.display.clear(Rgb565::BLACK).unwrap();
+		c.local.display.init(c.local.delay).unwrap();
+		c.local.display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
+		c.local.display.clear(Rgb565::BLACK).unwrap();
 
 		use embedded_graphics::{
 				pixelcolor::Rgb565,
@@ -706,16 +713,16 @@ mod app {
 
 		let mut old_pressed = false;
 		let mut debounce = 0u8;
-		let mut old_count = c.shared.knob_timer.count() / 4;
+		let mut old_count = c.local.knob_timer.count() / 4;
 		const MAX_COUNT: isize = 65536 / 4;
 		let mut dirty: bool = false;
 		let mut preset_idx = 0;
 		let mut mode_mask = 0xFF0; // FIXME sensible initial value. actually load this from flash...
-		let mut flash_used_bytes = c.shared.flash_store.used_space();
+		let mut flash_used_bytes = c.local.flash_store.used_space();
 		loop {
-			c.shared.delay.delay_ms(1u8);
+			c.local.delay.delay_ms(1u8);
 
-			let count = c.shared.knob_timer.count() / 4;
+			let count = c.local.knob_timer.count() / 4;
 			let scroll_raw = count as isize - old_count as isize;
 			let scroll =
 				if scroll_raw >= MAX_COUNT / 2 { scroll_raw - MAX_COUNT }
@@ -723,7 +730,7 @@ mod app {
 				else { scroll_raw } as i16;
 			old_count = count;
 
-			let pressed = c.shared.knob_button.is_low();
+			let pressed = c.local.knob_button.is_low();
 			if pressed != old_pressed {
 				debounce = 25;
 				old_pressed = pressed;
@@ -735,12 +742,12 @@ mod app {
 
 			match active_menu {
 				ActiveMenu::Message(ref mut state) => {
-					match state.process(scroll, button_event, false, c.shared.display) {
+					match state.process(scroll, button_event, false, c.local.display) {
 						gui::MenuAction::Activated(_) => {
 							match state.action {
 								gui::MessageAction::None => {}
 								gui::MessageAction::ClearFlash => {
-									let flash_store = &mut c.shared.flash_store;
+									let flash_store = &mut c.local.flash_store;
 									c.shared.tx.lock(|tx| {
 										debugln!(tx, "Reinitializing flash...");
 										if flash_store.initialize_flash().is_ok() {
@@ -759,12 +766,12 @@ mod app {
 					}
 				}
 				ActiveMenu::MainScreen(ref mut state) => {
-					state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.shared.display);
+					state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.local.display);
 					if scroll != 0 {
 						if !dirty {
 							preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
 							let current_preset = &mut c.shared.current_preset;
-							let flash_store = &mut c.shared.flash_store;
+							let flash_store = &mut c.local.flash_store;
 							c.shared.tx.lock(|tx| {
 								current_preset.lock(|p| {
 									preset = read_preset_from_flash(preset_idx as u8, flash_store, tx).unwrap_or(Preset::new());
@@ -796,7 +803,7 @@ mod app {
 							"Clear all presets",
 							"Back"
 						],
-						c.shared.display
+						c.local.display
 					);
 					match result {
 						gui::MenuAction::Activated(index) => {
@@ -808,7 +815,7 @@ mod app {
 								4 => {
 									if dirty {
 										let current_preset = &mut c.shared.current_preset;
-										let flash_store = &mut c.shared.flash_store;
+										let flash_store = &mut c.local.flash_store;
 										c.shared.tx.lock(|tx| {
 											current_preset.lock(|p| {
 												if let Ok(pr) = read_preset_from_flash(preset_idx as u8, flash_store, tx) {
@@ -841,13 +848,13 @@ mod app {
 						false,
 						"Save to...",
 						&["0","1","2","3","4","5","6","7","8","9"],
-						c.shared.display
+						c.local.display
 					);
 					match result {
 						gui::MenuAction::Activated(index) => {
 							if dirty || index != preset_idx {
 								active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new());
-								let flash_store = &mut c.shared.flash_store;
+								let flash_store = &mut c.local.flash_store;
 								let result = c.shared.tx.lock(|tx| {
 									debugln!(tx, "Going to save settings to flash");
 									save_preset_to_flash(index as u8, &preset, flash_store, tx)
@@ -894,7 +901,7 @@ mod app {
 						false,
 						"TRS Mode Select",
 						&entries_str,
-						c.shared.display
+						c.local.display
 					);
 					match result {
 						gui::MenuAction::Activated(index) => {
@@ -934,7 +941,7 @@ mod app {
 						},
 						false,
 						"Event Routing",
-						c.shared.display
+						c.local.display
 					);
 					match result {
 						gui::GridAction::Exit => {
@@ -957,7 +964,7 @@ mod app {
 						|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
 						true,
 						"Clock Routing/Division",
-						c.shared.display
+						c.local.display
 					);
 					match result {
 						gui::GridAction::Exit => {
@@ -975,9 +982,13 @@ mod app {
 		}
 	}
 
-	#[task(binds = USB_LP_CAN_RX0, shared = [midi_out_queues, usb_dev, midi, usb_midi_buffer, bootloader_sysex_statemachine], priority = 8)]
+	#[task(binds = USB_LP_CAN_RX0, shared = [midi_out_queues, midi], local = [usb_dev, usb_midi_buffer, bootloader_sysex_statemachine], priority = 8)]
 	fn usb_isr(mut c: usb_isr::Context) {
-		usb_poll(&mut c.shared.usb_dev, &mut c.shared.midi, &mut c.shared.midi_out_queues, &mut c.shared.usb_midi_buffer, c.shared.bootloader_sysex_statemachine);
+		c.shared.midi.lock(|midi|
+			c.shared.midi_out_queues.lock(|midi_out_queues|
+				usb_poll(&mut c.local.usb_dev, midi, midi_out_queues, &mut c.local.usb_midi_buffer, c.local.bootloader_sysex_statemachine)
+			)
+		);
 
 		send_task::spawn().ok();
 	}
@@ -998,20 +1009,20 @@ mod app {
 		});
 	}
 
-	#[task(binds = TIM2, shared = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=16)]
+	#[task(binds = TIM2, local = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=16)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
 
 		#[cfg(feature = "benchmark")]
-		let do_benchmark = c.shared.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
+		let do_benchmark = c.local.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
 		#[cfg(feature = "benchmark")]
-		let start_time = c.shared.bench_timer.cnt();
+		let start_time = c.local.bench_timer.cnt();
 
-		c.shared.mytimer.clear_update_interrupt_flag();
+		c.local.mytimer.clear_update_interrupt_flag();
 
 		let (recv_finished, sendbuf_consumed) = unsafe { tim2_interrupt_handler::optimized_interrupt_handler(
-			c.shared.sw_uart_isr,
-			c.shared.spi_strobe_pin,
-			c.shared.dma_transfer,
+			c.local.sw_uart_isr,
+			c.local.spi_strobe_pin,
+			c.local.dma_transfer,
 			&mut DMA_BUFFER,
 			OUTPUT_MASK.load(Ordering::Relaxed)
 		) };
@@ -1025,7 +1036,7 @@ mod app {
 
 		#[cfg(feature = "benchmark")]
 		{
-			let stop_time = c.shared.bench_timer.cnt();
+			let stop_time = c.local.bench_timer.cnt();
 			unsafe {
 				if do_benchmark {
 					core::ptr::write_volatile(&mut BENCHMARK_PHASE, -1);

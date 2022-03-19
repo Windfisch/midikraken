@@ -682,11 +682,11 @@ mod app {
 			for cable in 0..NumPortPairs::USIZE {
 				if sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = midi_out_queues.lock(|q| q[cable].realtime.dequeue()) {
-						#[cfg(feature = "debugprint_verbose")] write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+						#[cfg(feature = "debugprint_verbose")] tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
 						sw_uart_tx.send_byte(cable, byte);
 					}
 					else if let Some(byte) = midi_out_queues.lock(|q| q[cable].normal.dequeue()) {
-						#[cfg(feature = "debugprint_verbose")] write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+						#[cfg(feature = "debugprint_verbose")] tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
 						sw_uart_tx.send_byte(cable, byte);
 					}
 				}

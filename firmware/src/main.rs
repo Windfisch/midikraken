@@ -362,7 +362,7 @@ mod app {
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
 
 
-		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>,
+		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>, // belongs to send_task
 
 		current_preset: Preset,
 		
@@ -605,10 +605,10 @@ mod app {
 	}
 
 	#[task(shared = [queue], local = [sw_uart_rx], priority = 15)]
-	fn byte_received(c: byte_received::Context) {
+	fn byte_received(mut c: byte_received::Context) {
 		for i in 0..NumPortPairs::USIZE {
 			if let Some(byte) = c.local.sw_uart_rx.recv_byte(i) {
-				c.shared.queue.enqueue((i as u8, byte)).ok(); // we can't do anything about this failing
+				c.shared.queue.lock(|queue| queue.enqueue((i as u8, byte))).ok(); // we can't do anything about this failing
 			}
 		}
 		handle_received_byte::spawn().ok();
@@ -635,21 +635,24 @@ mod app {
 				let is_control_ish = match usb_message[0] & 0x0F { 0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true, _ => false };
 				let is_keyboard_ish = match usb_message[0] & 0x0F { 0x8 | 0x9 | 0xA | 0xD => true, _ => false };
 
-				assert!(c.shared.current_preset.event_routing_table.len() == c.shared.current_preset.clock_routing_table.len());
-				assert!(c.shared.current_preset.event_routing_table[0].len() == c.shared.current_preset.clock_routing_table[0].len());
-				assert!(c.shared.current_preset.event_routing_table[0].len() == c.local.clock_count.len());
-				if (cable as usize) < c.shared.current_preset.event_routing_table[0].len() {
+				let ylen = c.shared.current_preset.lock(|cp| cp.event_routing_table[0].len());
+				let xlen = c.shared.current_preset.lock(|cp| cp.event_routing_table.len());
+
+				assert!(xlen == c.shared.current_preset.lock(|cp| cp.clock_routing_table.len()));
+				assert!(ylen == c.shared.current_preset.lock(|cp| cp.clock_routing_table[0].len()));
+				assert!(ylen == c.local.clock_count.len());
+				if (cable as usize) < ylen {
 					let cable_in = cable as usize;
 					
-					for cable_out in 0..c.shared.current_preset.event_routing_table.len() {
-						let forward_event = match c.shared.current_preset.event_routing_table[cable_out][cable_in] {
+					for cable_out in 0..xlen {
+						let forward_event = match c.shared.current_preset.lock(|cp| cp.event_routing_table[cable_out][cable_in]) {
 							EventRouteMode::Both => is_control_ish || is_keyboard_ish,
 							EventRouteMode::Controller => is_control_ish,
 							EventRouteMode::Keyboard => is_keyboard_ish,
 							EventRouteMode::None => false
 						};
 
-						let forward_clock = match c.shared.current_preset.clock_routing_table[cable_out][cable_in] {
+						let forward_clock = match c.shared.current_preset.lock(|cp| cp.clock_routing_table[cable_out][cable_in]) {
 							0 => false,
 							division => is_transport || (is_clock && c.local.clock_count[cable_in] % (division as u16) == 0)
 						};
@@ -672,19 +675,23 @@ mod app {
 	}
 
 	#[task(shared = [tx, sw_uart_tx, midi_out_queues], priority = 8)]
-	fn send_task(c: send_task::Context) {
-		for cable in 0..NumPortPairs::USIZE {
-			if c.shared.sw_uart_tx.clear_to_send(cable) {
-				if let Some(byte) = c.shared.midi_out_queues[cable].realtime.dequeue() {
-					#[cfg(feature = "debugprint_verbose")] write!(c.shared.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-					c.shared.sw_uart_tx.send_byte(cable, byte);
-				}
-				else if let Some(byte) = c.shared.midi_out_queues[cable].normal.dequeue() {
-					#[cfg(feature = "debugprint_verbose")] write!(c.shared.tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
-					c.shared.sw_uart_tx.send_byte(cable, byte);
+	fn send_task(mut c: send_task::Context) {
+		let midi_out_queues = &mut c.shared.midi_out_queues;
+		let tx = &mut c.shared.tx;
+		c.shared.sw_uart_tx.lock(|sw_uart_tx| {
+			for cable in 0..NumPortPairs::USIZE {
+				if sw_uart_tx.clear_to_send(cable) {
+					if let Some(byte) = midi_out_queues.lock(|q| q[cable].realtime.dequeue()) {
+						#[cfg(feature = "debugprint_verbose")] write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+						sw_uart_tx.send_byte(cable, byte);
+					}
+					else if let Some(byte) = midi_out_queues.lock(|q| q[cable].normal.dequeue()) {
+						#[cfg(feature = "debugprint_verbose")] write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok();
+						sw_uart_tx.send_byte(cable, byte);
+					}
 				}
 			}
-		}
+		});
 	}
 
 	#[task(shared = [tx, current_preset], local = [display, delay, knob_timer, knob_button, flash_store], priority = 1)]
@@ -984,9 +991,13 @@ mod app {
 
 	#[task(binds = USB_LP_CAN_RX0, shared = [midi_out_queues, midi], local = [usb_dev, usb_midi_buffer, bootloader_sysex_statemachine], priority = 8)]
 	fn usb_isr(mut c: usb_isr::Context) {
+		let midi_out_queues = &mut c.shared.midi_out_queues;
+		let usb_dev = &mut c.local.usb_dev;
+		let usb_midi_buffer = &mut c.local.usb_midi_buffer;
+		let bootloader_sysex_statemachine = &mut c.local.bootloader_sysex_statemachine;
 		c.shared.midi.lock(|midi|
-			c.shared.midi_out_queues.lock(|midi_out_queues|
-				usb_poll(&mut c.local.usb_dev, midi, midi_out_queues, &mut c.local.usb_midi_buffer, c.local.bootloader_sysex_statemachine)
+			midi_out_queues.lock(|midi_out_queues|
+				usb_poll(usb_dev, midi, midi_out_queues, usb_midi_buffer, bootloader_sysex_statemachine)
 			)
 		);
 

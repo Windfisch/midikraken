@@ -1,19 +1,22 @@
 all: debug.dfu.bin release.dfu.bin
 
+FEATURES_RELEASE=debugprint_version
+FEATURES_DEBUG=debugprint_version,debugprint_basic,debugprint_verbose,debugpanic
+
 release.bare.bin:
-	cargo build --target=thumbv7m-none-eabi --release --features=debugprint_version
+	cargo build --target=thumbv7m-none-eabi --release --features=$(FEATURES_RELEASE)
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/release/midikraken $@
 
 debug.bare.bin:
-	cargo build --target=thumbv7m-none-eabi --features=debugprint_version,debugprint_basic,debugprint_verbose
+	cargo build --target=thumbv7m-none-eabi --features=$(FEATURES_DEBUG)
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/debug/midikraken $@
 
 release.dfu.bin:
-	cargo build --target=thumbv7m-none-eabi --release --features=bootloader,debugprint_version
+	cargo build --target=thumbv7m-none-eabi --release --features=bootloader,$(FEATURES_RELEASE)
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/release/midikraken $@
 
 debug.dfu.bin:
-	cargo build --target=thumbv7m-none-eabi --features=bootloader,debugprint_basic,debugprint_verbose
+	cargo build --target=thumbv7m-none-eabi --features=bootloader,$(FEATURES_DEBUG)
 	arm-none-eabi-objcopy -O binary target/thumbv7m-none-eabi/debug/midikraken $@
 
 flash.bare.%: %.bare.bin

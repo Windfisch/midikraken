@@ -2,10 +2,9 @@
 
 pub mod software_uart;
 use software_uart::*;
-use software_uart::typenum::Unsigned;
 pub type NumPortPairs = software_uart::typenum::U12;
 
-use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, PullUp, gpioa, gpiob, gpioc}};
+use stm32f1xx_hal::{prelude::*, stm32, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, gpiob, gpioc}};
 
 pub struct DmaPair {
 	pub transmit: [u8; 4],
@@ -15,6 +14,8 @@ impl DmaPair {
 	pub const fn zero() -> DmaPair { DmaPair { transmit: [0xFF; 4], received: [0; 4] } }
 }
 
+/// Safety: The DmaPair pointed to by `dma_buffer_ptr` must not be in use, i.e. no DMA
+/// transfer may take place.
 pub unsafe fn optimized_interrupt_handler(
 	sw_uart_isr: &mut SoftwareUartIsr<'static, NumPortPairs>,
 
@@ -46,7 +47,7 @@ pub unsafe fn optimized_interrupt_handler(
 	let mut in_bits: u32;
 	{
 		// this is safe in and only in this scope, since the DMA transfers are currently halted
-		let dma_buffer = unsafe { &mut *dma_buffer_ptr };
+		let dma_buffer = &mut *dma_buffer_ptr;
 
 		in_bits = u32::from_le_bytes(dma_buffer.received);
 
@@ -81,8 +82,8 @@ pub unsafe fn optimized_interrupt_handler(
 
 	spi_strobe_pin.set_high();
 	*dma_transfer = Some(spi_dma.read_write(
-		unsafe { &mut (*dma_buffer_ptr).received },
-		unsafe { & (*dma_buffer_ptr).transmit }
+		&mut (*dma_buffer_ptr).received,
+		&(*dma_buffer_ptr).transmit
 	));
 
 	sw_uart_isr.process((in_bits & 0xFFFF) as u16)

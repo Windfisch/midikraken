@@ -18,99 +18,49 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use rtic::app;
-use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, PullUp, gpioa, gpiob, gpioc}};
-use core::fmt::Write;
+mod debugln;
+mod machine;
+mod sysex_bootloader;
+mod panic;
+mod flash;
+mod preset;
+#[macro_use]
+mod str_writer;
+mod gui;
+mod dma_adapter;
 
-use stm32f1xx_hal::time::Hertz;
 
+use debugln::*;
+
+use parse_midi;
+use heapless;
 use heapless::spsc::Queue;
 
-use usb_device::bus;
-use usb_device::prelude::*;
-use stm32f1xx_hal::usb::{UsbBus, Peripheral, UsbBusType};
+use simple_flash_store::{FlashStore, FlashTrait};
+use flash::MyFlashStore;
 
-use parse_midi::MidiToUsbParser;
+use sysex_bootloader::BootloaderSysexStatemachine;
+
+use rtic::app;
+use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, PullUp, gpioa, gpiob, gpioc}};
+use stm32f1xx_hal::time::Hertz;
+use stm32f1xx_hal::usb::{UsbBus, Peripheral, UsbBusType};
+use core::fmt::Write;
+use core::sync::atomic::{AtomicU32, Ordering};
+
+use dma_adapter::WriteDmaToWriteAdapter;
+
+use usb_device::prelude::*;
 
 use tim2_interrupt_handler::software_uart::*;
 use tim2_interrupt_handler::NumPortPairs;
 use tim2_interrupt_handler::DmaPair;
 use generic_array::typenum::Unsigned;
 
-mod preset;
 use preset::*;
 
-use heapless;
-
-
-#[macro_use]
-mod str_writer;
-
-mod gui;
-
-macro_rules! debugln {
-	($dst:expr, $($arg:tt)*) => {{
-		if cfg!(feature = "debugprint_basic") {
-			writeln!($dst, $($arg)*).ok();
-		}
-	}}
-}
-
-macro_rules! debug {
-	($dst:expr, $($arg:tt)*) => {{
-		if cfg!(feature = "debugprint_basic") {
-			write!($dst, $($arg)*).ok();
-		}
-	}}
-}
 
 const SYSCLK : Hertz = Hertz(72_000_000);
-
-unsafe fn reset_mcu() -> ! {
-	(*stm32::SCB::ptr()).aircr.write(0x05FA0004);
-	loop {}
-}
-
-unsafe fn reset_to_bootloader() -> ! {
-	const BOOTKEY_ADDR: *mut u32 = 0x20003000 as *mut u32;
-	core::ptr::write_volatile(BOOTKEY_ADDR, 0x157F32D4);
-	reset_mcu();
-}
-
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-	use core::mem::MaybeUninit;
-	cortex_m::interrupt::disable();
-
-	#[cfg(feature="debugpanic")]
-	{
-		let mut tx: serial::Tx<stm32::USART1> = unsafe { MaybeUninit::uninit().assume_init() };
-		writeln!(tx, "Panic!").ok();
-		writeln!(tx, "{}", _info).ok();
-	}
-
-	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> = unsafe { MaybeUninit::uninit().assume_init() };
-	let mut reg = unsafe { MaybeUninit::uninit().assume_init() };
-	let mut led = led.into_push_pull_output(&mut reg);
-
-	for _ in 0..3 {
-		let mut blink_thrice = |delay: u32| {
-			for _ in 0..3 {
-				led.set_low();
-				cortex_m::asm::delay(5000000*delay);
-				led.set_high();
-				cortex_m::asm::delay(10000000);
-			}
-			cortex_m::asm::delay(10000000);
-		};
-		blink_thrice(1);
-		blink_thrice(4);
-		blink_thrice(1);
-		cortex_m::asm::delay(10000000);
-	}
-	
-	unsafe { reset_to_bootloader(); }
-}
 
 
 #[cfg(feature = "benchmark")]
@@ -142,33 +92,6 @@ pub struct MidiOutQueue {
 	normal: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
 }
 
-pub struct BootloaderSysexStatemachine {
-	index: usize
-}
-
-impl BootloaderSysexStatemachine {
-	pub fn new() -> BootloaderSysexStatemachine {
-		BootloaderSysexStatemachine { index: 0 }
-	}
-
-	pub fn push(&mut self, byte: u8) {
-		let sysex = [0xF0u8, 0x00, 0x37, 0x64, 0x00, 0x00, 0x7f, 0x1e, 0x3a, 0x62];
-
-		if byte == sysex[self.index] {
-			self.index += 1;
-
-			if self.index == sysex.len() {
-				unsafe {
-					reset_to_bootloader();
-				}
-			}
-		}
-		else {
-			self.index = 0;
-		}
-	}
-}
-
 impl Default for MidiOutQueue {
 	fn default() -> MidiOutQueue {
 		MidiOutQueue {
@@ -179,161 +102,9 @@ impl Default for MidiOutQueue {
 }
 
 
-type TxDmaSpi2 = dma::TxDma<
-		spi::Spi<
-			stm32::SPI2,
-			spi::Spi2NoRemap,
-			(gpiob::PB13<Alternate<PushPull>>, stm32f1xx_hal::spi::NoMiso, gpiob::PB15<Alternate<PushPull>>),
-			u8
-		>,
-		dma::dma1::C5,
-	>;
-
-
-pub struct WriteDmaToWriteAdapter
-{
-	write_dma: Option<TxDmaSpi2>
-}
-
-unsafe impl Send for WriteDmaToWriteAdapter {}
-
-
-impl WriteDmaToWriteAdapter
-{
-	pub fn new(write_dma: TxDmaSpi2) -> WriteDmaToWriteAdapter {
-		WriteDmaToWriteAdapter {
-			write_dma: Some(write_dma)
-		}
-	}
-}
-
-impl embedded_hal::blocking::spi::Write<u8> for WriteDmaToWriteAdapter
-{
-	type Error = ();
-
-	fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-		unsafe {
-			// SAFETY: we will drop this reference before leaving the function
-			let words_static = core::mem::transmute::<&[u8], &'static [u8]>(words);
-			// SAFETY: no DMA operation is in progress
-			let transfer = self.write_dma.take().unwrap().write(words_static);
-			let (_, txdma) = transfer.wait();
-			self.write_dma = Some(txdma);
-		}
-		Ok(())
-	}
-}
-
-const SETTINGS_BASE: usize = (1<<17) - 2*2048;
-
-#[derive(Debug)]
-enum SaveError {
-	BufferTooSmall,
-	NoSpaceLeft,
-	CorruptData
-}
-
-// consumes 4kb on the stack
-fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<(), SaveError> {
-	let mut buffer = [0; 1024];
-	debugln!(tx, "saving preset {}", preset_idx);
-	let len = serialize_preset(&mut None, preset);
-	if len > 1024 {
-		return Err(SaveError::BufferTooSmall);
-	}
-	debugln!(tx, "  -> serializing {} bytes", len);
-	serialize_preset(&mut Some(&mut buffer[0..len]), preset);
-
-	debugln!(tx, "  -> writing to flash");
-	for i in 0..len {
-		debug!(tx, "{:02X} ", buffer[i]);
-	}
-	debugln!(tx, "");
-	let result = match flash_store.write_file(preset_idx, &buffer[0..len]) {
-		Ok(()) => Ok(()),
-		Err(FlashStoreError::CorruptData) => Err(SaveError::CorruptData),
-		Err(FlashStoreError::NoSpaceLeft) => Err(SaveError::NoSpaceLeft),
-		_ => { debugln!(tx, " -> cannot happen"); unreachable!() }
-	};
-	debugln!(tx, "  -> {:?}", result);
-	return result;
-}
-
-// consumes 1kb on the stack
-fn read_preset_from_flash(preset_idx: u8, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<Preset, SettingsError> {
-	debugln!(tx, "loading preset {}", preset_idx);
-	let mut buffer = [0; 1024];
-
-	match flash_store.read_file(preset_idx, &mut buffer) {
-		Ok(data) => {
-			debugln!(tx, "  -> Found file of length {}", data.len());
-			for i in 0..data.len() {
-				debug!(tx, "{:02X} ", data[i]);
-			}
-			debugln!(tx, "");
-			let preset = parse_preset(data)?;
-			debugln!(tx, "  -> Done");
-			Ok(preset)
-		}
-		Err(FlashStoreError::NotFound) => {
-			debugln!(tx, "  -> Not found");
-			Ok(Preset::new())
-		}
-		Err(FlashStoreError::BufferTooSmall) => Err(SettingsError), // cannot happen, we are never writing files that large
-		Err(FlashStoreError::CorruptData) => Err(SettingsError),
-		Err(_) => unreachable!()
-	}
-}
-
-use simple_flash_store::*;
-
-pub struct FlashAdapter {
-	flash: stm32f1xx_hal::flash::Parts
-}
-
-impl FlashAdapter {
-	fn new(flash: stm32f1xx_hal::flash::Parts) -> FlashAdapter {
-		FlashAdapter { flash }
-	}
-}
-
-type MyFlashStore = FlashStore<FlashAdapter, 2048>;
-
-impl FlashTrait for FlashAdapter {
-	const SIZE: usize = 2048;
-	const PAGE_SIZE: usize = 2048; // Some chips have 1k, others have 2k. We're being pessimistic here, which is why this size differs from FlashWriter's sector size.
-	const WORD_SIZE: usize = 4;
-	const ERASED_VALUE: u8 = 0xFF;
-
-	fn erase_page(&mut self, page: usize) -> Result<(), FlashAccessError> {
-		// Some chips have 1k, others have 2k. We're being pessimistic here again, which is why this size differs from PAGE_SIZE.
-		let mut writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
-		writer.erase((SETTINGS_BASE + page) as u32, Self::PAGE_SIZE).unwrap();
-		Ok(())
-	}
-
-	fn read(&mut self, address: usize, data: &mut [u8]) -> Result<(), FlashAccessError> {
-		let writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
-		data.copy_from_slice(writer.read((SETTINGS_BASE + address) as u32, data.len()).unwrap());
-		Ok(())
-	}
-
-	fn write(&mut self, address: usize, data: &[u8]) -> Result<(), FlashAccessError> {
-		let mut writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
-		if data.len() % 2 == 0 {
-			writer.write((SETTINGS_BASE + address) as u32, data).unwrap();
-		}
-		else {
-			writer.write((SETTINGS_BASE + address) as u32, &data[0..(data.len()-1)]).unwrap();
-			writer.write((SETTINGS_BASE + address + data.len() - 1) as u32, &[data[data.len()-1], 0]).unwrap();
-		}
-		Ok(())
-	}
-}
 
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
 
-use core::sync::atomic::{AtomicU32, Ordering};
 static OUTPUT_MASK: AtomicU32 = AtomicU32::new(0x000000F0); // FIXME init this to F0F0F0F0
 
 fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
@@ -379,7 +150,7 @@ mod app {
 
 		#[cfg(feature = "benchmark")]
 		bench_timer: timer::CountDownTimer<stm32::TIM1>,
-		midi_parsers: [MidiToUsbParser; 16],
+		midi_parsers: [parse_midi::MidiToUsbParser; 16],
 
 		sw_uart_rx: SoftwareUartRx<'static, NumPortPairs>,
 		sw_uart_isr: SoftwareUartIsr<'static, NumPortPairs>,
@@ -569,8 +340,8 @@ mod app {
 			writeln!(tx, "spawned").ok();
 		}
 
-		let mut flash_store = FlashStore::new(FlashAdapter::new(flash));
-		let current_preset = read_preset_from_flash(0, &mut flash_store, &mut tx).unwrap_or(Preset::new());
+		let mut flash_store = FlashStore::new(flash::FlashAdapter::new(flash));
+		let current_preset = flash::read_preset_from_flash(0, &mut flash_store, &mut tx).unwrap_or(Preset::new());
 
 		gui_task::spawn().unwrap();
 
@@ -677,6 +448,7 @@ mod app {
 	#[task(shared = [tx, sw_uart_tx, midi_out_queues], priority = 8)]
 	fn send_task(mut c: send_task::Context) {
 		let midi_out_queues = &mut c.shared.midi_out_queues;
+		#[cfg(feature = "debugprint_verbose")]
 		let tx = &mut c.shared.tx;
 		c.shared.sw_uart_tx.lock(|sw_uart_tx| {
 			for cable in 0..NumPortPairs::USIZE {
@@ -773,7 +545,7 @@ mod app {
 					}
 				}
 				ActiveMenu::MainScreen(ref mut state) => {
-					state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), FlashAdapter::SIZE), c.local.display);
+					state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), flash::FlashAdapter::SIZE), c.local.display);
 					if scroll != 0 {
 						if !dirty {
 							preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
@@ -781,7 +553,7 @@ mod app {
 							let flash_store = &mut c.local.flash_store;
 							c.shared.tx.lock(|tx| {
 								current_preset.lock(|p| {
-									preset = read_preset_from_flash(preset_idx as u8, flash_store, tx).unwrap_or(Preset::new());
+									preset = flash::read_preset_from_flash(preset_idx as u8, flash_store, tx).unwrap_or(Preset::new());
 									*p = preset;
 								})
 							});
@@ -825,7 +597,7 @@ mod app {
 										let flash_store = &mut c.local.flash_store;
 										c.shared.tx.lock(|tx| {
 											current_preset.lock(|p| {
-												if let Ok(pr) = read_preset_from_flash(preset_idx as u8, flash_store, tx) {
+												if let Ok(pr) = flash::read_preset_from_flash(preset_idx as u8, flash_store, tx) {
 													preset = pr;
 													*p = preset;
 													dirty = false;
@@ -849,6 +621,7 @@ mod app {
 					}
 				}
 				ActiveMenu::SaveDestination(ref mut menu_state) => {
+					use flash::SaveError;
 					let result = menu_state.process(
 						scroll,
 						button_event,
@@ -864,7 +637,7 @@ mod app {
 								let flash_store = &mut c.local.flash_store;
 								let result = c.shared.tx.lock(|tx| {
 									debugln!(tx, "Going to save settings to flash");
-									save_preset_to_flash(index as u8, &preset, flash_store, tx)
+									flash::save_preset_to_flash(index as u8, &preset, flash_store, tx)
 								});
 								match result {
 									Ok(()) => {
@@ -1068,7 +841,7 @@ impl UsbMidiBuffer {
 	pub fn new() -> UsbMidiBuffer {
 		UsbMidiBuffer { buffer: [0; 128], head: 0, tail: 0 }
 	}
-	pub fn peek<B: bus::UsbBus>(&mut self, midi: &mut usbd_midi::midi_device::MidiClass<'static, B>) -> Option<[u8; 4]> {
+	pub fn peek<B: usb_device::bus::UsbBus>(&mut self, midi: &mut usbd_midi::midi_device::MidiClass<'static, B>) -> Option<[u8; 4]> {
 		use core::convert::TryInto;
 
 		if self.head == self.tail {
@@ -1113,7 +886,7 @@ fn enqueue_all_bytes<T: generic_array::ArrayLength<u8>>(message: [u8; 4], queue:
 	}
 }
 
-fn usb_poll<B: bus::UsbBus>( // FIXME inline that function in the usb_isr
+fn usb_poll<B: usb_device::bus::UsbBus>( // FIXME inline that function in the usb_isr
 	usb_dev: &mut UsbDevice<'static, B>,
 	midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
 	midi_out_queues: &mut [MidiOutQueue; 16],

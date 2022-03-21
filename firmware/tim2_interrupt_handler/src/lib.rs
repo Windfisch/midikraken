@@ -2,7 +2,6 @@
 
 pub mod software_uart;
 use software_uart::*;
-pub type NumPortPairs = software_uart::typenum::U12;
 
 use stm32f1xx_hal::{prelude::*, stm32, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, gpiob, gpioc}};
 
@@ -16,8 +15,8 @@ impl DmaPair {
 
 /// Safety: The DmaPair pointed to by `dma_buffer_ptr` must not be in use, i.e. no DMA
 /// transfer may take place.
-pub unsafe fn optimized_interrupt_handler(
-	sw_uart_isr: &mut SoftwareUartIsr<'static, NumPortPairs>,
+pub unsafe fn optimized_interrupt_handler<const NUM_PORT_PAIRS: usize>(
+	sw_uart_isr: &mut SoftwareUartIsr<'static, NUM_PORT_PAIRS>,
 
 	spi_strobe_pin: &mut gpioc::PC14<Output<PushPull>>,
 

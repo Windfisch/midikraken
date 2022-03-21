@@ -55,11 +55,11 @@ use dma_adapter::WriteDmaToWriteAdapter;
 use usb_device::prelude::*;
 
 use tim2_interrupt_handler::software_uart::*;
-use tim2_interrupt_handler::NumPortPairs;
 use tim2_interrupt_handler::DmaPair;
-use generic_array::typenum::Unsigned;
 
 use preset::*;
+
+const NUM_PORT_PAIRS: usize = 12;
 
 
 const SYSCLK : Hertz = Hertz(72_000_000);
@@ -112,7 +112,7 @@ static OUTPUT_MASK: AtomicU32 = AtomicU32::new(0x000000F0); // FIXME init this t
 #[app(device = stm32f1xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2, EXTI3, EXTI4])]
 mod app {
 
-	static mut SOFTWARE_UART: Option<SoftwareUart<NumPortPairs>> = None;
+	static mut SOFTWARE_UART: Option<SoftwareUart<NUM_PORT_PAIRS>> = None;
 	static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
 
 	use super::*; // FIXME
@@ -124,7 +124,7 @@ mod app {
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
 
 
-		sw_uart_tx: SoftwareUartTx<'static, NumPortPairs>, // belongs to send_task
+		sw_uart_tx: SoftwareUartTx<'static, NUM_PORT_PAIRS>, // belongs to send_task
 
 		current_preset: Preset,
 		
@@ -143,8 +143,8 @@ mod app {
 		bench_timer: timer::CountDownTimer<stm32::TIM1>,
 		midi_parsers: [parse_midi::MidiToUsbParser; 16],
 
-		sw_uart_rx: SoftwareUartRx<'static, NumPortPairs>,
-		sw_uart_isr: SoftwareUartIsr<'static, NumPortPairs>,
+		sw_uart_rx: SoftwareUartRx<'static, NUM_PORT_PAIRS>,
+		sw_uart_isr: SoftwareUartIsr<'static, NUM_PORT_PAIRS>,
 
 		spi_strobe_pin: gpioc::PC14<Output<PushPull>>,
 
@@ -280,7 +280,7 @@ mod app {
 		unsafe { USB_BUS = Some( UsbBus::new(usb_pins) ) };
 		let usb_bus = unsafe { USB_BUS.as_ref().unwrap() };
 
-		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, NumPortPairs::U8, NumPortPairs::U8).unwrap();
+		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, NUM_PORT_PAIRS as u8, NUM_PORT_PAIRS as u8).unwrap();
 		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x1209, 0x2E80))
 			.manufacturer("Windfisch")
 			.product("Midikraken")
@@ -369,7 +369,7 @@ mod app {
 
 	#[task(shared = [queue], local = [sw_uart_rx], priority = 15)]
 	fn byte_received(mut c: byte_received::Context) {
-		for i in 0..NumPortPairs::USIZE {
+		for i in 0..NUM_PORT_PAIRS {
 			if let Some(byte) = c.local.sw_uart_rx.recv_byte(i) {
 				c.shared.queue.lock(|queue| queue.enqueue((i as u8, byte))).ok(); // we can't do anything about this failing
 			}
@@ -442,7 +442,7 @@ mod app {
 		#[allow(unused_mut, unused_variables)]
 		let send_task::SharedResources { mut tx, mut sw_uart_tx, mut midi_out_queues } = c.shared;
 		sw_uart_tx.lock(|sw_uart_tx| {
-			for cable in 0..NumPortPairs::USIZE {
+			for cable in 0..NUM_PORT_PAIRS {
 				if sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = midi_out_queues.lock(|q| q[cable].realtime.dequeue()) {
 						#[cfg(feature = "debugprint_verbose")] tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
@@ -573,7 +573,7 @@ fn enqueue_message(message: [u8; 4], queue: &mut MidiOutQueue) -> bool {
 	}
 }
 
-fn enqueue_all_bytes<const Len: usize>(message: [u8; 4], queue: &mut Queue<u8, Len>) -> bool {
+fn enqueue_all_bytes<const LEN: usize>(message: [u8; 4], queue: &mut Queue<u8, LEN>) -> bool {
 	let len = parse_midi::payload_length(message[0]);
 	if queue.len() + len as usize <= queue.capacity() {
 		for i in 0..len {

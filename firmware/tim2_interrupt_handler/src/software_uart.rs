@@ -17,10 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use core::ptr::{read_volatile, write_volatile, addr_of_mut, addr_of};
 use core::marker::PhantomData;
-use generic_array::typenum::Unsigned;
-use generic_array::{GenericArray, ArrayLength};
-
-pub use generic_array::typenum;
 
 const RECV_BIT: u16 = 1 << 10; // we need 11 bits for marker (10) + start (9) + 8x data (8-1) + stop (0) (marker is not actually transmitted over the line)
 const UART_SEND_IDLE: u16 = 1;
@@ -85,54 +81,50 @@ const APP: () = {
 	// TODO FIXME: finish the example
   * ```
   */
-pub struct SoftwareUart<NumUarts: Unsigned + ArrayLength<u16>> {
-	send_buffers: GenericArray<u16, NumUarts>,
-	recv_buffers: GenericArray<u16, NumUarts>,
+pub struct SoftwareUart<const NUM_UARTS: usize> {
+	send_buffers: [u16; NUM_UARTS],
+	recv_buffers: [u16; NUM_UARTS],
 }
 
 /** The timer interrupt handler part of the software uart. */
-pub struct SoftwareUartIsr<'a, NumUarts: Unsigned + ArrayLength<u16>> {
+pub struct SoftwareUartIsr<'a, const NUM_UARTS: usize> {
 	in_bits_old: u16,
 	recv_active: [u16; 3],
 	phase: usize,
 
-	recv_workbuf: GenericArray<u16, NumUarts>,
-	send_workbuf: GenericArray<u16, NumUarts>,
+	recv_workbuf: [u16; NUM_UARTS],
+	send_workbuf: [u16; NUM_UARTS],
 	out_bits: u16,
 
-	registers: *mut SoftwareUart<NumUarts>,
+	registers: *mut SoftwareUart<NUM_UARTS>,
 	_marker: PhantomData<&'a ()>
 }
 
 /** The transmit half of the software uart's frontend. */
-pub struct SoftwareUartTx<'a, NumUarts: Unsigned + ArrayLength<u16>> {
-	registers: *mut SoftwareUart<NumUarts>,
+pub struct SoftwareUartTx<'a, const NUM_UARTS: usize> {
+	registers: *mut SoftwareUart<NUM_UARTS>,
 	_marker: PhantomData<&'a ()>
 }
 
 /** The receive half of the software uart's frontend. */
-pub struct SoftwareUartRx<'a, NumUarts: Unsigned + ArrayLength<u16>> {
-	registers: *mut SoftwareUart<NumUarts>,
+pub struct SoftwareUartRx<'a, const NUM_UARTS: usize> {
+	registers: *mut SoftwareUart<NUM_UARTS>,
 	_marker: PhantomData<&'a ()>
 }
 
-unsafe impl<'a, NumUarts: Unsigned + ArrayLength<u16>> Send for SoftwareUartIsr<'a, NumUarts> {}
-unsafe impl<'a, NumUarts: Unsigned + ArrayLength<u16>> Send for SoftwareUartRx<'a, NumUarts> {}
-unsafe impl<'a, NumUarts: Unsigned + ArrayLength<u16>> Send for SoftwareUartTx<'a, NumUarts> {}
+unsafe impl<'a, const NUM_UARTS: usize> Send for SoftwareUartIsr<'a, NUM_UARTS> {}
+unsafe impl<'a, const NUM_UARTS: usize> Send for SoftwareUartRx<'a, NUM_UARTS> {}
+unsafe impl<'a, const NUM_UARTS: usize> Send for SoftwareUartTx<'a, NUM_UARTS> {}
 
-fn make_array<N: Unsigned + ArrayLength<T>, T: Clone>(init_value: T) -> GenericArray<T, N> {
-	GenericArray::from_exact_iter(core::iter::repeat(init_value).take(N::USIZE)).unwrap()
-}
-
-impl<NumUarts: Unsigned + ArrayLength<u16>> SoftwareUart<NumUarts> {
-	pub fn new() -> SoftwareUart<NumUarts> {
+impl<const NUM_UARTS: usize> SoftwareUart<NUM_UARTS> {
+	pub fn new() -> SoftwareUart<NUM_UARTS> {
 		SoftwareUart {
-			send_buffers: make_array(UART_SEND_IDLE),
-			recv_buffers: make_array(0),
+			send_buffers: [UART_SEND_IDLE; NUM_UARTS],
+			recv_buffers: [0; NUM_UARTS],
 		}
 	}
 
-	pub fn split(&mut self) -> (SoftwareUartTx<NumUarts>, SoftwareUartRx<NumUarts>, SoftwareUartIsr<NumUarts>) {
+	pub fn split(&mut self) -> (SoftwareUartTx<NUM_UARTS>, SoftwareUartRx<NUM_UARTS>, SoftwareUartIsr<NUM_UARTS>) {
 		return (
 			SoftwareUartTx { registers: self, _marker: PhantomData },
 			SoftwareUartRx { registers: self, _marker: PhantomData },
@@ -141,8 +133,8 @@ impl<NumUarts: Unsigned + ArrayLength<u16>> SoftwareUart<NumUarts> {
 				in_bits_old: 0,
 				recv_active: [0; 3],
 				phase: 0,
-				recv_workbuf: make_array(RECV_BIT),
-				send_workbuf: make_array(0),
+				recv_workbuf: [RECV_BIT; NUM_UARTS],
+				send_workbuf: [0; NUM_UARTS],
 				out_bits: 0xFFFF,
 				_marker: PhantomData
 			}
@@ -150,7 +142,7 @@ impl<NumUarts: Unsigned + ArrayLength<u16>> SoftwareUart<NumUarts> {
 	}
 }
 
-impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartTx<'a, NumUarts> {
+impl<'a, const NUM_UARTS: usize> SoftwareUartTx<'a, NUM_UARTS> {
 	/** Returns whether the specified UART is ready to accept another byte to be sent via `send_byte()`
 		without overwriting the byte scheduled before. */
 	pub fn clear_to_send(&self, index: usize) -> bool {
@@ -170,7 +162,7 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartTx<'a, NumUarts> {
 	}
 }
 
-impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartRx<'a, NumUarts> {
+impl<'a, const NUM_UARTS: usize> SoftwareUartRx<'a, NUM_UARTS> {
 	/** Retrieves the last byte received on the specified UART, or `None`.
 		Note: Only the last received byte is buffered, so if `recv_byte` is not
 		called in time, data is lost. */
@@ -189,7 +181,7 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartRx<'a, NumUarts> {
 	}
 }
 
-impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
+impl<'a, const NUM_UARTS: usize> SoftwareUartIsr<'a, NUM_UARTS> {
 	/** Returns the output bits in every phase 0, or None otherwise.
 		Should be called before `process()` to minimize jitter. */
 	pub fn out_bits(&mut self) -> Option<u16> {
@@ -209,7 +201,7 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 	pub fn setup_benchmark(&mut self, benchmark_phase: i8) -> bool {
 		if self.phase as i8 == benchmark_phase {
 			self.recv_active[self.phase] = 0xFFFF;
-			for i in 0..NumUarts::USIZE {
+			for i in 0..NUM_UARTS {
 				self.recv_workbuf[i] = 2; // this will be the last bit received, causing additional work to happen
 				unsafe { write_volatile(addr_of_mut!((*self.registers).send_buffers[i]), (0xFF << 1) | (1<<9)); }
 				self.send_workbuf[i] = 0; // force an (expensive) reload to happen
@@ -239,7 +231,7 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 		let mut recv_finished = 0;
 		let recv_buffers = unsafe { addr_of_mut!((*self.registers).recv_buffers) };
 		let recv_active = self.recv_active[self.phase];
-		for i in 0..NumUarts::USIZE {
+		for i in 0..NUM_UARTS {
 			let mask = 1 << i;
 		
 			if recv_active & mask != 0 { // this is the thirdclock where uart #i can read stable data?
@@ -262,10 +254,10 @@ impl<'a, NumUarts: Unsigned + ArrayLength<u16>> SoftwareUartIsr<'a, NumUarts> {
 
 		// handle the bits to be sent; in three thirdclocks, we prepare *out_bits.
 		let mut sendbuf_consumed = 0;
-		let send_batchsize: usize = (NumUarts::USIZE+2) / 3;
+		let send_batchsize: usize = (NUM_UARTS+2) / 3;
 		let send_buffers = unsafe { addr_of_mut!((*self.registers).send_buffers) };
 		let first = self.phase * send_batchsize;
-		for i in first .. core::cmp::min(first + send_batchsize, NumUarts::USIZE) {
+		for i in first .. core::cmp::min(first + send_batchsize, NUM_UARTS) {
 			let mut workbuf = self.send_workbuf[i];
 			if workbuf == 0 {
 				unsafe { // STM32 reads and writes u16s atomically

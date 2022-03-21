@@ -443,7 +443,6 @@ dependencies = [
  "embedded-dma",
  "embedded-graphics",
  "embedded-hal",
- "generic-array 0.14.5",
  "heapless",
  "lazy_static",
  "parse_midi",
@@ -765,7 +764,6 @@ version = "0.1.0"
 dependencies = [
  "embedded-dma",
  "embedded-hal",
- "generic-array 0.14.5",
  "stm32f1xx-hal",
 ]
 

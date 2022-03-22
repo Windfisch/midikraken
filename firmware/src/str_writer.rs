@@ -20,7 +20,8 @@ impl<'a> WriteTo<'a> {
 			// only successful concats of str - must be a valid str.
 			use core::str::from_utf8_unchecked;
 			Some(unsafe { from_utf8_unchecked(&self.buffer[..self.used]) })
-		} else {
+		}
+		else {
 			None
 		}
 	}
@@ -38,7 +39,8 @@ impl<'a> fmt::Write for WriteTo<'a> {
 		self.used += raw_s.len();
 		if write_num < raw_s.len() {
 			Err(fmt::Error)
-		} else {
+		}
+		else {
 			Ok(())
 		}
 	}

@@ -10,4 +10,3 @@ pub unsafe fn reset_to_bootloader() -> ! {
 	core::ptr::write_volatile(BOOTKEY_ADDR, 0x157F32D4);
 	reset_mcu();
 }
-

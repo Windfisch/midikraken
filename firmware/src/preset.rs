@@ -1,19 +1,19 @@
-#[derive(Copy,Clone,PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum EventRouteMode {
 	None,
 	Keyboard,
 	Controller,
-	Both
+	Both,
 }
 
 impl EventRouteMode {
-	pub fn from_u8(val: u8) -> Result<EventRouteMode,()> {
+	pub fn from_u8(val: u8) -> Result<EventRouteMode, ()> {
 		match val {
 			0 => Ok(EventRouteMode::None),
 			1 => Ok(EventRouteMode::Keyboard),
 			2 => Ok(EventRouteMode::Controller),
 			3 => Ok(EventRouteMode::Both),
-			_ => Err(())
+			_ => Err(()),
 		}
 	}
 
@@ -22,7 +22,7 @@ impl EventRouteMode {
 			EventRouteMode::None => 0,
 			EventRouteMode::Keyboard => 1,
 			EventRouteMode::Controller => 2,
-			EventRouteMode::Both => 3
+			EventRouteMode::Both => 3,
 		}
 	}
 }
@@ -34,7 +34,7 @@ pub type ClockRoutingTable = [[u8; 8]; 8];
 pub struct Preset {
 	pub event_routing_table: EventRoutingTable,
 	pub clock_routing_table: ClockRoutingTable,
-	pub mode_mask: u32
+	pub mode_mask: u32,
 }
 
 impl Preset {
@@ -42,7 +42,7 @@ impl Preset {
 		Preset {
 			event_routing_table: [[EventRouteMode::None; 8]; 8],
 			clock_routing_table: [[0; 8]; 8],
-			mode_mask: 0
+			mode_mask: 0,
 		}
 	}
 }
@@ -85,7 +85,7 @@ fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, Setti
 
 	let n_entries = data[0] as usize;
 
-	for chunk in slice(data, 1..(1+LEN_ENTRY*n_entries))?.chunks_exact(LEN_ENTRY) {
+	for chunk in slice(data, 1..(1 + LEN_ENTRY * n_entries))?.chunks_exact(LEN_ENTRY) {
 		let x = chunk[0] & 0x0F;
 		let y = (chunk[0] & 0xF0) >> 4;
 		let clock_divisor = chunk[1] & 0x0F;
@@ -96,7 +96,8 @@ fn parse_routing_matrix(preset: &mut Preset, data: &[u8]) -> Result<usize, Setti
 		let _transpose = chunk[6];
 
 		preset.clock_routing_table[x as usize][y as usize] = clock_divisor;
-		preset.event_routing_table[x as usize][y as usize] = EventRouteMode::from_u8(event_routing)?;
+		preset.event_routing_table[x as usize][y as usize] =
+			EventRouteMode::from_u8(event_routing)?;
 	}
 
 	Ok(1 + LEN_ENTRY * n_entries)
@@ -109,12 +110,18 @@ fn parse_trs_mode(preset: &mut Preset, data: &[u8]) -> Result<usize, SettingsErr
 }
 
 /** It is expected that if data_opt == Some(data), then data must be large enough to hold the whole
-  * serialized data. Call this function with data_opt == None first to find out the required size. */
+ * serialized data. Call this function with data_opt == None first to find out the required size. */
 pub fn serialize_preset(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
 	let mut bytes_written = 0;
 
-	bytes_written += serialize_routing(&mut data_opt.as_mut().map(|s| &mut s[bytes_written..]), preset);
-	bytes_written += serialize_trs_mode(&mut data_opt.as_mut().map(|s| &mut s[bytes_written..]), preset);
+	bytes_written += serialize_routing(
+		&mut data_opt.as_mut().map(|s| &mut s[bytes_written..]),
+		preset,
+	);
+	bytes_written += serialize_trs_mode(
+		&mut data_opt.as_mut().map(|s| &mut s[bytes_written..]),
+		preset,
+	);
 
 	return bytes_written;
 }
@@ -125,12 +132,15 @@ fn serialize_routing(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize
 	assert!(preset.event_routing_table[0].len() == preset.clock_routing_table[0].len());
 	for x in 0..preset.event_routing_table.len() {
 		for y in 0..preset.event_routing_table[0].len() {
-			if preset.event_routing_table[x][y] != EventRouteMode::None || preset.clock_routing_table[x][y] != 0 {
+			if preset.event_routing_table[x][y] != EventRouteMode::None
+				|| preset.clock_routing_table[x][y] != 0
+			{
 				if let Some(ref mut data) = data_opt {
 					let offset = 1 + 7 * n_entries;
-					 data[offset+0] = ((x as u8) & 0x0F) | (((y as u8) & 0x0F) << 4);
-					 data[offset+1] = preset.clock_routing_table[x][y] | (preset.event_routing_table[x][y].to_u8() << 4);
-					 data[(offset+2)..=(offset+6)].fill(0);
+					data[offset + 0] = ((x as u8) & 0x0F) | (((y as u8) & 0x0F) << 4);
+					data[offset + 1] = preset.clock_routing_table[x][y]
+						| (preset.event_routing_table[x][y].to_u8() << 4);
+					data[(offset + 2)..=(offset + 6)].fill(0);
 				}
 				n_entries += 1;
 			}
@@ -154,11 +164,17 @@ fn serialize_trs_mode(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usiz
 #[derive(Debug)]
 pub struct SettingsError;
 impl From<core::array::TryFromSliceError> for SettingsError {
-	fn from(_: core::array::TryFromSliceError) -> SettingsError { SettingsError{} }
+	fn from(_: core::array::TryFromSliceError) -> SettingsError {
+		SettingsError {}
+	}
 }
 impl From<stm32f1xx_hal::flash::Error> for SettingsError {
-	fn from(_: stm32f1xx_hal::flash::Error) -> SettingsError { SettingsError{} }
+	fn from(_: stm32f1xx_hal::flash::Error) -> SettingsError {
+		SettingsError {}
+	}
 }
 impl From<()> for SettingsError {
-	fn from(_: ()) -> SettingsError { SettingsError{} }
+	fn from(_: ()) -> SettingsError {
+		SettingsError {}
+	}
 }

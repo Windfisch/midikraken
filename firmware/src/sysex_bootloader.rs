@@ -1,7 +1,7 @@
 use crate::machine::reset_to_bootloader;
 
 pub struct BootloaderSysexStatemachine {
-	index: usize
+	index: usize,
 }
 
 impl BootloaderSysexStatemachine {

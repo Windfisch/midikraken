@@ -1,42 +1,47 @@
+use crate::app::gui_task;
 use crate::debugln::*;
-use heapless;
+use crate::flash;
+use crate::gui;
+use crate::preset::*;
+use crate::OUTPUT_MASK;
 use core::fmt::Write;
 use core::sync::atomic::Ordering;
+use heapless;
 use rtic::mutex_prelude::*;
-use stm32f1xx_hal::prelude::*;
 use simple_flash_store::FlashTrait;
-use crate::preset::*;
-use crate::gui;
-use crate::flash;
-use crate::app::gui_task;
-use crate::OUTPUT_MASK; // FIXME
-
+use stm32f1xx_hal::prelude::*; // FIXME
 
 fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
-	let a_part = (mode_mask & 0x000F) |
-	((mode_mask & 0x00F0) << 4) |
-	((mode_mask & 0x0F00) << 8) |
-	((mode_mask & 0xF000) << 12);
+	let a_part = (mode_mask & 0x000F)
+		| ((mode_mask & 0x00F0) << 4)
+		| ((mode_mask & 0x0F00) << 8)
+		| ((mode_mask & 0xF000) << 12);
 
 	let b_part = ((!a_part) << 4) & 0xF0F0F0;
 
 	return a_part | b_part;
 }
 
-
 pub(crate) fn gui_task(c: gui_task::Context) {
-	let gui_task::SharedResources { mut tx, mut current_preset } = c.shared;
-	let gui_task::LocalResources { display, delay, knob_timer, knob_button, flash_store } = c.local;
+	let gui_task::SharedResources {
+		mut tx,
+		mut current_preset,
+	} = c.shared;
+	let gui_task::LocalResources {
+		display,
+		delay,
+		knob_timer,
+		knob_button,
+		flash_store,
+	} = c.local;
 
 	display.init(delay).unwrap();
-	display.set_orientation(st7789::Orientation::PortraitSwapped).unwrap();
+	display
+		.set_orientation(st7789::Orientation::PortraitSwapped)
+		.unwrap();
 	display.clear(Rgb565::BLACK).unwrap();
 
-	use embedded_graphics::{
-			pixelcolor::Rgb565,
-			prelude::*,
-	};
-
+	use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
 	enum ActiveMenu {
 		MainScreen(gui::MainScreenState),
@@ -63,10 +68,15 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 
 		let count = knob_timer.count() / 4;
 		let scroll_raw = count as isize - old_count as isize;
-		let scroll =
-			if scroll_raw >= MAX_COUNT / 2 { scroll_raw - MAX_COUNT }
-			else if scroll_raw <= -MAX_COUNT / 2 { scroll_raw + MAX_COUNT }
-			else { scroll_raw } as i16;
+		let scroll = if scroll_raw >= MAX_COUNT / 2 {
+			scroll_raw - MAX_COUNT
+		}
+		else if scroll_raw <= -MAX_COUNT / 2 {
+			scroll_raw + MAX_COUNT
+		}
+		else {
+			scroll_raw
+		} as i16;
 		old_count = count;
 
 		let pressed = knob_button.is_low();
@@ -75,7 +85,9 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 			old_pressed = pressed;
 		}
 		let button_event = pressed && debounce == 1;
-		if debounce > 0 { debounce -= 1; }
+		if debounce > 0 {
+			debounce -= 1;
+		}
 
 		let mut preset = current_preset.lock(|p| *p);
 
@@ -104,13 +116,24 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 				}
 			}
 			ActiveMenu::MainScreen(ref mut state) => {
-				state.process(preset_idx, &preset, dirty, (flash_used_bytes.unwrap_or(9999), flash::FlashAdapter::SIZE), display);
+				state.process(
+					preset_idx,
+					&preset,
+					dirty,
+					(flash_used_bytes.unwrap_or(9999), flash::FlashAdapter::SIZE),
+					display,
+				);
 				if scroll != 0 {
 					if !dirty {
 						preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
 						tx.lock(|tx| {
 							current_preset.lock(|p| {
-								preset = flash::read_preset_from_flash(preset_idx as u8, flash_store, tx).unwrap_or(Preset::new());
+								preset = flash::read_preset_from_flash(
+									preset_idx as u8,
+									flash_store,
+									tx,
+								)
+								.unwrap_or(Preset::new());
 								*p = preset;
 							})
 						});
@@ -134,44 +157,68 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 						"Clock routing",
 						"TRS mode A/B select",
 						"Save",
-						if dirty { "Revert to saved" } else { "(nothing to revert)" },
+						if dirty {
+							"Revert to saved"
+						}
+						else {
+							"(nothing to revert)"
+						},
 						"Clear single preset",
 						"Clear all presets",
-						"Back"
+						"Back",
 					],
-					display
+					display,
 				);
 				match result {
-					gui::MenuAction::Activated(index) => {
-						match index {
-							0 => { active_menu = ActiveMenu::EventRouting(gui::GridState::new()); }
-							1 => { active_menu = ActiveMenu::ClockRouting(gui::GridState::new()); }
-							2 => { active_menu = ActiveMenu::TrsModeSelect(gui::MenuState::new(0)); }
-							3 => { active_menu = ActiveMenu::SaveDestination(gui::MenuState::new(preset_idx)); }
-							4 => {
-								if dirty {
-									tx.lock(|tx| {
-										current_preset.lock(|p| {
-											if let Ok(pr) = flash::read_preset_from_flash(preset_idx as u8, flash_store, tx) {
-												preset = pr;
-												*p = preset;
-												dirty = false;
-											}
-										})
-									});
-									menu_state.schedule_redraw();
-								}
-							}
-							5 => {
-								preset = Preset::new();
-								current_preset.lock(|p| *p = preset);
-								dirty = true;
-							}
-							6 => { active_menu = ActiveMenu::Message(gui::MessageState::new(&["Delete all data?", "Turn off to", "abort"], "Yes", gui::MessageAction::ClearFlash)) }
-							7 => { active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()) }
-							_ => { unreachable!(); }
+					gui::MenuAction::Activated(index) => match index {
+						0 => {
+							active_menu = ActiveMenu::EventRouting(gui::GridState::new());
 						}
-					}
+						1 => {
+							active_menu = ActiveMenu::ClockRouting(gui::GridState::new());
+						}
+						2 => {
+							active_menu = ActiveMenu::TrsModeSelect(gui::MenuState::new(0));
+						}
+						3 => {
+							active_menu =
+								ActiveMenu::SaveDestination(gui::MenuState::new(preset_idx));
+						}
+						4 => {
+							if dirty {
+								tx.lock(|tx| {
+									current_preset.lock(|p| {
+										if let Ok(pr) = flash::read_preset_from_flash(
+											preset_idx as u8,
+											flash_store,
+											tx,
+										) {
+											preset = pr;
+											*p = preset;
+											dirty = false;
+										}
+									})
+								});
+								menu_state.schedule_redraw();
+							}
+						}
+						5 => {
+							preset = Preset::new();
+							current_preset.lock(|p| *p = preset);
+							dirty = true;
+						}
+						6 => {
+							active_menu = ActiveMenu::Message(gui::MessageState::new(
+								&["Delete all data?", "Turn off to", "abort"],
+								"Yes",
+								gui::MessageAction::ClearFlash,
+							))
+						}
+						7 => active_menu = ActiveMenu::MainScreen(gui::MainScreenState::new()),
+						_ => {
+							unreachable!();
+						}
+					},
 					_ => {}
 				}
 			}
@@ -182,8 +229,8 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 					button_event,
 					false,
 					"Save to...",
-					&["0","1","2","3","4","5","6","7","8","9"],
-					display
+					&["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+					display,
 				);
 				match result {
 					gui::MenuAction::Activated(index) => {
@@ -200,13 +247,25 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 									flash_used_bytes = flash_store.used_space();
 								}
 								Err(SaveError::BufferTooSmall) => {
-									active_menu = ActiveMenu::Message(gui::MessageState::new(&["Preset is too large."], "Ok", gui::MessageAction::None));
+									active_menu = ActiveMenu::Message(gui::MessageState::new(
+										&["Preset is too large."],
+										"Ok",
+										gui::MessageAction::None,
+									));
 								}
 								Err(SaveError::NoSpaceLeft) => {
-									active_menu = ActiveMenu::Message(gui::MessageState::new(&["No space left."], "Ok", gui::MessageAction::None));
+									active_menu = ActiveMenu::Message(gui::MessageState::new(
+										&["No space left."],
+										"Ok",
+										gui::MessageAction::None,
+									));
 								}
 								Err(SaveError::CorruptData) => {
-									active_menu = ActiveMenu::Message(gui::MessageState::new(&["Settings store is", "corrupt. Delete", "all data?"], "Yes", gui::MessageAction::ClearFlash));
+									active_menu = ActiveMenu::Message(gui::MessageState::new(
+										&["Settings store is", "corrupt. Delete", "all data?"],
+										"Yes",
+										gui::MessageAction::ClearFlash,
+									));
 								}
 							}
 						}
@@ -216,18 +275,30 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 			}
 			ActiveMenu::TrsModeSelect(ref mut menu_state) => {
 				let mut entries = heapless::Vec::<heapless::String<8>, 16>::new();
-				for i in 4..12 { // FIXME hardcoded
+				for i in 4..12 {
+					// FIXME hardcoded
 					let mut string = heapless::String::new();
-					write!(&mut string, "{:2}: {}", i, if mode_mask & (1<<i) != 0 { "A  " } else { "  B" }).unwrap();
+					write!(
+						&mut string,
+						"{:2}: {}",
+						i,
+						if mode_mask & (1 << i) != 0 {
+							"A  "
+						}
+						else {
+							"  B"
+						}
+					)
+					.unwrap();
 					entries.push(string).unwrap();
 				}
 				use core::iter::FromIterator;
 				let entries_str = heapless::Vec::<_, 16>::from_iter(
-					entries.iter().map(|v| v.as_str())
-					.chain(core::iter::once("Back"))
+					entries
+						.iter()
+						.map(|v| v.as_str())
+						.chain(core::iter::once("Back")),
 				);
-				
-
 
 				let result = menu_state.process(
 					scroll,
@@ -235,7 +306,7 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 					false,
 					"TRS Mode Select",
 					&entries_str,
-					display
+					display,
 				);
 				match result {
 					gui::MenuAction::Activated(index) => {
@@ -243,8 +314,9 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 							active_menu = ActiveMenu::MainMenu(gui::MenuState::new(2))
 						}
 						else {
-							mode_mask ^= 1 << (index+4);
-							OUTPUT_MASK.store(mode_mask_to_output_mask(mode_mask), Ordering::Relaxed);
+							mode_mask ^= 1 << (index + 4);
+							OUTPUT_MASK
+								.store(mode_mask_to_output_mask(mode_mask), Ordering::Relaxed);
 							menu_state.schedule_redraw();
 						}
 					}
@@ -265,17 +337,15 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 							EventRouteMode::Both => EventRouteMode::None,
 						}
 					},
-					|val, _| {
-						match *val {
-							EventRouteMode::None => " ",
-							EventRouteMode::Keyboard => "K",
-							EventRouteMode::Controller => "C",
-							EventRouteMode::Both => "B",
-						}
+					|val, _| match *val {
+						EventRouteMode::None => " ",
+						EventRouteMode::Keyboard => "K",
+						EventRouteMode::Controller => "C",
+						EventRouteMode::Both => "B",
 					},
 					false,
 					"Event Routing",
-					display
+					display,
 				);
 				match result {
 					gui::GridAction::Exit => {
@@ -294,11 +364,13 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 					button_event,
 					false,
 					&mut preset.clock_routing_table,
-					|val, inc| { *val = (*val as i16 + inc).rem_euclid(10) as u8; },
-					|val, _| { [" ","#","2","3","4","5","6","7","8","9"][*val as usize] },
+					|val, inc| {
+						*val = (*val as i16 + inc).rem_euclid(10) as u8;
+					},
+					|val, _| [" ", "#", "2", "3", "4", "5", "6", "7", "8", "9"][*val as usize],
 					true,
 					"Clock Routing/Division",
-					display
+					display,
 				);
 				match result {
 					gui::GridAction::Exit => {
@@ -312,8 +384,5 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 				}
 			}
 		}
-
 	}
 }
-
-

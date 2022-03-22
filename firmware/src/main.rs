@@ -19,36 +19,41 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 mod debugln;
-mod machine;
-mod sysex_bootloader;
-mod panic;
 mod flash;
+mod machine;
+mod panic;
 mod preset;
+mod sysex_bootloader;
 #[macro_use]
 mod str_writer;
-mod gui;
 mod dma_adapter;
+mod gui;
 mod gui_task;
 
 #[allow(unused_imports)]
 use debugln::*;
 
-use parse_midi;
 use heapless;
 use heapless::spsc::Queue;
+use parse_midi;
 
-use simple_flash_store::FlashStore;
 use flash::MyFlashStore;
+use simple_flash_store::FlashStore;
 
 use sysex_bootloader::BootloaderSysexStatemachine;
 
-use rtic::app;
-use stm32f1xx_hal::{prelude::*, stm32, serial, timer, spi, dma, gpio::{Alternate, PushPull, Input, Output, Floating, PullUp, gpioa, gpiob, gpioc}};
-use stm32f1xx_hal::time::Hertz;
-use stm32f1xx_hal::usb::{UsbBus, Peripheral, UsbBusType};
 #[allow(unused_imports)]
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU32, Ordering};
+use rtic::app;
+use stm32f1xx_hal::time::Hertz;
+use stm32f1xx_hal::usb::{Peripheral, UsbBus, UsbBusType};
+use stm32f1xx_hal::{
+	dma,
+	gpio::{gpioa, gpiob, gpioc, Alternate, Floating, Input, Output, PullUp, PushPull},
+	prelude::*,
+	serial, spi, stm32, timer,
+};
 
 use dma_adapter::WriteDmaToWriteAdapter;
 
@@ -61,9 +66,7 @@ use preset::*;
 
 const NUM_PORT_PAIRS: usize = 12;
 
-
-const SYSCLK : Hertz = Hertz(72_000_000);
-
+const SYSCLK: Hertz = Hertz(72_000_000);
 
 #[cfg(feature = "benchmark")]
 static mut BENCHMARK_CYCLES: u16 = 0;
@@ -88,7 +91,6 @@ fn benchmark(phase: i8) -> u16 {
 	}
 }
 
-
 pub struct MidiOutQueue {
 	realtime: Queue<u8, 16>,
 	normal: Queue<u8, 16>,
@@ -98,12 +100,10 @@ impl Default for MidiOutQueue {
 	fn default() -> MidiOutQueue {
 		MidiOutQueue {
 			realtime: Queue::new(),
-			normal: Queue::new()
+			normal: Queue::new(),
 		}
 	}
 }
-
-
 
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
 
@@ -119,15 +119,14 @@ mod app {
 	#[shared]
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
-		queue: Queue<(u8,u8), 200>,
+		queue: Queue<(u8, u8), 200>,
 
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
-
 
 		sw_uart_tx: SoftwareUartTx<'static, NUM_PORT_PAIRS>, // belongs to send_task
 
 		current_preset: Preset,
-		
+
 		midi_out_queues: [MidiOutQueue; 16],
 	}
 
@@ -148,40 +147,55 @@ mod app {
 
 		spi_strobe_pin: gpioc::PC14<Output<PushPull>>,
 
-		dma_transfer: Option<dma::Transfer<
-			dma::W,
-			(&'static mut [u8; 4], &'static [u8; 4]),
-			dma::RxTxDma<
-				spi::Spi<
-					stm32::SPI1,
-					spi::Spi1Remap,
-					(gpiob::PB3<Alternate<PushPull>>, gpiob::PB4<Input<Floating>>, gpiob::PB5<Alternate<PushPull>>),
-					u8
+		dma_transfer: Option<
+			dma::Transfer<
+				dma::W,
+				(&'static mut [u8; 4], &'static [u8; 4]),
+				dma::RxTxDma<
+					spi::Spi<
+						stm32::SPI1,
+						spi::Spi1Remap,
+						(
+							gpiob::PB3<Alternate<PushPull>>,
+							gpiob::PB4<Input<Floating>>,
+							gpiob::PB5<Alternate<PushPull>>,
+						),
+						u8,
+					>,
+					dma::dma1::C2,
+					dma::dma1::C3,
 				>,
-				dma::dma1::C2,
-				dma::dma1::C3
-			>
-		>>,
-
+			>,
+		>,
 
 		display: st7789::ST7789<
-			display_interface_spi::SPIInterfaceNoCS<WriteDmaToWriteAdapter, gpioa::PA2<Output<PushPull>>>, gpioa::PA1<Output<PushPull>>>,
+			display_interface_spi::SPIInterfaceNoCS<
+				WriteDmaToWriteAdapter,
+				gpioa::PA2<Output<PushPull>>,
+			>,
+			gpioa::PA1<Output<PushPull>>,
+		>,
 		delay: stm32f1xx_hal::delay::Delay,
 
-		knob_timer: stm32f1xx_hal::qei::Qei<stm32::TIM4, stm32f1xx_hal::timer::Tim4NoRemap, (gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>)>,
+		knob_timer: stm32f1xx_hal::qei::Qei<
+			stm32::TIM4,
+			stm32f1xx_hal::timer::Tim4NoRemap,
+			(gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>),
+		>,
 		knob_button: gpioc::PC15<Input<PullUp>>,
 		flash_store: MyFlashStore,
 	}
 
 	#[init()]
-	fn init(cx : init::Context) -> (Resources, LocalResources, init::Monotonics) {
+	fn init(cx: init::Context) -> (Resources, LocalResources, init::Monotonics) {
 		let dp = cx.device;
-		
+
 		// Clock configuration
 		let mut flash = dp.FLASH.constrain();
 		let rcc = dp.RCC.constrain();
 
-		let clocks = rcc.cfgr
+		let clocks = rcc
+			.cfgr
 			.use_hse(8.mhz())
 			.sysclk(SYSCLK)
 			.pclk1(36.mhz())
@@ -204,20 +218,35 @@ mod app {
 		led.set_high(); // Turn off
 
 		// SPI
-		let mut spi_strobe_pin = gpioc.pc14.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::PinState::Low); // controls shift registers
+		let mut spi_strobe_pin = gpioc
+			.pc14
+			.into_push_pull_output_with_state(&mut gpioc.crh, stm32f1xx_hal::gpio::PinState::Low); // controls shift registers
 		let clk = pb3.into_alternate_push_pull(&mut gpiob.crl);
 		let miso = pb4.into_floating_input(&mut gpiob.crl);
 		let mosi = gpiob.pb5.into_alternate_push_pull(&mut gpiob.crl);
-		let mut spi = spi::Spi::spi1(dp.SPI1, (clk, miso, mosi), &mut afio.mapr, spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleLow }, 10.mhz(), clocks);
+		let mut spi = spi::Spi::spi1(
+			dp.SPI1,
+			(clk, miso, mosi),
+			&mut afio.mapr,
+			spi::Mode {
+				phase: spi::Phase::CaptureOnFirstTransition,
+				polarity: spi::Polarity::IdleLow,
+			},
+			10.mhz(),
+			clocks,
+		);
 
 		// Quickly set the shift registers to their idle state. This needs to happen as quickly as possible.
-		spi.transfer(&mut [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]).unwrap();
+		spi.transfer(&mut [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+			.unwrap();
 		spi_strobe_pin.set_high();
 
 		// SPI DMA
 		let dma = dp.DMA1.split();
 		let spi_dma = spi.with_rx_tx_dma(dma.2, dma.3);
-		let spi_dma_transfer = spi_dma.read_write(unsafe { &mut DMA_BUFFER.received } , unsafe { &DMA_BUFFER.transmit });
+		let spi_dma_transfer = spi_dma.read_write(unsafe { &mut DMA_BUFFER.received }, unsafe {
+			&DMA_BUFFER.transmit
+		});
 
 		// Configure the USART
 		let gpio_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -227,13 +256,17 @@ mod app {
 			(gpio_tx, gpio_rx),
 			&mut afio.mapr,
 			serial::Config::default().baudrate(115200.bps()),
-			clocks
+			clocks,
 		);
 		let (mut tx, _rx) = serial.split();
 
 		#[cfg(feature = "debugprint_version")]
 		{
-			writeln!(tx, "========================================================").ok();
+			writeln!(
+				tx,
+				"========================================================"
+			)
+			.ok();
 			writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
 			writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 			if cfg!(feature = "bootloader") {
@@ -242,12 +275,18 @@ mod app {
 			else {
 				writeln!(tx, "      without bootloader").ok();
 			}
-			writeln!(tx, "========================================================\n").ok();
+			writeln!(
+				tx,
+				"========================================================\n"
+			)
+			.ok();
 		}
 
-		unsafe { SOFTWARE_UART = Some(SoftwareUart::new()); }
-		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) = unsafe { SOFTWARE_UART.as_mut().unwrap().split() };
-
+		unsafe {
+			SOFTWARE_UART = Some(SoftwareUart::new());
+		}
+		let (sw_uart_tx, sw_uart_rx, sw_uart_isr) =
+			unsafe { SOFTWARE_UART.as_mut().unwrap().split() };
 
 		// Configure the display
 
@@ -255,60 +294,73 @@ mod app {
 		let display_dc = gpioa.pa2.into_push_pull_output(&mut gpioa.crl);
 		let display_clk = gpiob.pb13.into_alternate_push_pull(&mut gpiob.crh);
 		let display_mosi = gpiob.pb15.into_alternate_push_pull(&mut gpiob.crh);
-		let display_spi = spi::Spi::spi2(dp.SPI2, (display_clk, spi::NoMiso, display_mosi), spi::Mode { phase: spi::Phase::CaptureOnFirstTransition, polarity: spi::Polarity::IdleHigh }, 18.mhz(), clocks);
+		let display_spi = spi::Spi::spi2(
+			dp.SPI2,
+			(display_clk, spi::NoMiso, display_mosi),
+			spi::Mode {
+				phase: spi::Phase::CaptureOnFirstTransition,
+				polarity: spi::Polarity::IdleHigh,
+			},
+			18.mhz(),
+			clocks,
+		);
 
 		let display_dma = display_spi.with_tx_dma(dma.5);
 		let adapter = WriteDmaToWriteAdapter::new(display_dma);
 		let di = display_interface_spi::SPIInterfaceNoCS::new(adapter, display_dc);
 		let display = st7789::ST7789::new(di, display_reset, 240, 240);
-		
+
 		// Configure USB
 		// BluePill board has a pull-up resistor on the D+ line.
 		// Pull the D+ pin down to send a RESET condition to the USB bus.
 		let mut usb_dp = gpioa.pa12.into_push_pull_output(&mut gpioa.crh);
 		usb_dp.set_low();
 		cortex_m::asm::delay(clocks.sysclk().0 / 100);
-		
+
 		let usb_dm = gpioa.pa11;
 		let usb_dp = usb_dp.into_floating_input(&mut gpioa.crh);
 
 		let usb_pins = Peripheral {
 			usb: dp.USB,
 			pin_dm: usb_dm,
-			pin_dp: usb_dp
+			pin_dp: usb_dp,
 		};
-		unsafe { USB_BUS = Some( UsbBus::new(usb_pins) ) };
+		unsafe { USB_BUS = Some(UsbBus::new(usb_pins)) };
 		let usb_bus = unsafe { USB_BUS.as_ref().unwrap() };
 
-		let midi = usbd_midi::midi_device::MidiClass::new(usb_bus, NUM_PORT_PAIRS as u8, NUM_PORT_PAIRS as u8).unwrap();
+		let midi = usbd_midi::midi_device::MidiClass::new(
+			usb_bus,
+			NUM_PORT_PAIRS as u8,
+			NUM_PORT_PAIRS as u8,
+		)
+		.unwrap();
 		let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x1209, 0x2E80))
 			.manufacturer("Windfisch")
 			.product("Midikraken")
 			.serial_number("TEST")
 			.device_class(usbd_midi::data::usb::constants::USB_CLASS_NONE)
 			.build();
-	
-		let mut mytimer =
-			timer::Timer::tim2(dp.TIM2, &clocks)
-			.start_count_down(Hertz(31250 * 3));
+
+		let mut mytimer = timer::Timer::tim2(dp.TIM2, &clocks).start_count_down(Hertz(31250 * 3));
 		mytimer.listen(timer::Event::Update);
 
 		let knob_timer = timer::Timer::tim4(dp.TIM4, &clocks).qei(
-			(gpiob.pb6.into_pull_up_input(&mut gpiob.crl), gpiob.pb7.into_pull_up_input(&mut gpiob.crl)),
+			(
+				gpiob.pb6.into_pull_up_input(&mut gpiob.crl),
+				gpiob.pb7.into_pull_up_input(&mut gpiob.crl),
+			),
 			&mut afio.mapr,
 			stm32f1xx_hal::qei::QeiOptions {
 				slave_mode: stm32f1xx_hal::qei::SlaveMode::EncoderMode3,
-				auto_reload_value: 65535
-			}
+				auto_reload_value: 65535,
+			},
 		);
 		let knob_button = gpioc.pc15.into_pull_up_input(&mut gpioc.crh);
 
 		let queue = Queue::new();
-		
+
 		#[cfg(feature = "benchmark")]
-		let bench_timer =
-			timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2)
-			.start_raw(0, 0xFFFF);
+		let bench_timer = timer::Timer::tim1(dp.TIM1, &clocks, &mut rcc.apb2).start_raw(0, 0xFFFF);
 
 		#[cfg(feature = "benchmark")]
 		{
@@ -318,20 +370,31 @@ mod app {
 			let start_40000 = bench_timer.cnt();
 			cortex_m::asm::delay(40000);
 			let stop_40000 = bench_timer.cnt();
-			writeln!(tx, "delay for 100 cycles took from cpu cycle {} to {}", start_100, stop_100).ok();
-			writeln!(tx, "delay for 40000 took from cpu cycle {} to {}", start_40000, stop_40000).ok();
+			writeln!(
+				tx,
+				"delay for 100 cycles took from cpu cycle {} to {}",
+				start_100, stop_100
+			)
+			.ok();
+			writeln!(
+				tx,
+				"delay for 40000 took from cpu cycle {} to {}",
+				start_40000, stop_40000
+			)
+			.ok();
 			writeln!(tx, "sleep(1 second)").ok();
 			cortex_m::asm::delay(72000000);
 			writeln!(tx, "sleep(1 second)").ok();
 			cortex_m::asm::delay(72000000);
 			writeln!(tx, "done").ok();
-			
+
 			benchmark_task::spawn().unwrap();
 			writeln!(tx, "spawned").ok();
 		}
 
 		let mut flash_store = FlashStore::new(flash::FlashAdapter::new(flash));
-		let current_preset = flash::read_preset_from_flash(0, &mut flash_store, &mut tx).unwrap_or(Preset::new());
+		let current_preset =
+			flash::read_preset_from_flash(0, &mut flash_store, &mut tx).unwrap_or(Preset::new());
 
 		gui_task::spawn().unwrap();
 
@@ -342,7 +405,7 @@ mod app {
 				midi,
 				sw_uart_tx,
 				midi_out_queues: Default::default(),
-				current_preset
+				current_preset,
 			},
 			LocalResources {
 				clock_count: [0; 8],
@@ -363,7 +426,7 @@ mod app {
 				sw_uart_rx,
 				sw_uart_isr,
 			},
-			init::Monotonics()
+			init::Monotonics(),
 		);
 	}
 
@@ -371,7 +434,10 @@ mod app {
 	fn byte_received(mut c: byte_received::Context) {
 		for i in 0..NUM_PORT_PAIRS {
 			if let Some(byte) = c.local.sw_uart_rx.recv_byte(i) {
-				c.shared.queue.lock(|queue| queue.enqueue((i as u8, byte))).ok(); // we can't do anything about this failing
+				c.shared
+					.queue
+					.lock(|queue| queue.enqueue((i as u8, byte)))
+					.ok(); // we can't do anything about this failing
 			}
 		}
 		handle_received_byte::spawn().ok();
@@ -379,58 +445,111 @@ mod app {
 
 	#[task(shared = [tx, queue, midi, current_preset, midi_out_queues], local = [midi_parsers, clock_count], priority = 7)]
 	fn handle_received_byte(mut c: handle_received_byte::Context) {
-		while let Some((cable, byte)) = c.shared.queue.lock(|q| { q.dequeue() }) {
+		while let Some((cable, byte)) = c.shared.queue.lock(|q| q.dequeue()) {
 			if let Some(mut usb_message) = c.local.midi_parsers[cable as usize].push(byte) {
 				usb_message[0] |= cable << 4;
 
 				// send to usb
-				#[cfg(feature = "debugprint_verbose")] c.shared.tx.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
+				#[cfg(feature = "debugprint_verbose")]
+				c.shared
+					.tx
+					.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
 				let _ret = c.shared.midi.lock(|midi| midi.send_bytes(usb_message));
 				#[cfg(feature = "debugprint_verbose")]
 				match _ret {
-					Ok(size) => { c.shared.tx.lock(|tx| write!(tx, "wrote {} bytes to usb\n", size).ok()); }
-					Err(error) => { c.shared.tx.lock(|tx| write!(tx, "error writing to usb: {:?}\n", error).ok()); }
+					Ok(size) => {
+						c.shared
+							.tx
+							.lock(|tx| write!(tx, "wrote {} bytes to usb\n", size).ok());
+					}
+					Err(error) => {
+						c.shared
+							.tx
+							.lock(|tx| write!(tx, "error writing to usb: {:?}\n", error).ok());
+					}
 				}
 
 				// process for internal routing
-				let is_transport = match usb_message[1] { 0xF1 | 0xF2 | 0xF3 | 0xFA | 0xFC => true, _ => false };
+				let is_transport = match usb_message[1] {
+					0xF1 | 0xF2 | 0xF3 | 0xFA | 0xFC => true,
+					_ => false,
+				};
 				let is_clock = usb_message[1] == 0xF8;
-				let is_control_ish = match usb_message[0] & 0x0F { 0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true, _ => false };
-				let is_keyboard_ish = match usb_message[0] & 0x0F { 0x8 | 0x9 | 0xA | 0xD => true, _ => false };
+				let is_control_ish = match usb_message[0] & 0x0F {
+					0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true,
+					_ => false,
+				};
+				let is_keyboard_ish = match usb_message[0] & 0x0F {
+					0x8 | 0x9 | 0xA | 0xD => true,
+					_ => false,
+				};
 
-				let ylen = c.shared.current_preset.lock(|cp| cp.event_routing_table[0].len());
-				let xlen = c.shared.current_preset.lock(|cp| cp.event_routing_table.len());
+				let ylen = c
+					.shared
+					.current_preset
+					.lock(|cp| cp.event_routing_table[0].len());
+				let xlen = c
+					.shared
+					.current_preset
+					.lock(|cp| cp.event_routing_table.len());
 
-				assert!(xlen == c.shared.current_preset.lock(|cp| cp.clock_routing_table.len()));
-				assert!(ylen == c.shared.current_preset.lock(|cp| cp.clock_routing_table[0].len()));
+				assert!(
+					xlen == c
+						.shared
+						.current_preset
+						.lock(|cp| cp.clock_routing_table.len())
+				);
+				assert!(
+					ylen == c
+						.shared
+						.current_preset
+						.lock(|cp| cp.clock_routing_table[0].len())
+				);
 				assert!(ylen == c.local.clock_count.len());
 				if (cable as usize) < ylen {
 					let cable_in = cable as usize;
-					
+
 					for cable_out in 0..xlen {
-						let forward_event = match c.shared.current_preset.lock(|cp| cp.event_routing_table[cable_out][cable_in]) {
+						let forward_event = match c
+							.shared
+							.current_preset
+							.lock(|cp| cp.event_routing_table[cable_out][cable_in])
+						{
 							EventRouteMode::Both => is_control_ish || is_keyboard_ish,
 							EventRouteMode::Controller => is_control_ish,
 							EventRouteMode::Keyboard => is_keyboard_ish,
-							EventRouteMode::None => false
+							EventRouteMode::None => false,
 						};
 
-						let forward_clock = match c.shared.current_preset.lock(|cp| cp.clock_routing_table[cable_out][cable_in]) {
+						let forward_clock = match c
+							.shared
+							.current_preset
+							.lock(|cp| cp.clock_routing_table[cable_out][cable_in])
+						{
 							0 => false,
-							division => is_transport || (is_clock && c.local.clock_count[cable_in] % (division as u16) == 0)
+							division => {
+								is_transport
+									|| (is_clock
+										&& c.local.clock_count[cable_in] % (division as u16) == 0)
+							}
 						};
 
 						if forward_event || forward_clock {
-							c.shared.midi_out_queues.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
+							c.shared
+								.midi_out_queues
+								.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
 							send_task::spawn().ok();
 						}
 					}
 
-					if usb_message[1] == 0xFA { // start
+					if usb_message[1] == 0xFA {
+						// start
 						c.local.clock_count[cable_in] = 0;
 					}
-					if usb_message[1] == 0xF8 { // clock
-						c.local.clock_count[cable_in] = (c.local.clock_count[cable_in] + 1) % 27720; // 27720 is the least common multiple of 1,2,...,12
+					if usb_message[1] == 0xF8 {
+						// clock
+						c.local.clock_count[cable_in] = (c.local.clock_count[cable_in] + 1) % 27720;
+						// 27720 is the least common multiple of 1,2,...,12
 					}
 				}
 			}
@@ -440,16 +559,22 @@ mod app {
 	#[task(shared = [tx, sw_uart_tx, midi_out_queues], priority = 8)]
 	fn send_task(c: send_task::Context) {
 		#[allow(unused_mut, unused_variables)]
-		let send_task::SharedResources { mut tx, mut sw_uart_tx, mut midi_out_queues } = c.shared;
+		let send_task::SharedResources {
+			mut tx,
+			mut sw_uart_tx,
+			mut midi_out_queues,
+		} = c.shared;
 		sw_uart_tx.lock(|sw_uart_tx| {
 			for cable in 0..NUM_PORT_PAIRS {
 				if sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = midi_out_queues.lock(|q| q[cable].realtime.dequeue()) {
-						#[cfg(feature = "debugprint_verbose")] tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
+						#[cfg(feature = "debugprint_verbose")]
+						tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
 						sw_uart_tx.send_byte(cable, byte);
 					}
 					else if let Some(byte) = midi_out_queues.lock(|q| q[cable].normal.dequeue()) {
-						#[cfg(feature = "debugprint_verbose")] tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
+						#[cfg(feature = "debugprint_verbose")]
+						tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
 						sw_uart_tx.send_byte(cable, byte);
 					}
 				}
@@ -462,17 +587,29 @@ mod app {
 		#[task(shared = [tx, current_preset], local = [display, delay, knob_timer, knob_button, flash_store], priority = 1)]
 		fn gui_task(c: gui_task::Context);
 	}
-	
 
 	#[task(binds = USB_LP_CAN_RX0, shared = [midi_out_queues, midi], local = [usb_dev, usb_midi_buffer, bootloader_sysex_statemachine], priority = 8)]
 	fn usb_isr(c: usb_isr::Context) {
-		let usb_isr::SharedResources { mut midi_out_queues, mut midi } = c.shared;
-		let usb_isr::LocalResources { usb_dev, usb_midi_buffer, bootloader_sysex_statemachine } = c.local;
-		midi.lock(|midi|
-			midi_out_queues.lock(|midi_out_queues|
-				usb_poll(usb_dev, midi, midi_out_queues, usb_midi_buffer, bootloader_sysex_statemachine)
-			)
-		);
+		let usb_isr::SharedResources {
+			mut midi_out_queues,
+			mut midi,
+		} = c.shared;
+		let usb_isr::LocalResources {
+			usb_dev,
+			usb_midi_buffer,
+			bootloader_sysex_statemachine,
+		} = c.local;
+		midi.lock(|midi| {
+			midi_out_queues.lock(|midi_out_queues| {
+				usb_poll(
+					usb_dev,
+					midi,
+					midi_out_queues,
+					usb_midi_buffer,
+					bootloader_sysex_statemachine,
+				)
+			})
+		});
 
 		send_task::spawn().ok();
 	}
@@ -495,21 +632,25 @@ mod app {
 
 	#[task(binds = TIM2, local = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=16)]
 	fn timer_interrupt(c: timer_interrupt::Context) {
-
 		#[cfg(feature = "benchmark")]
-		let do_benchmark = c.local.sw_uart_isr.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
+		let do_benchmark = c
+			.local
+			.sw_uart_isr
+			.setup_benchmark(unsafe { core::ptr::read_volatile(&BENCHMARK_PHASE) });
 		#[cfg(feature = "benchmark")]
 		let start_time = c.local.bench_timer.cnt();
 
 		c.local.mytimer.clear_update_interrupt_flag();
 
-		let (recv_finished, sendbuf_consumed) = unsafe { tim2_interrupt_handler::optimized_interrupt_handler(
-			c.local.sw_uart_isr,
-			c.local.spi_strobe_pin,
-			c.local.dma_transfer,
-			&mut DMA_BUFFER,
-			OUTPUT_MASK.load(Ordering::Relaxed)
-		) };
+		let (recv_finished, sendbuf_consumed) = unsafe {
+			tim2_interrupt_handler::optimized_interrupt_handler(
+				c.local.sw_uart_isr,
+				c.local.spi_strobe_pin,
+				c.local.dma_transfer,
+				&mut DMA_BUFFER,
+				OUTPUT_MASK.load(Ordering::Relaxed),
+			)
+		};
 
 		if recv_finished != 0 {
 			byte_received::spawn().ok();
@@ -524,7 +665,10 @@ mod app {
 			unsafe {
 				if do_benchmark {
 					core::ptr::write_volatile(&mut BENCHMARK_PHASE, -1);
-					core::ptr::write_volatile(&mut BENCHMARK_CYCLES, stop_time.wrapping_sub(start_time));
+					core::ptr::write_volatile(
+						&mut BENCHMARK_CYCLES,
+						stop_time.wrapping_sub(start_time),
+					);
 				}
 			}
 		}
@@ -539,9 +683,16 @@ pub struct UsbMidiBuffer {
 
 impl UsbMidiBuffer {
 	pub fn new() -> UsbMidiBuffer {
-		UsbMidiBuffer { buffer: [0; 128], head: 0, tail: 0 }
+		UsbMidiBuffer {
+			buffer: [0; 128],
+			head: 0,
+			tail: 0,
+		}
 	}
-	pub fn peek<B: usb_device::bus::UsbBus>(&mut self, midi: &mut usbd_midi::midi_device::MidiClass<'static, B>) -> Option<[u8; 4]> {
+	pub fn peek<B: usb_device::bus::UsbBus>(
+		&mut self,
+		midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
+	) -> Option<[u8; 4]> {
 		use core::convert::TryInto;
 
 		if self.head == self.tail {
@@ -552,8 +703,8 @@ impl UsbMidiBuffer {
 			}
 		}
 		if self.head != self.tail {
-			assert!(self.tail >= self.head+4);
-			return Some(self.buffer[self.head..self.head+4].try_into().unwrap());
+			assert!(self.tail >= self.head + 4);
+			return Some(self.buffer[self.head..self.head + 4].try_into().unwrap());
 		}
 		None
 	}
@@ -577,7 +728,7 @@ fn enqueue_all_bytes<const LEN: usize>(message: [u8; 4], queue: &mut Queue<u8, L
 	let len = parse_midi::payload_length(message[0]);
 	if queue.len() + len as usize <= queue.capacity() {
 		for i in 0..len {
-			queue.enqueue(message[1+i as usize]).unwrap();
+			queue.enqueue(message[1 + i as usize]).unwrap();
 		}
 		return true;
 	}
@@ -586,12 +737,13 @@ fn enqueue_all_bytes<const LEN: usize>(message: [u8; 4], queue: &mut Queue<u8, L
 	}
 }
 
-fn usb_poll<B: usb_device::bus::UsbBus>( // FIXME inline that function in the usb_isr
+fn usb_poll<B: usb_device::bus::UsbBus>(
+	// FIXME inline that function in the usb_isr
 	usb_dev: &mut UsbDevice<'static, B>,
 	midi: &mut usbd_midi::midi_device::MidiClass<'static, B>,
 	midi_out_queues: &mut [MidiOutQueue; 16],
 	buffer: &mut UsbMidiBuffer,
-	bootloader_sysex_statemachine: &mut BootloaderSysexStatemachine
+	bootloader_sysex_statemachine: &mut BootloaderSysexStatemachine,
 ) {
 	usb_dev.poll(&mut [midi]);
 
@@ -605,10 +757,10 @@ fn usb_poll<B: usb_device::bus::UsbBus>( // FIXME inline that function in the us
 		else {
 			break;
 		}
-		
+
 		if !is_realtime && cable == 0 {
 			for i in 0..parse_midi::payload_length(message[0]) {
-				bootloader_sysex_statemachine.push(message[1+i as usize]);
+				bootloader_sysex_statemachine.push(message[1 + i as usize]);
 			}
 		}
 	}

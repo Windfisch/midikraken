@@ -1,0 +1,2 @@
+hard_tabs = true
+control_brace_style = "ClosingNextLine"

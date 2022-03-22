@@ -1,18 +1,24 @@
 use crate::debugln::*;
 use crate::preset::*;
 use simple_flash_store::FlashStore;
+use stm32f1xx_hal::flash::{FlashSize, SectorSize};
 
-const SETTINGS_BASE: usize = (1<<17) - 2*2048;
+const SETTINGS_BASE: usize = (1 << 17) - 2 * 2048;
 
 #[derive(Debug)]
 pub enum SaveError {
 	BufferTooSmall,
 	NoSpaceLeft,
-	CorruptData
+	CorruptData,
 }
 
 // consumes 4kb on the stack
-pub fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<(), SaveError> {
+pub fn save_preset_to_flash(
+	preset_idx: u8,
+	preset: &Preset,
+	flash_store: &mut MyFlashStore,
+	tx: &mut impl core::fmt::Write,
+) -> Result<(), SaveError> {
 	let mut buffer = [0; 1024];
 	debugln!(tx, "saving preset {}", preset_idx);
 	let len = serialize_preset(&mut None, preset);
@@ -31,14 +37,21 @@ pub fn save_preset_to_flash(preset_idx: u8, preset: &Preset, flash_store: &mut M
 		Ok(()) => Ok(()),
 		Err(FlashStoreError::CorruptData) => Err(SaveError::CorruptData),
 		Err(FlashStoreError::NoSpaceLeft) => Err(SaveError::NoSpaceLeft),
-		_ => { debugln!(tx, " -> cannot happen"); unreachable!() }
+		_ => {
+			debugln!(tx, " -> cannot happen");
+			unreachable!()
+		}
 	};
 	debugln!(tx, "  -> {:?}", result);
 	return result;
 }
 
 // consumes 1kb on the stack
-pub fn read_preset_from_flash(preset_idx: u8, flash_store: &mut MyFlashStore, tx: &mut impl core::fmt::Write) -> Result<Preset, SettingsError> {
+pub fn read_preset_from_flash(
+	preset_idx: u8,
+	flash_store: &mut MyFlashStore,
+	tx: &mut impl core::fmt::Write,
+) -> Result<Preset, SettingsError> {
 	debugln!(tx, "loading preset {}", preset_idx);
 	let mut buffer = [0; 1024];
 
@@ -59,14 +72,14 @@ pub fn read_preset_from_flash(preset_idx: u8, flash_store: &mut MyFlashStore, tx
 		}
 		Err(FlashStoreError::BufferTooSmall) => Err(SettingsError), // cannot happen, we are never writing files that large
 		Err(FlashStoreError::CorruptData) => Err(SettingsError),
-		Err(_) => unreachable!()
+		Err(_) => unreachable!(),
 	}
 }
 
 use simple_flash_store::*;
 
 pub struct FlashAdapter {
-	flash: stm32f1xx_hal::flash::Parts
+	flash: stm32f1xx_hal::flash::Parts,
 }
 
 impl FlashAdapter {
@@ -85,27 +98,41 @@ impl FlashTrait for FlashAdapter {
 
 	fn erase_page(&mut self, page: usize) -> Result<(), FlashAccessError> {
 		// Some chips have 1k, others have 2k. We're being pessimistic here again, which is why this size differs from PAGE_SIZE.
-		let mut writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
-		writer.erase((SETTINGS_BASE + page) as u32, Self::PAGE_SIZE).unwrap();
+		let mut writer = self.flash.writer(SectorSize::Sz1K, FlashSize::Sz128K);
+		writer
+			.erase((SETTINGS_BASE + page) as u32, Self::PAGE_SIZE)
+			.unwrap();
 		Ok(())
 	}
 
 	fn read(&mut self, address: usize, data: &mut [u8]) -> Result<(), FlashAccessError> {
-		let writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
-		data.copy_from_slice(writer.read((SETTINGS_BASE + address) as u32, data.len()).unwrap());
+		let writer = self.flash.writer(SectorSize::Sz1K, FlashSize::Sz128K);
+		data.copy_from_slice(
+			writer
+				.read((SETTINGS_BASE + address) as u32, data.len())
+				.unwrap(),
+		);
 		Ok(())
 	}
 
 	fn write(&mut self, address: usize, data: &[u8]) -> Result<(), FlashAccessError> {
-		let mut writer = self.flash.writer(stm32f1xx_hal::flash::SectorSize::Sz1K, stm32f1xx_hal::flash::FlashSize::Sz128K);
+		let mut writer = self.flash.writer(SectorSize::Sz1K, FlashSize::Sz128K);
 		if data.len() % 2 == 0 {
-			writer.write((SETTINGS_BASE + address) as u32, data).unwrap();
+			writer
+				.write((SETTINGS_BASE + address) as u32, data)
+				.unwrap();
 		}
 		else {
-			writer.write((SETTINGS_BASE + address) as u32, &data[0..(data.len()-1)]).unwrap();
-			writer.write((SETTINGS_BASE + address + data.len() - 1) as u32, &[data[data.len()-1], 0]).unwrap();
+			writer
+				.write((SETTINGS_BASE + address) as u32, &data[0..(data.len() - 1)])
+				.unwrap();
+			writer
+				.write(
+					(SETTINGS_BASE + address + data.len() - 1) as u32,
+					&[data[data.len() - 1], 0],
+				)
+				.unwrap();
 		}
 		Ok(())
 	}
 }
-

@@ -3,27 +3,24 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-use vergen::{ConstantsFlags, generate_cargo_keys};
+use vergen::{generate_cargo_keys, ConstantsFlags};
 
 fn main() {
-    // Put the linker script somewhere the linker can find it
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    fs::File::create(out_dir.join("memory.x"))
-        .unwrap()
-        .write_all(
-            if cfg!(feature = "bootloader") {
-                include_bytes!("memory-bootloader.x")
-            }
-            else {
-                include_bytes!("memory-nobootloader.x")
-            }
-        )
-        .unwrap();
-    println!("cargo:rustc-link-search={}", out_dir.display());
-    println!("cargo:rerun-if-changed=memory-nobootloader.x");
-    println!("cargo:rerun-if-changed=memory-bootloader.x");
+	// Put the linker script somewhere the linker can find it
+	let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+	fs::File::create(out_dir.join("memory.x"))
+		.unwrap()
+		.write_all(if cfg!(feature = "bootloader") {
+			include_bytes!("memory-bootloader.x")
+		}
+		else {
+			include_bytes!("memory-nobootloader.x")
+		})
+		.unwrap();
+	println!("cargo:rustc-link-search={}", out_dir.display());
+	println!("cargo:rerun-if-changed=memory-nobootloader.x");
+	println!("cargo:rerun-if-changed=memory-bootloader.x");
 
-
-    let flags = ConstantsFlags::BUILD_TIMESTAMP | ConstantsFlags::SHA;
-    generate_cargo_keys(flags).expect("Unable to generate the cargo keys!");
+	let flags = ConstantsFlags::BUILD_TIMESTAMP | ConstantsFlags::SHA;
+	generate_cargo_keys(flags).expect("Unable to generate the cargo keys!");
 }

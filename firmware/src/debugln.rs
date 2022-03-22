@@ -14,5 +14,5 @@ macro_rules! debug {
 	}}
 }
 
-pub(crate) use debugln;
 pub(crate) use debug;
+pub(crate) use debugln;

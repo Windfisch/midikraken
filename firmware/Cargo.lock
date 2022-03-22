@@ -381,7 +381,7 @@ checksum = "d076121838e03f862871315477528debffdb7462fb229216ecef91b1a3eb31eb"
 dependencies = [
  "atomic-polyfill",
  "hash32",
- "spin 0.9.2",
+ "spin",
  "stable_deref_trait",
 ]
 
@@ -400,9 +400,6 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-dependencies = [
- "spin 0.5.2",
-]
 
 [[package]]
 name = "libc"
@@ -435,7 +432,7 @@ checksum = "bc4010833aea396656c2f91ee704d51a6f1329ec2ab56ffd00bfd56f7481ea94"
 name = "midikraken"
 version = "0.1.0"
 dependencies = [
- "cortex-m 0.6.7",
+ "cortex-m 0.7.4",
  "cortex-m-rt",
  "cortex-m-rtic",
  "display-interface",
@@ -444,7 +441,6 @@ dependencies = [
  "embedded-graphics",
  "embedded-hal",
  "heapless",
- "lazy_static",
  "parse_midi",
  "simple-flash-store",
  "st7789",
@@ -672,12 +668,6 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 name = "simple-flash-store"
 version = "0.1.0"
 source = "git+https://github.com/Windfisch/simple-flash-store#5891dfdff74937d0865975c7990808b13964ccbf"
-
-[[package]]
-name = "spin"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"

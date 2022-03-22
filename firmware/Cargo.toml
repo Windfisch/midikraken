@@ -14,14 +14,13 @@ debugpanic = []
 bootloader = []
 
 [dependencies]
-cortex-m = "0.6.7"
-cortex-m-rt = ">=0.6"
+cortex-m = "*"
+cortex-m-rt = "*"
 cortex-m-rtic = "1"
 stm32f1xx-hal = { version = "0.7", features = ["rt", "stm32f103", "stm32-usbd", "medium"] }
 heapless = "0.7"
 parse_midi = { path = "../lib/parse_midi" }
 embedded-dma = {version = "0.1" }
-lazy_static = { version = "1", features=["spin_no_std"] }
 
 display-interface = "0.4"
 display-interface-spi = "0.4"

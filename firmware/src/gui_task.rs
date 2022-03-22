@@ -215,14 +215,14 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 				}
 			}
 			ActiveMenu::TrsModeSelect(ref mut menu_state) => {
-				let mut entries = heapless::Vec::<heapless::String<heapless::consts::U8>, heapless::consts::U16>::new();
+				let mut entries = heapless::Vec::<heapless::String<8>, 16>::new();
 				for i in 4..12 { // FIXME hardcoded
 					let mut string = heapless::String::new();
 					write!(&mut string, "{:2}: {}", i, if mode_mask & (1<<i) != 0 { "A  " } else { "  B" }).unwrap();
 					entries.push(string).unwrap();
 				}
 				use core::iter::FromIterator;
-				let entries_str = heapless::Vec::<_, heapless::consts::U16>::from_iter(
+				let entries_str = heapless::Vec::<_, 16>::from_iter(
 					entries.iter().map(|v| v.as_str())
 					.chain(core::iter::once("Back"))
 				);

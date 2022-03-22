@@ -90,15 +90,15 @@ fn benchmark(phase: i8) -> u16 {
 
 
 pub struct MidiOutQueue {
-	realtime: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
-	normal: Queue<u8, heapless::consts::U16, u16, heapless::spsc::SingleCore>,
+	realtime: Queue<u8, 16>,
+	normal: Queue<u8, 16>,
 }
 
 impl Default for MidiOutQueue {
 	fn default() -> MidiOutQueue {
 		MidiOutQueue {
-			realtime: unsafe { Queue::u16_sc() },
-			normal: unsafe { Queue::u16_sc() }
+			realtime: Queue::new(),
+			normal: Queue::new()
 		}
 	}
 }
@@ -119,7 +119,7 @@ mod app {
 	#[shared]
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
-		queue: Queue<(u8,u8), heapless::consts::U200, u16, heapless::spsc::SingleCore>,
+		queue: Queue<(u8,u8), 200>,
 
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
 
@@ -303,7 +303,7 @@ mod app {
 		);
 		let knob_button = gpioc.pc15.into_pull_up_input(&mut gpioc.crh);
 
-		let queue = unsafe { Queue::u16_sc() };
+		let queue = Queue::new();
 		
 		#[cfg(feature = "benchmark")]
 		let bench_timer =
@@ -573,9 +573,9 @@ fn enqueue_message(message: [u8; 4], queue: &mut MidiOutQueue) -> bool {
 	}
 }
 
-fn enqueue_all_bytes<T: generic_array::ArrayLength<u8>>(message: [u8; 4], queue: &mut Queue<u8, T, u16, heapless::spsc::SingleCore>) -> bool {
+fn enqueue_all_bytes<const Len: usize>(message: [u8; 4], queue: &mut Queue<u8, Len>) -> bool {
 	let len = parse_midi::payload_length(message[0]);
-	if queue.len() + len as u16 <= queue.capacity() {
+	if queue.len() + len as usize <= queue.capacity() {
 		for i in 0..len {
 			queue.enqueue(message[1+i as usize]).unwrap();
 		}

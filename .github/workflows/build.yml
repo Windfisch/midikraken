@@ -13,7 +13,7 @@ jobs:
       matrix:
         rust:
           - nightly
-          - nightly-2021-10-03
+          - nightly-2021-12-29
     steps:
       - run: sudo apt-get install binutils-arm-none-eabi
       - uses: actions/checkout@v2
@@ -34,6 +34,6 @@ jobs:
           SERIESCI_TOKEN: ${{ secrets.SERIESCI_TOKEN }}
           TOOLCHAIN: ${{ matrix.rust }}
         run: |
-          if [ $TOOLCHAIN == nightly-2021-10-03 ]; then
+          if [ $TOOLCHAIN != nightly ]; then
             curl --insecure --header "Authorization: Token $SERIESCI_TOKEN" --header "Content-Type: application/json" --data "{\"value\":\"$(stat --format %s firmware/release.dfu.bin) bytes\",\"sha\":\"${GITHUB_SHA}\"}" https://seriesci.com/api/Windfisch/midikraken/binary_size/one
           fi

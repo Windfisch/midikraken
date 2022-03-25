@@ -29,6 +29,7 @@ mod str_writer;
 mod dma_adapter;
 mod gui;
 mod gui_task;
+mod user_input;
 
 #[allow(unused_imports)]
 use debugln::*;
@@ -177,12 +178,7 @@ mod app {
 		>,
 		delay: stm32f1xx_hal::delay::Delay,
 
-		knob_timer: stm32f1xx_hal::qei::Qei<
-			stm32::TIM4,
-			stm32f1xx_hal::timer::Tim4NoRemap,
-			(gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>),
-		>,
-		knob_button: gpioc::PC15<Input<PullUp>>,
+		user_input_handler: user_input::UserInputHandler,
 		flash_store: MyFlashStore,
 	}
 
@@ -394,7 +390,7 @@ mod app {
 
 		let mut flash_store = FlashStore::new(flash::FlashAdapter::new(flash));
 		let current_preset =
-			flash::read_preset_from_flash(0, &mut flash_store, &mut tx).unwrap_or(Preset::new());
+			flash::read_preset_from_flash(0, &mut flash_store).unwrap_or(Preset::new());
 
 		gui_task::spawn().unwrap();
 
@@ -420,8 +416,7 @@ mod app {
 				spi_strobe_pin,
 				display,
 				delay,
-				knob_timer,
-				knob_button,
+				user_input_handler: user_input::UserInputHandler::new(knob_timer, knob_button),
 				flash_store,
 				sw_uart_rx,
 				sw_uart_isr,
@@ -584,7 +579,7 @@ mod app {
 
 	use crate::gui_task::gui_task;
 	extern "Rust" {
-		#[task(shared = [tx, current_preset], local = [display, delay, knob_timer, knob_button, flash_store], priority = 1)]
+		#[task(shared = [current_preset], local = [display, delay, user_input_handler, flash_store], priority = 1)]
 		fn gui_task(c: gui_task::Context);
 	}
 

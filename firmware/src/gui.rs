@@ -6,6 +6,7 @@ use embedded_graphics::{
 	prelude::*,
 	text::Text,
 };
+use crate::user_input::UserInput;
 
 use crate::preset::{serialize_preset, Preset};
 
@@ -109,12 +110,10 @@ impl MessageState {
 
 	pub fn process(
 		&mut self,
-		_scroll: i16,
-		press: bool,
-		_long_press: bool,
+		input: UserInput,
 		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>,
 	) -> MenuAction {
-		if press {
+		if input.button_event {
 			return MenuAction::Activated(0);
 		}
 		let style = normal_style!();
@@ -151,21 +150,19 @@ impl MenuState {
 
 	pub fn process(
 		&mut self,
-		scroll: i16,
-		press: bool,
-		_long_press: bool,
+		input: UserInput,
 		title: &str,
 		entries: &[&str],
 		draw_target: &mut impl embedded_graphics::draw_target::DrawTarget<Color = Rgb565>,
 	) -> MenuAction {
-		if scroll != 0 {
+		if input.scroll != 0 {
 			let old_selected = self.selected;
 			self.selected =
-				(self.selected as i16 + scroll).rem_euclid(entries.len() as i16) as usize;
+				(self.selected as i16 + input.scroll).rem_euclid(entries.len() as i16) as usize;
 			self.redraw_item(old_selected, entries[old_selected], draw_target);
 			self.redraw_item(self.selected, entries[self.selected], draw_target);
 		}
-		if press {
+		if input.button_event {
 			return MenuAction::Activated(self.selected);
 		}
 
@@ -448,9 +445,7 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 
 	pub fn process<STRINGIFY>(
 		&mut self,
-		scroll: i16,
-		press: bool,
-		long_press: bool,
+		input: UserInput,
 		data: &mut [[T; ROWS]; COLS],
 		increment: impl Fn(&mut T, i16),
 		stringify: STRINGIFY,
@@ -474,7 +469,7 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 			GridEditingMode::Selecting => {
 				match selected {
 					Entry::Element(x, y) => {
-						if press {
+						if input.button_event {
 							match allow_dialing {
 								true => {
 									self.state = GridEditingMode::Dialing;
@@ -485,28 +480,28 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 								}
 							}
 						}
-						if long_press {
+						if input.long_press {
 							return GridAction::EnterMenu(x, y);
 						}
 					}
 					Entry::Back => {
-						if press {
+						if input.button_event {
 							return GridAction::Exit;
 						}
 					}
 				}
-				self.position = (self.position + scroll).rem_euclid((ROWS * COLS + 1) as i16);
+				self.position = (self.position + input.scroll).rem_euclid((ROWS * COLS + 1) as i16);
 			}
 			GridEditingMode::Dialing => match selected {
 				Entry::Element(x, y) => {
-					if scroll != 0 {
-						increment(&mut data[x][y], scroll);
+					if input.scroll != 0 {
+						increment(&mut data[x][y], input.scroll);
 						updated = true;
 					}
-					if press {
+					if input.button_event {
 						self.state = GridEditingMode::Selecting;
 					}
-					if long_press {
+					if input.long_press {
 						return GridAction::EnterMenu(x, y);
 					}
 				}
@@ -516,7 +511,7 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 			},
 		}
 
-		if scroll != 0 || press || long_press {
+		if input.scroll != 0 || input.button_event || input.long_press {
 			// any user input leads to a partial redraw
 			let new_selected = Self::entry(self.position);
 

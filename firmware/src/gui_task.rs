@@ -21,6 +21,139 @@ fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
 
 	return a_part | b_part;
 }
+	
+enum ActiveMenu {
+	MainScreen(gui::MainScreenState),
+	MainMenu(gui::MenuState),
+	EventRouting(gui::GridState<EventRouteMode, 8, 8>),
+	ClockRouting(gui::GridState<u8, 8, 8>),
+	TrsModeSelect(gui::MenuState),
+	SaveDestination(gui::MenuState),
+	Message(gui::MessageState),
+}
+
+
+
+pub struct GuiHandler {
+	preset_idx: usize,
+	mode_mask: u32,
+	flash_used_bytes: Result<usize, FlashStoreError>,
+	dirty: bool,
+	preset: Preset,
+	display: Display,
+}
+
+use stm32f1xx_hal::gpio::{gpiob, gpioc, gpioa};
+use stm32f1xx_hal::gpio::{Input,PullUp,Output,PushPull};
+use crate::dma_adapter;
+
+type RotaryKnobTimer = stm32f1xx_hal::qei::Qei<
+		stm32f1xx_hal::stm32::TIM4,
+		stm32f1xx_hal::timer::Tim4NoRemap,
+		(gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>),
+	>;
+type RotaryKnobButton = gpioc::PC15<Input<PullUp>>;
+
+		type Display = st7789::ST7789<
+			display_interface_spi::SPIInterfaceNoCS<
+				dma_adapter::WriteDmaToWriteAdapter,
+				gpioa::PA2<Output<PushPull>>,
+			>,
+			gpioa::PA1<Output<PushPull>>,
+		>;
+
+struct UserInputHandler {
+	old_pressed: bool,
+	debounce: u8,
+	old_count: u16,
+
+	knob_timer: RotaryKnobTimer,
+	knob_button: RotaryKnobButton,
+}
+
+struct UserInput {
+	scroll: i16,
+	button_event: bool,
+}
+
+impl UserInputHandler {
+	pub fn new(knob_timer: RotaryKnobTimer, knob_button: RotaryKnobButton) -> UserInputHandler {
+		UserInputHandler {
+			old_pressed: false,
+			debounce: 0,
+			old_count: knob_timer.count() / 4,
+			knob_button,
+			knob_timer
+		}
+	}
+
+	pub fn process(&mut self) -> UserInput {
+		const MAX_COUNT: isize = 65536 / 4;
+
+		let count = self.knob_timer.count() / 4;
+		let scroll_raw = count as isize - self.old_count as isize;
+		let scroll = if scroll_raw >= MAX_COUNT / 2 {
+			scroll_raw - MAX_COUNT
+		}
+		else if scroll_raw <= -MAX_COUNT / 2 {
+			scroll_raw + MAX_COUNT
+		}
+		else {
+			scroll_raw
+		} as i16;
+		self.old_count = count;
+
+		let pressed = self.knob_button.is_low();
+		if pressed != self.old_pressed {
+			self.debounce = 25;
+			self.old_pressed = pressed;
+		}
+		let button_event = pressed && self.debounce == 1;
+		if self.debounce > 0 {
+			self.debounce -= 1;
+		}
+
+		return UserInput { scroll, button_event };
+	}
+}
+
+impl GuiHandler {
+	fn handle_main_screen(&mut self, state: &mut gui::MainScreenState, input: UserInput) -> Option<ActiveMenu> {
+		state.process(
+			self.preset_idx,
+			&self.preset,
+			self.dirty,
+			(self.flash_used_bytes.unwrap_or(9999), flash::FlashAdapter::SIZE),
+			&mut self.display,
+		);
+		if input.scroll != 0 {
+			if !self.dirty {
+				self.preset_idx = (self.preset_idx as i16 + input.scroll).rem_euclid(10) as usize;
+				tx.lock(|tx| {
+					current_preset.lock(|p| {
+						self.preset = flash::read_preset_from_flash(
+							self.preset_idx as u8,
+							flash_store,
+							tx,
+						)
+						.unwrap_or(Preset::new());
+						*p = self.preset;
+					})
+				});
+			}
+			else {
+				state.blink_dirty();
+			}
+		}
+
+		if input.button_event {
+			return Some(ActiveMenu::MainMenu(gui::MenuState::new(0)));
+		}
+		else {
+			return None;
+		}
+	}
+}
 
 pub(crate) fn gui_task(c: gui_task::Context) {
 	let gui_task::SharedResources {
@@ -43,51 +176,18 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 
 	use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
-	enum ActiveMenu {
-		MainScreen(gui::MainScreenState),
-		MainMenu(gui::MenuState),
-		EventRouting(gui::GridState<EventRouteMode, 8, 8>),
-		ClockRouting(gui::GridState<u8, 8, 8>),
-		TrsModeSelect(gui::MenuState),
-		SaveDestination(gui::MenuState),
-		Message(gui::MessageState),
-	}
-
 	let mut active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
 
-	let mut old_pressed = false;
-	let mut debounce = 0u8;
-	let mut old_count = knob_timer.count() / 4;
-	const MAX_COUNT: isize = 65536 / 4;
 	let mut dirty: bool = false;
 	let mut preset_idx = 0;
 	let mut mode_mask = 0xFF0; // FIXME sensible initial value. actually load this from flash...
 	let mut flash_used_bytes = flash_store.used_space();
+
+	let mut user_input_handler = UserInputHandler::new();
 	loop {
 		delay.delay_ms(1u8);
 
-		let count = knob_timer.count() / 4;
-		let scroll_raw = count as isize - old_count as isize;
-		let scroll = if scroll_raw >= MAX_COUNT / 2 {
-			scroll_raw - MAX_COUNT
-		}
-		else if scroll_raw <= -MAX_COUNT / 2 {
-			scroll_raw + MAX_COUNT
-		}
-		else {
-			scroll_raw
-		} as i16;
-		old_count = count;
-
-		let pressed = knob_button.is_low();
-		if pressed != old_pressed {
-			debounce = 25;
-			old_pressed = pressed;
-		}
-		let button_event = pressed && debounce == 1;
-		if debounce > 0 {
-			debounce -= 1;
-		}
+		let UserInput { scroll, button_event } = user_input_handler.process();
 
 		let mut preset = current_preset.lock(|p| *p);
 
@@ -116,35 +216,7 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 				}
 			}
 			ActiveMenu::MainScreen(ref mut state) => {
-				state.process(
-					preset_idx,
-					&preset,
-					dirty,
-					(flash_used_bytes.unwrap_or(9999), flash::FlashAdapter::SIZE),
-					display,
-				);
-				if scroll != 0 {
-					if !dirty {
-						preset_idx = (preset_idx as i16 + scroll).rem_euclid(10) as usize;
-						tx.lock(|tx| {
-							current_preset.lock(|p| {
-								preset = flash::read_preset_from_flash(
-									preset_idx as u8,
-									flash_store,
-									tx,
-								)
-								.unwrap_or(Preset::new());
-								*p = preset;
-							})
-						});
-					}
-					else {
-						state.blink_dirty();
-					}
-				}
-				if button_event {
-					active_menu = ActiveMenu::MainMenu(gui::MenuState::new(0));
-				}
+				active_menu = handle_main_screen(state);
 			}
 			ActiveMenu::MainMenu(ref mut menu_state) => {
 				let result = menu_state.process(

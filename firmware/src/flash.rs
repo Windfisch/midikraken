@@ -17,32 +17,31 @@ pub fn save_preset_to_flash(
 	preset_idx: u8,
 	preset: &Preset,
 	flash_store: &mut MyFlashStore,
-	tx: &mut impl core::fmt::Write,
 ) -> Result<(), SaveError> {
 	let mut buffer = [0; 1024];
-	debugln!(tx, "saving preset {}", preset_idx);
+	debugln!("saving preset {}", preset_idx);
 	let len = serialize_preset(&mut None, preset);
 	if len > 1024 {
 		return Err(SaveError::BufferTooSmall);
 	}
-	debugln!(tx, "  -> serializing {} bytes", len);
+	debugln!("  -> serializing {} bytes", len);
 	serialize_preset(&mut Some(&mut buffer[0..len]), preset);
 
-	debugln!(tx, "  -> writing to flash");
+	debugln!("  -> writing to flash");
 	for i in 0..len {
-		debug!(tx, "{:02X} ", buffer[i]);
+		debug!("{:02X} ", buffer[i]);
 	}
-	debugln!(tx, "");
+	debugln!("");
 	let result = match flash_store.write_file(preset_idx, &buffer[0..len]) {
 		Ok(()) => Ok(()),
 		Err(FlashStoreError::CorruptData) => Err(SaveError::CorruptData),
 		Err(FlashStoreError::NoSpaceLeft) => Err(SaveError::NoSpaceLeft),
 		_ => {
-			debugln!(tx, " -> cannot happen");
+			debugln!(" -> cannot happen");
 			unreachable!()
 		}
 	};
-	debugln!(tx, "  -> {:?}", result);
+	debugln!("  -> {:?}", result);
 	return result;
 }
 
@@ -50,24 +49,23 @@ pub fn save_preset_to_flash(
 pub fn read_preset_from_flash(
 	preset_idx: u8,
 	flash_store: &mut MyFlashStore,
-	tx: &mut impl core::fmt::Write,
 ) -> Result<Preset, SettingsError> {
-	debugln!(tx, "loading preset {}", preset_idx);
+	debugln!("loading preset {}", preset_idx);
 	let mut buffer = [0; 1024];
 
 	match flash_store.read_file(preset_idx, &mut buffer) {
 		Ok(data) => {
-			debugln!(tx, "  -> Found file of length {}", data.len());
+			debugln!("  -> Found file of length {}", data.len());
 			for i in 0..data.len() {
-				debug!(tx, "{:02X} ", data[i]);
+				debug!("{:02X} ", data[i]);
 			}
-			debugln!(tx, "");
+			debugln!("");
 			let preset = parse_preset(data)?;
-			debugln!(tx, "  -> Done");
+			debugln!("  -> Done");
 			Ok(preset)
 		}
 		Err(FlashStoreError::NotFound) => {
-			debugln!(tx, "  -> Not found");
+			debugln!("  -> Not found");
 			Ok(Preset::new())
 		}
 		Err(FlashStoreError::BufferTooSmall) => Err(SettingsError), // cannot happen, we are never writing files that large

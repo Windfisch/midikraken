@@ -8,11 +8,9 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 
 	#[cfg(feature = "debugpanic")]
 	{
-		use core::fmt::Write;
-		use stm32f1xx_hal::{serial, stm32::USART1};
-		let mut tx: serial::Tx<USART1> = unsafe { MaybeUninit::uninit().assume_init() };
-		writeln!(tx, "Panic!").ok();
-		writeln!(tx, "{}", _info).ok();
+		use crate::debugln::debugln;
+		debugln!("Panic!");
+		debugln!("{}", _info);
 	}
 
 	let led: stm32f1xx_hal::gpio::gpioc::PC13<Input<Floating>> =

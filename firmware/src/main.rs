@@ -122,7 +122,7 @@ mod app {
 
 	#[shared]
 	struct Resources {
-		tx: serial::Tx<stm32::USART1>,
+		_tx: serial::Tx<stm32::USART1>,
 		queue: Queue<(u8, u8), 200>,
 
 		midi: usbd_midi::midi_device::MidiClass<'static, UsbBus<Peripheral>>,
@@ -251,6 +251,8 @@ mod app {
 			serial::Config::default().baudrate(115200.bps()),
 			clocks,
 		);
+
+		#[allow(unused_mut)]
 		let (mut tx, _rx) = serial.split();
 
 		#[cfg(feature = "debugprint_version")]
@@ -393,7 +395,7 @@ mod app {
 
 		return (
 			Resources {
-				tx,
+				_tx: tx,
 				queue,
 				midi,
 				sw_uart_tx,
@@ -435,7 +437,7 @@ mod app {
 		handle_received_byte::spawn().ok();
 	}
 
-	#[task(shared = [tx, queue, midi, current_preset, midi_out_queues], local = [midi_parsers, clock_count], priority = 7)]
+	#[task(shared = [queue, midi, current_preset, midi_out_queues], local = [midi_parsers, clock_count], priority = 7)]
 	fn handle_received_byte(mut c: handle_received_byte::Context) {
 		while let Some((cable, byte)) = c.shared.queue.lock(|q| q.dequeue()) {
 			if let Some(mut usb_message) = c.local.midi_parsers[cable as usize].push(byte) {
@@ -443,21 +445,15 @@ mod app {
 
 				// send to usb
 				#[cfg(feature = "debugprint_verbose")]
-				c.shared
-					.tx
-					.lock(|tx| write!(tx, "MIDI{} >>> USB {:02X?}... ", cable, usb_message).ok());
+				debug!("MIDI{} >>> USB {:02X?}... ", cable, usb_message);
 				let _ret = c.shared.midi.lock(|midi| midi.send_bytes(usb_message));
 				#[cfg(feature = "debugprint_verbose")]
 				match _ret {
 					Ok(size) => {
-						c.shared
-							.tx
-							.lock(|tx| write!(tx, "wrote {} bytes to usb\n", size).ok());
+						debug!("wrote {} bytes to usb\n", size);
 					}
 					Err(error) => {
-						c.shared
-							.tx
-							.lock(|tx| write!(tx, "error writing to usb: {:?}\n", error).ok());
+						debug!("error writing to usb: {:?}\n", error);
 					}
 				}
 
@@ -548,11 +544,10 @@ mod app {
 		}
 	}
 
-	#[task(shared = [tx, sw_uart_tx, midi_out_queues], priority = 8)]
+	#[task(shared = [sw_uart_tx, midi_out_queues], priority = 8)]
 	fn send_task(c: send_task::Context) {
 		#[allow(unused_mut, unused_variables)]
 		let send_task::SharedResources {
-			mut tx,
 			mut sw_uart_tx,
 			mut midi_out_queues,
 		} = c.shared;
@@ -561,12 +556,12 @@ mod app {
 				if sw_uart_tx.clear_to_send(cable) {
 					if let Some(byte) = midi_out_queues.lock(|q| q[cable].realtime.dequeue()) {
 						#[cfg(feature = "debugprint_verbose")]
-						tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
+						debug!("USB >>> MIDI{} {:02X?}...\n", cable, byte);
 						sw_uart_tx.send_byte(cable, byte);
 					}
 					else if let Some(byte) = midi_out_queues.lock(|q| q[cable].normal.dequeue()) {
 						#[cfg(feature = "debugprint_verbose")]
-						tx.lock(|tx| write!(tx, "USB >>> MIDI{} {:02X?}...\n", cable, byte).ok());
+						debug!("USB >>> MIDI{} {:02X?}...\n", cable, byte);
 						sw_uart_tx.send_byte(cable, byte);
 					}
 				}
@@ -607,19 +602,17 @@ mod app {
 	}
 
 	#[cfg(feature = "benchmark")]
-	#[task(shared = [tx, sw_uart_tx], priority = 1)]
+	#[task(shared = [sw_uart_tx], priority = 1)]
 	fn benchmark_task(mut c: benchmark_task::Context) {
-		c.shared.tx.lock(|tx| {
-			writeln!(tx, "Benchmarking...").ok();
-			for i in 0..3 {
-				write!(tx, "  cycle# {} ->", i).ok();
-				for _ in 0..20 {
-					write!(tx, " {}", benchmark(i)).ok();
-				}
-				writeln!(tx, "").ok();
+		debugln!("Benchmarking...").ok();
+		for i in 0..3 {
+			debug!("  cycle# {} ->", i).ok();
+			for _ in 0..20 {
+				debug!(" {}", benchmark(i)).ok();
 			}
-			writeln!(tx, "Done!").ok();
-		});
+			debugln!("").ok();
+		}
+		debugln!("Done!").ok();
 	}
 
 	#[task(binds = TIM2, local = [mytimer, bench_timer, sw_uart_isr, dma_transfer, spi_strobe_pin],  priority=16)]

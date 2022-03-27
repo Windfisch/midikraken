@@ -1,14 +1,9 @@
-use super::style::*;
 use super::draw_title;
+use super::style::*;
 
 use crate::str_writer::*;
 use core::fmt::Write;
-use embedded_graphics::{
-	pixelcolor::Rgb565,
-	prelude::*,
-	text::Text,
-	draw_target::DrawTarget,
-};
+use embedded_graphics::{draw_target::DrawTarget, pixelcolor::Rgb565, prelude::*, text::Text};
 
 use crate::preset::{serialize_preset, Preset};
 pub struct MainScreenState {
@@ -119,4 +114,3 @@ impl MainScreenState {
 		self.redraw_pending = false;
 	}
 }
-

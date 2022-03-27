@@ -1,12 +1,12 @@
-use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::gpio::{gpiob, gpioc};
-use stm32f1xx_hal::gpio::{Input,PullUp};
+use stm32f1xx_hal::gpio::{Input, PullUp};
+use stm32f1xx_hal::prelude::*;
 
 pub type RotaryKnobTimer = stm32f1xx_hal::qei::Qei<
-		stm32f1xx_hal::stm32::TIM4,
-		stm32f1xx_hal::timer::Tim4NoRemap,
-		(gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>),
-	>;
+	stm32f1xx_hal::stm32::TIM4,
+	stm32f1xx_hal::timer::Tim4NoRemap,
+	(gpiob::PB6<Input<PullUp>>, gpiob::PB7<Input<PullUp>>),
+>;
 
 pub type RotaryKnobButton = gpioc::PC15<Input<PullUp>>;
 
@@ -22,7 +22,7 @@ pub struct UserInputHandler {
 pub struct UserInput {
 	pub scroll: i16,
 	pub button_event: bool,
-	pub long_press: bool
+	pub long_press: bool,
 }
 
 impl UserInputHandler {
@@ -32,7 +32,7 @@ impl UserInputHandler {
 			debounce: 0,
 			old_count: knob_timer.count() / 4,
 			knob_button,
-			knob_timer
+			knob_timer,
 		}
 	}
 
@@ -62,6 +62,10 @@ impl UserInputHandler {
 			self.debounce -= 1;
 		}
 
-		return UserInput { scroll, button_event, long_press: false };
+		return UserInput {
+			scroll,
+			button_event,
+			long_press: false,
+		};
 	}
 }

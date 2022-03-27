@@ -11,29 +11,21 @@
 //! `process()` will return whether an action (e.g. selecting a menu entry, changing data etc) has been performed.
 //! Also `schedule_redraw()`  will set a flag which the next `process()` will honor.
 
-mod message;
-mod mainscreen;
 mod grid;
+mod mainscreen;
 mod menu;
+mod message;
 #[macro_use]
 mod style;
 
-pub use message::*;
-pub use mainscreen::*;
 pub use grid::*;
+pub use mainscreen::*;
 pub use menu::*;
+pub use message::*;
 
-use embedded_graphics::{
-	pixelcolor::Rgb565,
-	prelude::*,
-	text::Text,
-	draw_target::DrawTarget,
-};
+use embedded_graphics::{draw_target::DrawTarget, pixelcolor::Rgb565, prelude::*, text::Text};
 
-fn draw_title(
-	title: &str,
-	draw_target: &mut impl DrawTarget<Color = Rgb565>,
-) {
+fn draw_title(title: &str, draw_target: &mut impl DrawTarget<Color = Rgb565>) {
 	use embedded_graphics::geometry::*;
 	use embedded_graphics::primitives::*;
 	Rectangle::new(Point::new(0, 80 + 7), Size::new(240, 17))
@@ -51,4 +43,3 @@ fn draw_title(
 		.ok()
 		.unwrap();
 }
-

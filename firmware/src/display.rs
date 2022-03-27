@@ -1,5 +1,5 @@
-use stm32f1xx_hal::gpio::{gpioa, Output, PushPull};
 use crate::dma_adapter;
+use stm32f1xx_hal::gpio::{gpioa, Output, PushPull};
 
 pub type Display = st7789::ST7789<
 	display_interface_spi::SPIInterfaceNoCS<

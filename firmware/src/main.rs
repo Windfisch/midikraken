@@ -26,11 +26,11 @@ mod preset;
 mod sysex_bootloader;
 #[macro_use]
 mod str_writer;
+mod display;
 mod dma_adapter;
 mod gui;
 mod gui_task;
 mod user_input;
-mod display;
 
 #[allow(unused_imports)]
 use debugln::*;

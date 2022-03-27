@@ -1,13 +1,8 @@
-use super::style::*;
 use super::draw_title;
+use super::style::*;
 
-use embedded_graphics::{
-	pixelcolor::Rgb565,
-	prelude::*,
-	text::Text,
-	draw_target::DrawTarget,
-};
 use crate::user_input::UserInput;
+use embedded_graphics::{draw_target::DrawTarget, pixelcolor::Rgb565, prelude::*, text::Text};
 
 use super::MenuAction;
 
@@ -22,7 +17,6 @@ pub struct MessageState {
 	redraw_pending: bool,
 	pub action: MessageAction,
 }
-
 
 impl MessageState {
 	pub fn new(
@@ -65,4 +59,3 @@ impl MessageState {
 		MenuAction::Continue
 	}
 }
-

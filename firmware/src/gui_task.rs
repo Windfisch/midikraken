@@ -1,18 +1,18 @@
 use crate::app::gui_task;
 use crate::debugln::*;
+use crate::display;
 use crate::flash;
 use crate::gui;
 use crate::preset::*;
+use crate::user_input::UserInput;
 use crate::OUTPUT_MASK;
 use core::fmt::Write;
 use core::sync::atomic::Ordering;
-use heapless::{Vec, String};
+use heapless::{String, Vec};
 use rtic::mutex_prelude::*;
-use simple_flash_store::FlashTrait;
 use simple_flash_store::FlashStoreError;
+use simple_flash_store::FlashTrait;
 use stm32f1xx_hal::prelude::*; // FIXME
-use crate::user_input::UserInput;
-use crate::display;
 
 use crate::flash::MyFlashStore;
 
@@ -28,7 +28,7 @@ fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
 
 	return a_part | b_part;
 }
-	
+
 enum ActiveMenu {
 	MainScreen(gui::MainScreenState),
 	MainMenu(gui::MenuState),
@@ -51,9 +51,9 @@ impl ActiveMenu {
 			ClockRouting(x) => x.schedule_redraw(),
 			TrsModeSelect(x) => x.schedule_redraw(),
 			SaveDestination(x) => x.schedule_redraw(),
-			Message(_) => {},
+			Message(_) => {}
 			Settings(x) => x.schedule_redraw(),
-			SelfTest(x) => x.schedule_redraw()
+			SelfTest(x) => x.schedule_redraw(),
 		}
 	}
 }
@@ -66,7 +66,7 @@ enum NavigateAction {
 	/// Push the new entry
 	Push(ActiveMenu),
 	/// Pop, returning to the previous entry
-	Pop
+	Pop,
 }
 
 use NavigateAction::*;
@@ -83,14 +83,20 @@ struct GuiData {
 pub struct GuiHandler {
 	display: display::Display,
 	data: GuiData,
-	menu_stack: Vec<ActiveMenu, 4>
+	menu_stack: Vec<ActiveMenu, 4>,
 }
 
 impl GuiHandler {
 	pub fn new(flash_store: &mut MyFlashStore, display: display::Display) -> GuiHandler {
 		let mut menu_stack = Vec::new();
-		menu_stack.push(ActiveMenu::MainScreen(gui::MainScreenState::new())).map_err(|_| ()).unwrap();
-		menu_stack.push(ActiveMenu::MainMenu(gui::MenuState::new(0))).map_err(|_| ()).unwrap();
+		menu_stack
+			.push(ActiveMenu::MainScreen(gui::MainScreenState::new()))
+			.map_err(|_| ())
+			.unwrap();
+		menu_stack
+			.push(ActiveMenu::MainMenu(gui::MenuState::new(0)))
+			.map_err(|_| ())
+			.unwrap();
 
 		GuiHandler {
 			data: GuiData {
@@ -99,10 +105,10 @@ impl GuiHandler {
 				flash_used_bytes: flash_store.used_space(),
 				dirty: false,
 				preset: Preset::new(), // this gets overwritten on every process() anyway
-				preset_changed: false
+				preset_changed: false,
 			},
 			display,
-			menu_stack
+			menu_stack,
 		}
 	}
 
@@ -116,22 +122,28 @@ impl GuiHandler {
 		self.display.clear(Rgb565::BLACK).unwrap();
 	}
 
-	fn handle_main_screen(data: &mut GuiData, state: &mut gui::MainScreenState, input: UserInput, flash_store: &mut MyFlashStore, display: &mut display::Display) -> NavigateAction {
+	fn handle_main_screen(
+		data: &mut GuiData,
+		state: &mut gui::MainScreenState,
+		input: UserInput,
+		flash_store: &mut MyFlashStore,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		state.process(
 			data.preset_idx,
 			&data.preset,
 			data.dirty,
-			(data.flash_used_bytes.unwrap_or(9999), flash::FlashAdapter::SIZE),
+			(
+				data.flash_used_bytes.unwrap_or(9999),
+				flash::FlashAdapter::SIZE,
+			),
 			display,
 		);
 		if input.scroll != 0 {
 			if !data.dirty {
 				data.preset_idx = (data.preset_idx as i16 + input.scroll).rem_euclid(10) as usize;
-				data.preset = flash::read_preset_from_flash(
-					data.preset_idx as u8,
-					flash_store,
-				)
-				.unwrap_or(Preset::new());
+				data.preset = flash::read_preset_from_flash(data.preset_idx as u8, flash_store)
+					.unwrap_or(Preset::new());
 				data.preset_changed = true;
 			}
 			else {
@@ -147,7 +159,13 @@ impl GuiHandler {
 		}
 	}
 
-	fn handle_save_destination(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, flash_store: &mut MyFlashStore, display: &mut display::Display) -> NavigateAction {
+	fn handle_save_destination(
+		data: &mut GuiData,
+		menu_state: &mut gui::MenuState,
+		input: UserInput,
+		flash_store: &mut MyFlashStore,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		use flash::SaveError;
 		let result = menu_state.process(
 			input,
@@ -159,7 +177,8 @@ impl GuiHandler {
 			gui::MenuAction::Activated(index) => {
 				if data.dirty || index != data.preset_idx {
 					debugln!("Going to save settings to flash");
-					let result = flash::save_preset_to_flash(index as u8, &data.preset, flash_store);
+					let result =
+						flash::save_preset_to_flash(index as u8, &data.preset, flash_store);
 					match result {
 						Ok(()) => {
 							data.dirty = false;
@@ -196,7 +215,13 @@ impl GuiHandler {
 		Stay
 	}
 
-	fn handle_message(data: &mut GuiData, state: &mut gui::MessageState, input: UserInput, flash_store: &mut MyFlashStore, display: &mut display::Display) -> NavigateAction {
+	fn handle_message(
+		data: &mut GuiData,
+		state: &mut gui::MessageState,
+		input: UserInput,
+		flash_store: &mut MyFlashStore,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		match state.process(input, display) {
 			gui::MenuAction::Activated(_) => {
 				match state.action {
@@ -214,11 +239,16 @@ impl GuiHandler {
 				}
 				return Pop;
 			}
-			gui::MenuAction::Continue => Stay
+			gui::MenuAction::Continue => Stay,
 		}
 	}
 
-	fn handle_event_routing(data: &mut GuiData, grid_state: &mut gui::GridState<EventRouteMode, 8, 8>, input: UserInput, display: &mut display::Display) -> NavigateAction {
+	fn handle_event_routing(
+		data: &mut GuiData,
+		grid_state: &mut gui::GridState<EventRouteMode, 8, 8>,
+		input: UserInput,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		let result = grid_state.process(
 			input,
 			&mut data.preset.event_routing_table,
@@ -253,7 +283,12 @@ impl GuiHandler {
 		Stay
 	}
 
-	fn handle_clock_routing(data: &mut GuiData, grid_state: &mut gui::GridState<u8, 8, 8>, input: UserInput, display: &mut display::Display) -> NavigateAction {
+	fn handle_clock_routing(
+		data: &mut GuiData,
+		grid_state: &mut gui::GridState<u8, 8, 8>,
+		input: UserInput,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		let result = grid_state.process(
 			input,
 			&mut data.preset.clock_routing_table,
@@ -278,7 +313,12 @@ impl GuiHandler {
 		Stay
 	}
 
-	fn handle_trs_mode_select(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
+	fn handle_trs_mode_select(
+		data: &mut GuiData,
+		menu_state: &mut gui::MenuState,
+		input: UserInput,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		let mut entries = Vec::<String<8>, 16>::new();
 		for i in 4..12 {
 			// FIXME hardcoded
@@ -305,12 +345,7 @@ impl GuiHandler {
 				.chain(core::iter::once("Back")),
 		);
 
-		let result = menu_state.process(
-			input,
-			"TRS Mode Select",
-			&entries_str,
-			display,
-		);
+		let result = menu_state.process(input, "TRS Mode Select", &entries_str, display);
 		match result {
 			gui::MenuAction::Activated(index) => {
 				if index == entries_str.len() - 1 {
@@ -318,8 +353,7 @@ impl GuiHandler {
 				}
 				else {
 					data.mode_mask ^= 1 << (index + 4);
-					OUTPUT_MASK
-						.store(mode_mask_to_output_mask(data.mode_mask), Ordering::Relaxed);
+					OUTPUT_MASK.store(mode_mask_to_output_mask(data.mode_mask), Ordering::Relaxed);
 					menu_state.schedule_redraw();
 				}
 			}
@@ -328,7 +362,13 @@ impl GuiHandler {
 		Stay
 	}
 
-	fn handle_main_menu(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, flash_store: &mut MyFlashStore, display: &mut display::Display) -> NavigateAction {
+	fn handle_main_menu(
+		data: &mut GuiData,
+		menu_state: &mut gui::MenuState,
+		input: UserInput,
+		flash_store: &mut MyFlashStore,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		let result = menu_state.process(
 			input,
 			"Main Menu",
@@ -354,13 +394,14 @@ impl GuiHandler {
 				0 => Push(ActiveMenu::EventRouting(gui::GridState::new())),
 				1 => Push(ActiveMenu::ClockRouting(gui::GridState::new())),
 				2 => Push(ActiveMenu::Settings(gui::MenuState::new(0))),
-				3 => Push(ActiveMenu::SaveDestination(gui::MenuState::new(data.preset_idx))),
+				3 => Push(ActiveMenu::SaveDestination(gui::MenuState::new(
+					data.preset_idx,
+				))),
 				4 => {
 					if data.dirty {
-						if let Ok(pr) = flash::read_preset_from_flash(
-							data.preset_idx as u8,
-							flash_store,
-						) {
+						if let Ok(pr) =
+							flash::read_preset_from_flash(data.preset_idx as u8, flash_store)
+						{
 							data.preset = pr;
 							data.dirty = false;
 							data.preset_changed = true;
@@ -376,26 +417,27 @@ impl GuiHandler {
 					Stay
 				}
 				6 => Push(ActiveMenu::Message(gui::MessageState::new(
-						&["Delete all data?", "Turn off to", "abort"],
-						"Yes",
-						gui::MessageAction::ClearFlash,
-					))),
+					&["Delete all data?", "Turn off to", "abort"],
+					"Yes",
+					gui::MessageAction::ClearFlash,
+				))),
 				7 => Pop,
-				_ => unreachable!()
+				_ => unreachable!(),
 			},
-			_ => Stay
+			_ => Stay,
 		}
 	}
 
-	fn handle_settings_menu(_data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
+	fn handle_settings_menu(
+		_data: &mut GuiData,
+		menu_state: &mut gui::MenuState,
+		input: UserInput,
+		display: &mut display::Display,
+	) -> NavigateAction {
 		let result = menu_state.process(
 			input,
 			"Settings Menu",
-			&[
-				"TRS mode A/B select",
-				"Self test",
-				"Back",
-			],
+			&["TRS mode A/B select", "Self test", "Back"],
 			display,
 		);
 		match result {
@@ -403,50 +445,84 @@ impl GuiHandler {
 				0 => Push(ActiveMenu::TrsModeSelect(gui::MenuState::new(0))),
 				1 => Push(ActiveMenu::SelfTest(gui::MenuState::new(0))),
 				2 => Pop,
-				_ => unreachable!()
+				_ => unreachable!(),
 			},
-			_ => Stay
+			_ => Stay,
 		}
 	}
 
-	fn handle_selftest(_data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
-		let result = menu_state.process(
-			input,
-			"Self test",
-			&[
-				"TODO",
-				"Self test",
-				"Back",
-			],
-			display,
-		);
+	fn handle_selftest(
+		_data: &mut GuiData,
+		menu_state: &mut gui::MenuState,
+		input: UserInput,
+		display: &mut display::Display,
+	) -> NavigateAction {
+		let result =
+			menu_state.process(input, "Self test", &["TODO", "Self test", "Back"], display);
 
 		match result {
 			gui::MenuAction::Activated(_) => Pop,
-			_ => Stay
+			_ => Stay,
 		}
 	}
 
-	pub fn process(&mut self, input: UserInput, flash_store: &mut MyFlashStore, current_preset: Preset) {
+	pub fn process(
+		&mut self,
+		input: UserInput,
+		flash_store: &mut MyFlashStore,
+		current_preset: Preset,
+	) {
 		self.data.preset = current_preset; // Ugh. lots of copies. FIXME
-		
+
 		let menu_change = match self.menu_stack.last_mut().unwrap() {
-			ActiveMenu::Message(ref mut state) => Self::handle_message(&mut self.data, state, input, flash_store, &mut self.display),
-			ActiveMenu::MainScreen(ref mut state) => Self::handle_main_screen(&mut self.data, state, input, flash_store, &mut self.display),
-			ActiveMenu::MainMenu(ref mut state) => Self::handle_main_menu(&mut self.data, state, input, flash_store, &mut self.display),
-			ActiveMenu::SaveDestination(ref mut state) => Self::handle_save_destination(&mut self.data, state, input, flash_store, &mut self.display),
-			ActiveMenu::TrsModeSelect(ref mut state) => Self::handle_trs_mode_select(&mut self.data, state, input, &mut self.display),
-			ActiveMenu::EventRouting(ref mut state) => Self::handle_event_routing(&mut self.data, state, input, &mut self.display),
-			ActiveMenu::ClockRouting(ref mut state) => Self::handle_clock_routing(&mut self.data, state, input, &mut self.display),
-			ActiveMenu::Settings(ref mut state) => Self::handle_settings_menu(&mut self.data, state, input, &mut self.display),
-			ActiveMenu::SelfTest(ref mut state) => Self::handle_selftest(&mut self.data, state, input, &mut self.display),
+			ActiveMenu::Message(ref mut state) => {
+				Self::handle_message(&mut self.data, state, input, flash_store, &mut self.display)
+			}
+			ActiveMenu::MainScreen(ref mut state) => Self::handle_main_screen(
+				&mut self.data,
+				state,
+				input,
+				flash_store,
+				&mut self.display,
+			),
+			ActiveMenu::MainMenu(ref mut state) => {
+				Self::handle_main_menu(&mut self.data, state, input, flash_store, &mut self.display)
+			}
+			ActiveMenu::SaveDestination(ref mut state) => Self::handle_save_destination(
+				&mut self.data,
+				state,
+				input,
+				flash_store,
+				&mut self.display,
+			),
+			ActiveMenu::TrsModeSelect(ref mut state) => {
+				Self::handle_trs_mode_select(&mut self.data, state, input, &mut self.display)
+			}
+			ActiveMenu::EventRouting(ref mut state) => {
+				Self::handle_event_routing(&mut self.data, state, input, &mut self.display)
+			}
+			ActiveMenu::ClockRouting(ref mut state) => {
+				Self::handle_clock_routing(&mut self.data, state, input, &mut self.display)
+			}
+			ActiveMenu::Settings(ref mut state) => {
+				Self::handle_settings_menu(&mut self.data, state, input, &mut self.display)
+			}
+			ActiveMenu::SelfTest(ref mut state) => {
+				Self::handle_selftest(&mut self.data, state, input, &mut self.display)
+			}
 		};
 
 		debug_assert!(self.menu_stack.len() >= 1);
 		match menu_change {
 			Stay => {}
-			Push(new_menu) => { if self.menu_stack.push(new_menu).is_err() { unreachable!(); } }
-			Goto(new_menu) => {*self.menu_stack.last_mut().unwrap() = new_menu;}
+			Push(new_menu) => {
+				if self.menu_stack.push(new_menu).is_err() {
+					unreachable!();
+				}
+			}
+			Goto(new_menu) => {
+				*self.menu_stack.last_mut().unwrap() = new_menu;
+			}
 			Pop => {
 				self.menu_stack.pop();
 				self.menu_stack.last_mut().unwrap().schedule_redraw();
@@ -456,9 +532,7 @@ impl GuiHandler {
 }
 
 pub(crate) fn gui_task(c: gui_task::Context) {
-	let gui_task::SharedResources {
-		mut current_preset,
-	} = c.shared;
+	let gui_task::SharedResources { mut current_preset } = c.shared;
 	let gui_task::LocalResources {
 		gui_handler,
 		delay,

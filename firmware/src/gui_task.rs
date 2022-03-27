@@ -37,6 +37,8 @@ enum ActiveMenu {
 	TrsModeSelect(gui::MenuState),
 	SaveDestination(gui::MenuState),
 	Message(gui::MessageState),
+	Settings(gui::MenuState),
+	SelfTest(gui::MenuState),
 }
 
 
@@ -280,7 +282,7 @@ impl GuiHandler {
 		match result {
 			gui::MenuAction::Activated(index) => {
 				if index == entries_str.len() - 1 {
-					return Some(ActiveMenu::MainMenu(gui::MenuState::new(2)));
+					return Some(ActiveMenu::Settings(gui::MenuState::new(0)));
 				}
 				else {
 					data.mode_mask ^= 1 << (index + 4);
@@ -301,7 +303,7 @@ impl GuiHandler {
 			&[
 				"Event routing",
 				"Clock routing",
-				"TRS mode A/B select",
+				"Settings",
 				"Save",
 				if data.dirty {
 					"Revert to saved"
@@ -319,7 +321,7 @@ impl GuiHandler {
 			gui::MenuAction::Activated(index) => match index {
 				0 => Some(ActiveMenu::EventRouting(gui::GridState::new())),
 				1 => Some(ActiveMenu::ClockRouting(gui::GridState::new())),
-				2 => Some(ActiveMenu::TrsModeSelect(gui::MenuState::new(0))),
+				2 => Some(ActiveMenu::Settings(gui::MenuState::new(0))),
 				3 => Some(ActiveMenu::SaveDestination(gui::MenuState::new(data.preset_idx))),
 				4 => {
 					if data.dirty {
@@ -353,6 +355,46 @@ impl GuiHandler {
 		}
 	}
 
+	fn handle_settings_menu(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> Option<ActiveMenu> {
+		let result = menu_state.process(
+			input,
+			"Settings Menu",
+			&[
+				"TRS mode A/B select",
+				"Self test",
+				"Back",
+			],
+			display,
+		);
+		match result {
+			gui::MenuAction::Activated(index) => match index {
+				0 => Some(ActiveMenu::TrsModeSelect(gui::MenuState::new(0))),
+				1 => Some(ActiveMenu::SelfTest(gui::MenuState::new(0))),
+				2 => Some(ActiveMenu::MainMenu(gui::MenuState::new(2))),
+				_ => unreachable!()
+			},
+			_ => None
+		}
+	}
+
+	fn handle_selftest(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> Option<ActiveMenu> {
+		let result = menu_state.process(
+			input,
+			"Self test",
+			&[
+				"TODO",
+				"Self test",
+				"Back",
+			],
+			display,
+		);
+
+		match result {
+			gui::MenuAction::Activated(_) => Some(ActiveMenu::Settings(gui::MenuState::new(1))),
+			_ => None
+		}
+	}
+
 	pub fn process(&mut self, input: UserInput, flash_store: &mut MyFlashStore, current_preset: Preset) {
 		self.data.preset = current_preset; // Ugh. lots of copies. FIXME
 		
@@ -364,6 +406,8 @@ impl GuiHandler {
 			ActiveMenu::TrsModeSelect(ref mut state) => Self::handle_trs_mode_select(&mut self.data, state, input, &mut self.display),
 			ActiveMenu::EventRouting(ref mut state) => Self::handle_event_routing(&mut self.data, state, input, &mut self.display),
 			ActiveMenu::ClockRouting(ref mut state) => Self::handle_clock_routing(&mut self.data, state, input, &mut self.display),
+			ActiveMenu::Settings(ref mut state) => Self::handle_settings_menu(&mut self.data, state, input, &mut self.display),
+			ActiveMenu::SelfTest(ref mut state) => Self::handle_selftest(&mut self.data, state, input, &mut self.display),
 		};
 
 		if let Some(new_menu) = menu_change {

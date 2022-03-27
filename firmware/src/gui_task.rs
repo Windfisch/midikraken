@@ -6,7 +6,7 @@ use crate::preset::*;
 use crate::OUTPUT_MASK;
 use core::fmt::Write;
 use core::sync::atomic::Ordering;
-use heapless;
+use heapless::{Vec, String};
 use rtic::mutex_prelude::*;
 use simple_flash_store::FlashTrait;
 use simple_flash_store::FlashStoreError;
@@ -83,12 +83,12 @@ struct GuiData {
 pub struct GuiHandler {
 	display: display::Display,
 	data: GuiData,
-	menu_stack: heapless::Vec<ActiveMenu, 4>
+	menu_stack: Vec<ActiveMenu, 4>
 }
 
 impl GuiHandler {
 	pub fn new(flash_store: &mut MyFlashStore, display: display::Display) -> GuiHandler {
-		let mut menu_stack = heapless::Vec::new();
+		let mut menu_stack = Vec::new();
 		menu_stack.push(ActiveMenu::MainScreen(gui::MainScreenState::new()));
 		menu_stack.push(ActiveMenu::MainMenu(gui::MenuState::new(0)));
 
@@ -279,10 +279,10 @@ impl GuiHandler {
 	}
 
 	fn handle_trs_mode_select(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
-		let mut entries = heapless::Vec::<heapless::String<8>, 16>::new();
+		let mut entries = Vec::<String<8>, 16>::new();
 		for i in 4..12 {
 			// FIXME hardcoded
-			let mut string = heapless::String::new();
+			let mut string = String::new();
 			write!(
 				&mut string,
 				"{:2}: {}",
@@ -298,7 +298,7 @@ impl GuiHandler {
 			entries.push(string).unwrap();
 		}
 		use core::iter::FromIterator;
-		let entries_str = heapless::Vec::<_, 16>::from_iter(
+		let entries_str = Vec::<_, 16>::from_iter(
 			entries
 				.iter()
 				.map(|v| v.as_str())

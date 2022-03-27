@@ -42,7 +42,7 @@ macro_rules! active_style {
 	}};
 }
 
-pub(super) use title_style;
+//pub(super) use title_style;
 pub(super) use normal_style;
 pub(super) use selected_style;
 pub(super) use active_style;

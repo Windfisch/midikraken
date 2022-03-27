@@ -89,8 +89,8 @@ pub struct GuiHandler {
 impl GuiHandler {
 	pub fn new(flash_store: &mut MyFlashStore, display: display::Display) -> GuiHandler {
 		let mut menu_stack = Vec::new();
-		menu_stack.push(ActiveMenu::MainScreen(gui::MainScreenState::new()));
-		menu_stack.push(ActiveMenu::MainMenu(gui::MenuState::new(0)));
+		menu_stack.push(ActiveMenu::MainScreen(gui::MainScreenState::new())).map_err(|_| ()).unwrap();
+		menu_stack.push(ActiveMenu::MainMenu(gui::MenuState::new(0))).map_err(|_| ()).unwrap();
 
 		GuiHandler {
 			data: GuiData {
@@ -387,7 +387,7 @@ impl GuiHandler {
 		}
 	}
 
-	fn handle_settings_menu(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
+	fn handle_settings_menu(_data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
 		let result = menu_state.process(
 			input,
 			"Settings Menu",
@@ -409,7 +409,7 @@ impl GuiHandler {
 		}
 	}
 
-	fn handle_selftest(data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
+	fn handle_selftest(_data: &mut GuiData, menu_state: &mut gui::MenuState, input: UserInput, display: &mut display::Display) -> NavigateAction {
 		let result = menu_state.process(
 			input,
 			"Self test",

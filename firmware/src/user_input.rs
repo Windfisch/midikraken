@@ -11,15 +11,6 @@ pub type RotaryKnobTimer = stm32f1xx_hal::qei::Qei<
 
 pub type RotaryKnobButton = gpioc::PC15<Input<PullUp>>;
 
-		type Display = st7789::ST7789<
-			display_interface_spi::SPIInterfaceNoCS<
-				dma_adapter::WriteDmaToWriteAdapter,
-				gpioa::PA2<Output<PushPull>>,
-			>,
-			gpioa::PA1<Output<PushPull>>,
-		>;
-
-
 pub struct UserInputHandler {
 	old_pressed: bool,
 	debounce: u8,

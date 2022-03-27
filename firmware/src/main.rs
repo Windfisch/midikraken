@@ -30,6 +30,7 @@ mod dma_adapter;
 mod gui;
 mod gui_task;
 mod user_input;
+mod display;
 
 #[allow(unused_imports)]
 use debugln::*;
@@ -51,7 +52,7 @@ use stm32f1xx_hal::time::Hertz;
 use stm32f1xx_hal::usb::{Peripheral, UsbBus, UsbBusType};
 use stm32f1xx_hal::{
 	dma,
-	gpio::{gpioa, gpiob, gpioc, Alternate, Floating, Input, Output, PullUp, PushPull},
+	gpio::{gpioa, gpiob, gpioc, Alternate, Floating, Input, Output, PushPull},
 	prelude::*,
 	serial, spi, stm32, timer,
 };
@@ -169,13 +170,7 @@ mod app {
 			>,
 		>,
 
-		display: st7789::ST7789<
-			display_interface_spi::SPIInterfaceNoCS<
-				WriteDmaToWriteAdapter,
-				gpioa::PA2<Output<PushPull>>,
-			>,
-			gpioa::PA1<Output<PushPull>>,
-		>,
+		display: display::Display,
 		delay: stm32f1xx_hal::delay::Delay,
 
 		user_input_handler: user_input::UserInputHandler,

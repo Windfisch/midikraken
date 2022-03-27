@@ -1,7 +1,6 @@
 use stm32f1xx_hal::prelude::*;
-use stm32f1xx_hal::gpio::{gpiob, gpioc, gpioa};
-use stm32f1xx_hal::gpio::{Input,PullUp,Output,PushPull};
-use crate::dma_adapter;
+use stm32f1xx_hal::gpio::{gpiob, gpioc};
+use stm32f1xx_hal::gpio::{Input,PullUp};
 
 pub type RotaryKnobTimer = stm32f1xx_hal::qei::Qei<
 		stm32f1xx_hal::stm32::TIM4,

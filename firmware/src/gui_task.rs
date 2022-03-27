@@ -16,6 +16,8 @@ use crate::display;
 
 use crate::flash::MyFlashStore;
 
+use embedded_hal::blocking::delay::DelayUs;
+
 fn mode_mask_to_output_mask(mode_mask: u32) -> u32 {
 	let a_part = (mode_mask & 0x000F)
 		| ((mode_mask & 0x00F0) << 4)
@@ -55,7 +57,7 @@ pub struct GuiHandler {
 }
 
 impl GuiHandler {
-	pub fn new(flash_store: &mut MyFlashStore) -> GuiHandler {
+	pub fn new(flash_store: &mut MyFlashStore, display: display::Display) -> GuiHandler {
 		GuiHandler {
 			data: GuiData {
 				preset_idx: 0,
@@ -65,9 +67,19 @@ impl GuiHandler {
 				preset: Preset::new(), // this gets overwritten on every process() anyway
 				preset_changed: false
 			},
-			display: todo!(),
+			display,
 			active_menu: ActiveMenu::MainMenu(gui::MenuState::new(0))
 		}
+	}
+
+	pub fn init(&mut self, delay: &mut impl DelayUs<u32>) {
+		use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
+
+		self.display.init(delay).unwrap();
+		self.display
+			.set_orientation(st7789::Orientation::PortraitSwapped)
+			.unwrap();
+		self.display.clear(Rgb565::BLACK).unwrap();
 	}
 
 	fn handle_main_screen(data: &mut GuiData, state: &mut gui::MainScreenState, input: UserInput, flash_store: &mut MyFlashStore, display: &mut display::Display) -> Option<ActiveMenu> {
@@ -365,21 +377,13 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 		mut current_preset,
 	} = c.shared;
 	let gui_task::LocalResources {
-		display,
+		gui_handler,
 		delay,
 		user_input_handler,
 		flash_store,
 	} = c.local;
 
-	display.init(delay).unwrap();
-	display
-		.set_orientation(st7789::Orientation::PortraitSwapped)
-		.unwrap();
-	display.clear(Rgb565::BLACK).unwrap();
-
-	use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
-
-	let mut gui_handler = GuiHandler::new(flash_store);
+	gui_handler.init(delay);
 
 	loop {
 		delay.delay_ms(1u8);
@@ -391,7 +395,7 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 
 		if gui_handler.data.preset_changed {
 			current_preset.lock(|p| *p = gui_handler.data.preset);
+			gui_handler.data.preset_changed = false;
 		}
-
 	}
 }

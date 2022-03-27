@@ -52,7 +52,7 @@ use stm32f1xx_hal::time::Hertz;
 use stm32f1xx_hal::usb::{Peripheral, UsbBus, UsbBusType};
 use stm32f1xx_hal::{
 	dma,
-	gpio::{gpioa, gpiob, gpioc, Alternate, Floating, Input, Output, PushPull},
+	gpio::{gpiob, gpioc, Alternate, Floating, Input, Output, PushPull},
 	prelude::*,
 	serial, spi, stm32, timer,
 };
@@ -118,6 +118,8 @@ mod app {
 	static mut USB_BUS: Option<usb_device::bus::UsbBusAllocator<UsbBusType>> = None;
 
 	use super::*; // FIXME
+	use crate::gui_task::GuiHandler;
+
 	#[shared]
 	struct Resources {
 		tx: serial::Tx<stm32::USART1>,
@@ -170,7 +172,7 @@ mod app {
 			>,
 		>,
 
-		display: display::Display,
+		gui_handler: GuiHandler,
 		delay: stm32f1xx_hal::delay::Delay,
 
 		user_input_handler: user_input::UserInputHandler,
@@ -409,7 +411,7 @@ mod app {
 				bench_timer,
 				dma_transfer: Some(spi_dma_transfer),
 				spi_strobe_pin,
-				display,
+				gui_handler: GuiHandler::new(&mut flash_store, display),
 				delay,
 				user_input_handler: user_input::UserInputHandler::new(knob_timer, knob_button),
 				flash_store,
@@ -574,7 +576,7 @@ mod app {
 
 	use crate::gui_task::gui_task;
 	extern "Rust" {
-		#[task(shared = [current_preset], local = [display, delay, user_input_handler, flash_store], priority = 1)]
+		#[task(shared = [current_preset], local = [gui_handler, delay, user_input_handler, flash_store], priority = 1)]
 		fn gui_task(c: gui_task::Context);
 	}
 

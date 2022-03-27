@@ -254,6 +254,10 @@ impl MainScreenState {
 		self.dirty_blinking = Self::DIRTY_BLINK_MOD * 2 * Self::DIRTY_BLINK_N;
 	}
 
+	pub fn schedule_redraw(&mut self) {
+		self.redraw_pending = true;
+	}
+
 	pub fn process(
 		&mut self,
 		preset_idx: usize,
@@ -527,5 +531,9 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 		else {
 			return GridAction::NoAction;
 		}
+	}
+
+	pub fn schedule_redraw(&mut self) {
+		self.redraw_pending = true;
 	}
 }

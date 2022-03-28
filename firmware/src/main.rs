@@ -472,74 +472,55 @@ mod app {
 					_ => false,
 				};
 
-				let ylen = c
-					.shared
-					.current_preset
-					.lock(|cp| cp.event_routing_table[0].len());
-				let xlen = c
-					.shared
-					.current_preset
-					.lock(|cp| cp.event_routing_table.len());
+				let clock_count = &mut c.local.clock_count;
+				let midi_out_queues = &mut c.shared.midi_out_queues;
+				c.shared.current_preset.lock(|cp| {
+					debug_assert!(cp.clock_routing_table.len() == cp.event_routing_table.len());
+					debug_assert!(
+						cp.clock_routing_table[0].len() == cp.event_routing_table[0].len()
+					);
+					let xlen = cp.clock_routing_table.len();
+					let ylen = cp.clock_routing_table[0].len();
+					debug_assert!(ylen == clock_count.len());
 
-				assert!(
-					xlen == c
-						.shared
-						.current_preset
-						.lock(|cp| cp.clock_routing_table.len())
-				);
-				assert!(
-					ylen == c
-						.shared
-						.current_preset
-						.lock(|cp| cp.clock_routing_table[0].len())
-				);
-				assert!(ylen == c.local.clock_count.len());
-				if (cable as usize) < ylen {
-					let cable_in = cable as usize;
+					if (cable as usize) < ylen {
+						let cable_in = cable as usize;
 
-					for cable_out in 0..xlen {
-						let forward_event = match c
-							.shared
-							.current_preset
-							.lock(|cp| cp.event_routing_table[cable_out][cable_in])
-						{
-							EventRouteMode::Both => is_control_ish || is_keyboard_ish,
-							EventRouteMode::Controller => is_control_ish,
-							EventRouteMode::Keyboard => is_keyboard_ish,
-							EventRouteMode::None => false,
-						};
+						for cable_out in 0..xlen {
+							let forward_event = match cp.event_routing_table[cable_out][cable_in] {
+								EventRouteMode::Both => is_control_ish || is_keyboard_ish,
+								EventRouteMode::Controller => is_control_ish,
+								EventRouteMode::Keyboard => is_keyboard_ish,
+								EventRouteMode::None => false,
+							};
 
-						let forward_clock = match c
-							.shared
-							.current_preset
-							.lock(|cp| cp.clock_routing_table[cable_out][cable_in])
-						{
-							0 => false,
-							division => {
-								is_transport
-									|| (is_clock
-										&& c.local.clock_count[cable_in] % (division as u16) == 0)
+							let forward_clock = match cp.clock_routing_table[cable_out][cable_in] {
+								0 => false,
+								division => {
+									is_transport
+										|| (is_clock
+											&& clock_count[cable_in] % (division as u16) == 0)
+								}
+							};
+
+							if forward_event || forward_clock {
+								midi_out_queues
+									.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
+								send_task::spawn().ok();
 							}
-						};
+						}
 
-						if forward_event || forward_clock {
-							c.shared
-								.midi_out_queues
-								.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
-							send_task::spawn().ok();
+						if usb_message[1] == 0xFA {
+							// start
+							clock_count[cable_in] = 0;
+						}
+						if usb_message[1] == 0xF8 {
+							// clock
+							clock_count[cable_in] = (clock_count[cable_in] + 1) % 27720;
+							// 27720 is the least common multiple of 1,2,...,12
 						}
 					}
-
-					if usb_message[1] == 0xFA {
-						// start
-						c.local.clock_count[cable_in] = 0;
-					}
-					if usb_message[1] == 0xF8 {
-						// clock
-						c.local.clock_count[cable_in] = (c.local.clock_count[cable_in] + 1) % 27720;
-						// 27720 is the least common multiple of 1,2,...,12
-					}
-				}
+				});
 			}
 		}
 	}

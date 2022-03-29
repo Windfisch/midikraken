@@ -31,6 +31,8 @@ mod dma_adapter;
 mod gui;
 mod gui_task;
 mod user_input;
+mod midi_filter_queue;
+
 
 #[allow(unused_imports)]
 use debugln::*;
@@ -41,12 +43,13 @@ use parse_midi;
 
 use flash::MyFlashStore;
 use simple_flash_store::FlashStore;
+use midi_filter_queue::{MidiFilterQueue, MidiFilterQueueConsumer, MidiFilterQueueProducer};
 
 use sysex_bootloader::BootloaderSysexStatemachine;
 
 #[allow(unused_imports)]
 use core::fmt::Write;
-use core::sync::atomic::{AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU32, Ordering, AtomicBool};
 use rtic::app;
 use stm32f1xx_hal::time::Hertz;
 use stm32f1xx_hal::usb::{Peripheral, UsbBus, UsbBusType};
@@ -110,6 +113,9 @@ impl Default for MidiOutQueue {
 static mut DMA_BUFFER: DmaPair = DmaPair::zero();
 
 static OUTPUT_MASK: AtomicU32 = AtomicU32::new(0x000000F0); // FIXME init this to F0F0F0F0
+
+/// Used by the GUI to inhibit all USB-MIDI or MIDI routing activity.
+static MIDI_INHIBIT: AtomicBool = AtomicBool::new(false);
 
 #[app(device = stm32f1xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2, EXTI3, EXTI4])]
 mod app {
@@ -177,9 +183,14 @@ mod app {
 
 		user_input_handler: user_input::UserInputHandler,
 		flash_store: MyFlashStore,
+
+		gui_midi_in_producer: MidiFilterQueueProducer<'static, 16>,
+		gui_midi_in_consumer: MidiFilterQueueConsumer<'static, 16>,
 	}
 
-	#[init()]
+	#[init(local = [
+		gui_midi_in: MidiFilterQueue<16> = MidiFilterQueue::<16>::new(),
+	])]
 	fn init(cx: init::Context) -> (Resources, LocalResources, init::Monotonics) {
 		let dp = cx.device;
 
@@ -391,6 +402,8 @@ mod app {
 		let current_preset =
 			flash::read_preset_from_flash(0, &mut flash_store).unwrap_or(Preset::new());
 
+		let (gui_midi_in_producer, gui_midi_in_consumer) = cx.local.gui_midi_in.split();
+
 		gui_task::spawn().unwrap();
 
 		return (
@@ -419,6 +432,8 @@ mod app {
 				flash_store,
 				sw_uart_rx,
 				sw_uart_isr,
+				gui_midi_in_consumer,
+				gui_midi_in_producer,
 			},
 			init::Monotonics(),
 		);
@@ -501,7 +516,7 @@ mod app {
 		}
 	}
 
-	#[task(shared = [queue, midi, current_preset, midi_out_queues], local = [midi_parsers, clock_count], priority = 7)]
+	#[task(shared = [queue, midi, current_preset, midi_out_queues], local = [midi_parsers, clock_count, gui_midi_in_producer], priority = 7)]
 	fn handle_received_byte(c: handle_received_byte::Context) {
 		let handle_received_byte::SharedResources {
 			mut queue,
@@ -512,11 +527,18 @@ mod app {
 		let handle_received_byte::LocalResources {
 			midi_parsers,
 			clock_count,
+			gui_midi_in_producer
 		} = c.local;
 
 		while let Some((cable, byte)) = queue.lock(|q| q.dequeue()) {
 			if let Some(mut usb_message) = midi_parsers[cable as usize].push(byte) {
 				usb_message[0] |= cable << 4;
+
+				gui_midi_in_producer.enqueue(usb_message).ok();
+
+				if MIDI_INHIBIT.load(Ordering::Relaxed) {
+					continue;
+				}
 
 				// send to usb
 				#[cfg(feature = "debugprint_verbose")]
@@ -574,7 +596,7 @@ mod app {
 
 	use crate::gui_task::gui_task;
 	extern "Rust" {
-		#[task(shared = [current_preset], local = [gui_handler, delay, user_input_handler, flash_store], priority = 1)]
+		#[task(shared = [current_preset, midi_out_queues], local = [gui_handler, delay, user_input_handler, flash_store, gui_midi_in_consumer], priority = 1)]
 		fn gui_task(c: gui_task::Context);
 	}
 
@@ -739,7 +761,7 @@ fn usb_poll<B: usb_device::bus::UsbBus>(
 		let cable = (message[0] & 0xF0) >> 4;
 		let is_realtime = message[1] & 0xF8 == 0xF8;
 
-		if enqueue_message(message, &mut midi_out_queues[cable as usize]) {
+		if MIDI_INHIBIT.load(Ordering::Relaxed) || enqueue_message(message, &mut midi_out_queues[cable as usize]) {
 			buffer.acknowledge();
 		}
 		else {

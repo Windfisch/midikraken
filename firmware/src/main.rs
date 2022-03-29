@@ -437,16 +437,91 @@ mod app {
 		handle_received_byte::spawn().ok();
 	}
 
+	fn route_message_internally(
+		usb_message: [u8; 4],
+		cable: u8,
+		clock_count: &mut [u16],
+		midi_out_queues: &mut [MidiOutQueue],
+		preset: &Preset,
+	) {
+		// process for internal routing
+		let is_transport = match usb_message[1] {
+			0xF1 | 0xF2 | 0xF3 | 0xFA | 0xFC => true,
+			_ => false,
+		};
+		let is_clock = usb_message[1] == 0xF8;
+		let is_control_ish = match usb_message[0] & 0x0F {
+			0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true,
+			_ => false,
+		};
+		let is_keyboard_ish = match usb_message[0] & 0x0F {
+			0x8 | 0x9 | 0xA | 0xD => true,
+			_ => false,
+		};
+
+		debug_assert!(preset.clock_routing_table.len() == preset.event_routing_table.len());
+		debug_assert!(preset.clock_routing_table[0].len() == preset.event_routing_table[0].len());
+		let xlen = preset.clock_routing_table.len();
+		let ylen = preset.clock_routing_table[0].len();
+		debug_assert!(ylen == clock_count.len());
+
+		if (cable as usize) < ylen {
+			let cable_in = cable as usize;
+
+			for cable_out in 0..xlen {
+				let forward_event = match preset.event_routing_table[cable_out][cable_in] {
+					EventRouteMode::Both => is_control_ish || is_keyboard_ish,
+					EventRouteMode::Controller => is_control_ish,
+					EventRouteMode::Keyboard => is_keyboard_ish,
+					EventRouteMode::None => false,
+				};
+
+				let forward_clock = match preset.clock_routing_table[cable_out][cable_in] {
+					0 => false,
+					division => {
+						is_transport || (is_clock && clock_count[cable_in] % (division as u16) == 0)
+					}
+				};
+
+				if forward_event || forward_clock {
+					enqueue_message(usb_message, &mut midi_out_queues[cable_out]);
+					send_task::spawn().ok();
+				}
+			}
+
+			if usb_message[1] == 0xFA {
+				// start
+				clock_count[cable_in] = 0;
+			}
+			if usb_message[1] == 0xF8 {
+				// clock
+				clock_count[cable_in] = (clock_count[cable_in] + 1) % 27720;
+				// 27720 is the least common multiple of 1,2,...,12
+			}
+		}
+	}
+
 	#[task(shared = [queue, midi, current_preset, midi_out_queues], local = [midi_parsers, clock_count], priority = 7)]
-	fn handle_received_byte(mut c: handle_received_byte::Context) {
-		while let Some((cable, byte)) = c.shared.queue.lock(|q| q.dequeue()) {
-			if let Some(mut usb_message) = c.local.midi_parsers[cable as usize].push(byte) {
+	fn handle_received_byte(c: handle_received_byte::Context) {
+		let handle_received_byte::SharedResources {
+			mut queue,
+			mut midi,
+			mut current_preset,
+			mut midi_out_queues,
+		} = c.shared;
+		let handle_received_byte::LocalResources {
+			midi_parsers,
+			clock_count,
+		} = c.local;
+
+		while let Some((cable, byte)) = queue.lock(|q| q.dequeue()) {
+			if let Some(mut usb_message) = midi_parsers[cable as usize].push(byte) {
 				usb_message[0] |= cable << 4;
 
 				// send to usb
 				#[cfg(feature = "debugprint_verbose")]
 				debug!("MIDI{} >>> USB {:02X?}... ", cable, usb_message);
-				let _ret = c.shared.midi.lock(|midi| midi.send_bytes(usb_message));
+				let _ret = midi.lock(|midi| midi.send_bytes(usb_message));
 				#[cfg(feature = "debugprint_verbose")]
 				match _ret {
 					Ok(size) => {
@@ -457,69 +532,16 @@ mod app {
 					}
 				}
 
-				// process for internal routing
-				let is_transport = match usb_message[1] {
-					0xF1 | 0xF2 | 0xF3 | 0xFA | 0xFC => true,
-					_ => false,
-				};
-				let is_clock = usb_message[1] == 0xF8;
-				let is_control_ish = match usb_message[0] & 0x0F {
-					0xB | 0xC | 0xE | 0x4 | 0x5 | 0x6 | 0x7 => true,
-					_ => false,
-				};
-				let is_keyboard_ish = match usb_message[0] & 0x0F {
-					0x8 | 0x9 | 0xA | 0xD => true,
-					_ => false,
-				};
-
-				let clock_count = &mut c.local.clock_count;
-				let midi_out_queues = &mut c.shared.midi_out_queues;
-				c.shared.current_preset.lock(|cp| {
-					debug_assert!(cp.clock_routing_table.len() == cp.event_routing_table.len());
-					debug_assert!(
-						cp.clock_routing_table[0].len() == cp.event_routing_table[0].len()
-					);
-					let xlen = cp.clock_routing_table.len();
-					let ylen = cp.clock_routing_table[0].len();
-					debug_assert!(ylen == clock_count.len());
-
-					if (cable as usize) < ylen {
-						let cable_in = cable as usize;
-
-						for cable_out in 0..xlen {
-							let forward_event = match cp.event_routing_table[cable_out][cable_in] {
-								EventRouteMode::Both => is_control_ish || is_keyboard_ish,
-								EventRouteMode::Controller => is_control_ish,
-								EventRouteMode::Keyboard => is_keyboard_ish,
-								EventRouteMode::None => false,
-							};
-
-							let forward_clock = match cp.clock_routing_table[cable_out][cable_in] {
-								0 => false,
-								division => {
-									is_transport
-										|| (is_clock
-											&& clock_count[cable_in] % (division as u16) == 0)
-								}
-							};
-
-							if forward_event || forward_clock {
-								midi_out_queues
-									.lock(|qs| enqueue_message(usb_message, &mut qs[cable_out]));
-								send_task::spawn().ok();
-							}
-						}
-
-						if usb_message[1] == 0xFA {
-							// start
-							clock_count[cable_in] = 0;
-						}
-						if usb_message[1] == 0xF8 {
-							// clock
-							clock_count[cable_in] = (clock_count[cable_in] + 1) % 27720;
-							// 27720 is the least common multiple of 1,2,...,12
-						}
-					}
+				current_preset.lock(|current_preset| {
+					midi_out_queues.lock(|midi_out_queues| {
+						route_message_internally(
+							usb_message,
+							cable,
+							clock_count,
+							midi_out_queues,
+							current_preset,
+						)
+					})
 				});
 			}
 		}

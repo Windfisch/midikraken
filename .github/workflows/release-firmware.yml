@@ -20,7 +20,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-10-03
+          toolchain: nightly-2021-12-29
           override: true
           target: thumbv7m-none-eabi
       - name: version

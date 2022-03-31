@@ -31,7 +31,8 @@ jobs:
         working-directory: firmware
       - uses: ncipollo/release-action@v1
         with:
-          draft: false
+          draft: true
+          bodyFile: "firmware/changelog-one"
           prerelease: false
           name: firmware-${{ steps.version.outputs.version }}
           artifacts: "firmware/midikraken-firmware-${{ steps.version.outputs.version }}.zip"

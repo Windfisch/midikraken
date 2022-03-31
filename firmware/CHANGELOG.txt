@@ -1,0 +1,19 @@
+Changed in version 1.0.1
+------------------------
+
+Added:
+	- Settings menu
+	- Version number in GUI
+	- TRS a/b mode selection via GUI
+	- Hardware self-test program
+
+Changed:
+	- On-flash settings store format
+	- Lots of internal code refactoring
+	- Updated to RTIC 1
+
+Changed in version 0.1.1
+------------------------
+
+This is basically the first release, offering a MIDI USB interface,
+basic internal routing and a GUI.

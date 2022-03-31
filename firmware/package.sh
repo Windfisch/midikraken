@@ -9,10 +9,28 @@ if [ x$VERSION == x ]; then
 	exit 1
 fi
 
+GIT_DESCRIBE_VERSION="`git describe --tags | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+'`"
+
+if [ v$VERSION != $GIT_DESCRIBE_VERSION ]; then
+	echo "Argument $VERSION does not match git describe version $GIT_DESCRIBE_VERSION"
+	exit 1
+fi
+
+if ! head -n 1 CHANGELOG.txt | grep -qF "Changed in version $VERSION"; then
+	echo "CHANGELOG.txt has no "Changed in version $VERSION" entry"
+	exit 1
+fi
+
+
+
 TEMPDIR="$(mktemp -d)"
 OUTDIR="midikraken-firmware-$VERSION"
 
 mkdir "$TEMPDIR/$OUTDIR"
+
+cp CHANGELOG.txt "$TEMPDIR/$OUTDIR"
+head -n1 CHANGELOG.txt > changelog-one
+tail -n +2 CHANGELOG.txt | sed '/Changed in version/q' | head -n -1 >> changelog-one
 
 PWD_OLD="`pwd`"
 make release.dfu.bin

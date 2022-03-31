@@ -558,9 +558,9 @@ checksum = "bc4010833aea396656c2f91ee704d51a6f1329ec2ab56ffd00bfd56f7481ea94"
 
 [[package]]
 name = "midikraken"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
- "cortex-m 0.7.4",
+ "cortex-m 0.6.7",
  "cortex-m-rt",
  "cortex-m-rtic",
  "display-interface",

@@ -457,14 +457,20 @@ impl GuiHandler {
 		let result = menu_state.process(
 			input,
 			"Settings Menu",
-			&["TRS mode A/B select", "Self test", "Back"],
+			&[
+				"TRS mode A/B select",
+				"Self test",
+				env!("VERGEN_GIT_SEMVER"),
+				"Back"
+			],
 			display,
 		);
 		match result {
 			gui::MenuAction::Activated(index) => match index {
 				0 => Push(ActiveMenu::TrsModeSelect(gui::MenuState::new(0))),
 				1 => Push(ActiveMenu::SelfTest(SelfTestState::new())),
-				2 => Pop,
+				2 => Stay,
+				3 => Pop,
 				_ => unreachable!(),
 			},
 			_ => Stay,

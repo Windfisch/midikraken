@@ -36,7 +36,7 @@ simple-flash-store = { git = "https://github.com/Windfisch/simple-flash-store", 
 #simple-flash-store = { path = "/home/flo/simple-flash-store" }
 
 [build-dependencies]
-vergen = "3"
+vergen = { version = "7", features = ["git", "build"] }
 
 [patch.crates-io]
 stm32f1xx-hal = { git = "https://github.com/Windfisch/stm32f1xx-hal", branch="midikraken" }

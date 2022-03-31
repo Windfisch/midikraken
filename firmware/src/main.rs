@@ -273,7 +273,7 @@ mod app {
 				"========================================================"
 			)
 			.ok();
-			writeln!(tx, "midikraken @ {}", env!("VERGEN_SHA")).ok();
+			writeln!(tx, "midikraken {} @ {}", env!("VERGEN_GIT_SEMVER"), env!("VERGEN_GIT_SHA")).ok();
 			writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 			if cfg!(feature = "bootloader") {
 				writeln!(tx, "      bootloader enabled").ok();

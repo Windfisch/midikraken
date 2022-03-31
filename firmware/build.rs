@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-use vergen::{generate_cargo_keys, ConstantsFlags};
+use vergen::{Config, vergen};
 
 fn main() {
 	// Put the linker script somewhere the linker can find it
@@ -21,6 +21,5 @@ fn main() {
 	println!("cargo:rerun-if-changed=memory-nobootloader.x");
 	println!("cargo:rerun-if-changed=memory-bootloader.x");
 
-	let flags = ConstantsFlags::BUILD_TIMESTAMP | ConstantsFlags::SHA;
-	generate_cargo_keys(flags).expect("Unable to generate the cargo keys!");
+	vergen(Config::default()).unwrap();
 }

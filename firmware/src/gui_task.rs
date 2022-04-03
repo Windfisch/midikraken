@@ -98,12 +98,29 @@ struct GuiData {
 	preset: Preset,
 	preset_changed: bool,
 	dirty: bool,
+	invert_encoder_direction: bool,
 }
 
 pub struct GuiHandler {
 	display: display::Display,
 	data: GuiData,
 	menu_stack: Vec<ActiveMenu, 4>,
+}
+
+fn read_settings(flash_store: &mut MyFlashStore) -> Result<bool, FlashStoreError> {
+	let mut buffer = [0u8; 64];
+	let data = flash_store.read_file(200, &mut buffer)?;
+	if data.len() >= 1 {
+		Ok(data[0] != 0)
+	}
+	else {
+		Ok(false)
+	}
+}
+
+fn write_settings(flash_store: &mut MyFlashStore, invert_encoder_direction: bool) -> Result<(), FlashStoreError> {
+	let data = [if invert_encoder_direction {1u8} else {0u8}];
+	flash_store.write_file(200, &data)
 }
 
 impl GuiHandler {
@@ -118,6 +135,8 @@ impl GuiHandler {
 			.map_err(|_| ())
 			.unwrap();
 
+		let invert_encoder_direction = read_settings(flash_store).unwrap_or(false);
+
 		GuiHandler {
 			data: GuiData {
 				preset_idx: 0,
@@ -126,6 +145,7 @@ impl GuiHandler {
 				dirty: false,
 				preset: Preset::new(), // this gets overwritten on every process() anyway
 				preset_changed: false,
+				invert_encoder_direction
 			},
 			display,
 			menu_stack,
@@ -449,9 +469,10 @@ impl GuiHandler {
 	}
 
 	fn handle_settings_menu(
-		_data: &mut GuiData,
+		data: &mut GuiData,
 		menu_state: &mut gui::MenuState,
 		input: UserInput,
+		flash_store: &mut MyFlashStore,
 		display: &mut display::Display,
 	) -> NavigateAction {
 		let result = menu_state.process(
@@ -460,6 +481,12 @@ impl GuiHandler {
 			&[
 				"TRS mode A/B select",
 				"Self test",
+				if data.invert_encoder_direction {
+					"Invert knob: Yes"
+				}
+				else {
+					"Invert knob: No"
+				},
 				env!("VERGEN_GIT_SEMVER"),
 				"Back"
 			],
@@ -469,8 +496,14 @@ impl GuiHandler {
 			gui::MenuAction::Activated(index) => match index {
 				0 => Push(ActiveMenu::TrsModeSelect(gui::MenuState::new(0))),
 				1 => Push(ActiveMenu::SelfTest(SelfTestState::new())),
-				2 => Stay,
-				3 => Pop,
+				2 => {
+					data.invert_encoder_direction = !data.invert_encoder_direction;
+					menu_state.schedule_redraw();
+					write_settings(flash_store, data.invert_encoder_direction).unwrap(); // FIXME make this nonpanicking
+					Stay
+				}
+				3 => Stay,
+				4 => Pop,
 				_ => unreachable!(),
 			},
 			_ => Stay,
@@ -561,13 +594,17 @@ impl GuiHandler {
 
 	pub fn process(
 		&mut self,
-		input: UserInput,
+		mut input: UserInput,
 		flash_store: &mut MyFlashStore,
 		current_preset: Preset,
 		midi_channel: &mut MidiFilterQueueConsumer<'static, 16>,
 		send_midi: impl FnMut(&[u8], usize)
 	) {
 		self.data.preset = current_preset; // Ugh. lots of copies. FIXME
+
+		if self.data.invert_encoder_direction {
+			input.scroll = -input.scroll;
+		}
 
 		let menu_change = match self.menu_stack.last_mut().unwrap() {
 			ActiveMenu::Message(ref mut state) => {
@@ -600,7 +637,7 @@ impl GuiHandler {
 				Self::handle_clock_routing(&mut self.data, state, input, &mut self.display)
 			}
 			ActiveMenu::Settings(ref mut state) => {
-				Self::handle_settings_menu(&mut self.data, state, input, &mut self.display)
+				Self::handle_settings_menu(&mut self.data, state, input, flash_store, &mut self.display)
 			}
 			ActiveMenu::SelfTest(ref mut state) => {
 				Self::handle_selftest(&mut self.data, state, input, &mut self.display, midi_channel, send_midi)

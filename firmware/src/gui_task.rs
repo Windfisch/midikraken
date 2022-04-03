@@ -92,7 +92,6 @@ enum NavigateAction {
 use NavigateAction::*;
 
 struct GuiData {
-	mode_mask: u32,
 	flash_used_bytes: Result<usize, FlashStoreError>,
 	preset_idx: usize,
 	preset: Preset,
@@ -140,7 +139,6 @@ impl GuiHandler {
 		GuiHandler {
 			data: GuiData {
 				preset_idx: 0,
-				mode_mask: 0xFF0, // FIXME sensible initial value. load this from flash
 				flash_used_bytes: flash_store.used_space(),
 				dirty: false,
 				preset: Preset::new(), // this gets overwritten on every process() anyway
@@ -367,7 +365,7 @@ impl GuiHandler {
 				&mut string,
 				"{:2}: {}",
 				i,
-				if data.mode_mask & (1 << i) != 0 {
+				if data.preset.mode_mask & (1 << i) != 0 {
 					"A  "
 				}
 				else {
@@ -392,8 +390,9 @@ impl GuiHandler {
 					return Pop;
 				}
 				else {
-					data.mode_mask ^= 1 << (index + 4);
-					OUTPUT_MASK.store(mode_mask_to_output_mask(data.mode_mask), Ordering::Relaxed);
+					data.preset.mode_mask ^= 1 << (index + 4);
+					data.dirty = true;
+					data.preset_changed = true;
 					menu_state.schedule_redraw();
 				}
 			}
@@ -699,5 +698,8 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 			current_preset.lock(|p| *p = gui_handler.data.preset);
 			gui_handler.data.preset_changed = false;
 		}
+		
+		// FIXME HACK: this also sets the first output mask which *should* be set when loading the preset in init...
+		OUTPUT_MASK.store(mode_mask_to_output_mask(gui_handler.data.preset.mode_mask), Ordering::Relaxed);
 	}
 }

@@ -1,3 +1,12 @@
+Changed in version 0.2.1
+------------------------
+
+Added:
+	- Invert rotary knob direction
+
+Fixed:
+	- TRS a/b mode is now saved with the preset
+
 Changed in version 0.2.0
 ------------------------
 

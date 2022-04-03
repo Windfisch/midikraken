@@ -4,7 +4,13 @@ use super::style::*;
 use crate::str_writer::*;
 use crate::user_input::UserInput;
 use core::fmt::Write;
-use embedded_graphics::{draw_target::DrawTarget, pixelcolor::Rgb565, prelude::*, text::Text, primitives::{Line, PrimitiveStyle}};
+use embedded_graphics::{
+	draw_target::DrawTarget,
+	pixelcolor::Rgb565,
+	prelude::*,
+	primitives::{Line, PrimitiveStyle},
+	text::Text,
+};
 
 enum GridEditingMode {
 	Selecting,
@@ -107,41 +113,29 @@ impl<T, const COLS: usize, const ROWS: usize> GridState<T, COLS, ROWS> {
 
 		draw_title(title, draw_target);
 
-		Line::new(
-			Point::new(14, 80 + 45),
-			Point::new(14, 80 + 36)
-		)
-		.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
-		.draw(draw_target)
-		.ok()
-		.unwrap();
+		Line::new(Point::new(14, 80 + 45), Point::new(14, 80 + 36))
+			.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
+			.draw(draw_target)
+			.ok()
+			.unwrap();
 
-		Line::new(
-			Point::new(14, 80 + 36),
-			Point::new(25, 80 + 36)
-		)
-		.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
-		.draw(draw_target)
-		.ok()
-		.unwrap();
+		Line::new(Point::new(14, 80 + 36), Point::new(25, 80 + 36))
+			.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
+			.draw(draw_target)
+			.ok()
+			.unwrap();
 
-		Line::new(
-			Point::new(25, 80 + 36),
-			Point::new(25-3, 80 + 36 + 3)
-		)
-		.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
-		.draw(draw_target)
-		.ok()
-		.unwrap();
+		Line::new(Point::new(25, 80 + 36), Point::new(25 - 3, 80 + 36 + 3))
+			.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
+			.draw(draw_target)
+			.ok()
+			.unwrap();
 
-		Line::new(
-			Point::new(25, 80 + 36),
-			Point::new(25-3, 80 + 36 - 3)
-		)
-		.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
-		.draw(draw_target)
-		.ok()
-		.unwrap();
+		Line::new(Point::new(25, 80 + 36), Point::new(25 - 3, 80 + 36 - 3))
+			.into_styled(PrimitiveStyle::with_stroke(Rgb565::WHITE, 1))
+			.draw(draw_target)
+			.ok()
+			.unwrap();
 
 		let mut buf = [0u8; 20];
 		for x in 0..(COLS as i32) {

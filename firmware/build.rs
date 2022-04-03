@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-use vergen::{Config, vergen};
+use vergen::{vergen, Config};
 
 fn main() {
 	// Put the linker script somewhere the linker can find it

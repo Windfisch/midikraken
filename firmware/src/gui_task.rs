@@ -1,12 +1,12 @@
-use crate::MIDI_INHIBIT;
-use crate::midi_filter_queue::MidiFilterQueueConsumer;
 use crate::app::gui_task;
 use crate::debugln::*;
 use crate::display;
 use crate::flash;
 use crate::gui;
+use crate::midi_filter_queue::MidiFilterQueueConsumer;
 use crate::preset::*;
 use crate::user_input::UserInput;
+use crate::MIDI_INHIBIT;
 use crate::OUTPUT_MASK;
 use core::fmt::Write;
 use core::sync::atomic::Ordering;
@@ -117,8 +117,11 @@ fn read_settings(flash_store: &mut MyFlashStore) -> Result<bool, FlashStoreError
 	}
 }
 
-fn write_settings(flash_store: &mut MyFlashStore, invert_encoder_direction: bool) -> Result<(), FlashStoreError> {
-	let data = [if invert_encoder_direction {1u8} else {0u8}];
+fn write_settings(
+	flash_store: &mut MyFlashStore,
+	invert_encoder_direction: bool,
+) -> Result<(), FlashStoreError> {
+	let data = [if invert_encoder_direction { 1u8 } else { 0u8 }];
 	flash_store.write_file(200, &data)
 }
 
@@ -143,7 +146,7 @@ impl GuiHandler {
 				dirty: false,
 				preset: Preset::new(), // this gets overwritten on every process() anyway
 				preset_changed: false,
-				invert_encoder_direction
+				invert_encoder_direction,
 			},
 			display,
 			menu_stack,
@@ -487,7 +490,7 @@ impl GuiHandler {
 					"Invert knob: No"
 				},
 				env!("VERGEN_GIT_SEMVER"),
-				"Back"
+				"Back",
 			],
 			display,
 		);
@@ -515,9 +518,8 @@ impl GuiHandler {
 		input: UserInput,
 		display: &mut display::Display,
 		midi_channel: &mut MidiFilterQueueConsumer<'static, 16>,
-		mut send_midi: impl FnMut(&[u8], usize)
+		mut send_midi: impl FnMut(&[u8], usize),
 	) -> NavigateAction {
-
 		MIDI_INHIBIT.store(true, Ordering::Relaxed);
 		midi_channel.set_filter(0xFFFF);
 
@@ -527,7 +529,8 @@ impl GuiHandler {
 
 			if midi_message[1] == 0xF0 && midi_message[2] < 16 && midi_message[3] == 0xF7 {
 				let cable_outgoing = midi_message[2];
-				updated |= state.input_good[cable_incoming as usize] == false || state.output_good[cable_outgoing as usize] == false;
+				updated |= state.input_good[cable_incoming as usize] == false
+					|| state.output_good[cable_outgoing as usize] == false;
 				state.input_good[cable_incoming as usize] = true;
 				state.output_good[cable_outgoing as usize] = true;
 			}
@@ -575,11 +578,7 @@ impl GuiHandler {
 			state.menu.schedule_redraw();
 		}
 
-
-		let result =
-			state.menu.process(input, "Self Test", &lines_str, display);
-
-
+		let result = state.menu.process(input, "Self Test", &lines_str, display);
 
 		match result {
 			gui::MenuAction::Activated(_) => {
@@ -597,7 +596,7 @@ impl GuiHandler {
 		flash_store: &mut MyFlashStore,
 		current_preset: Preset,
 		midi_channel: &mut MidiFilterQueueConsumer<'static, 16>,
-		send_midi: impl FnMut(&[u8], usize)
+		send_midi: impl FnMut(&[u8], usize),
 	) {
 		self.data.preset = current_preset; // Ugh. lots of copies. FIXME
 
@@ -635,12 +634,21 @@ impl GuiHandler {
 			ActiveMenu::ClockRouting(ref mut state) => {
 				Self::handle_clock_routing(&mut self.data, state, input, &mut self.display)
 			}
-			ActiveMenu::Settings(ref mut state) => {
-				Self::handle_settings_menu(&mut self.data, state, input, flash_store, &mut self.display)
-			}
-			ActiveMenu::SelfTest(ref mut state) => {
-				Self::handle_selftest(&mut self.data, state, input, &mut self.display, midi_channel, send_midi)
-			}
+			ActiveMenu::Settings(ref mut state) => Self::handle_settings_menu(
+				&mut self.data,
+				state,
+				input,
+				flash_store,
+				&mut self.display,
+			),
+			ActiveMenu::SelfTest(ref mut state) => Self::handle_selftest(
+				&mut self.data,
+				state,
+				input,
+				&mut self.display,
+				midi_channel,
+				send_midi,
+			),
 		};
 
 		debug_assert!(self.menu_stack.len() >= 1);
@@ -665,7 +673,7 @@ impl GuiHandler {
 pub(crate) fn gui_task(c: gui_task::Context) {
 	let gui_task::SharedResources {
 		mut current_preset,
-		mut midi_out_queues
+		mut midi_out_queues,
 	} = c.shared;
 	let gui_task::LocalResources {
 		gui_handler,
@@ -683,14 +691,15 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 		let input = user_input_handler.process();
 		let preset = current_preset.lock(|p| *p);
 
-
-		let send_midi = |message: &[u8], cable: usize| { midi_out_queues.lock(|q| {
-			if q[cable].normal.capacity() >= q[cable].normal.len() + message.len() {
-				for byte in message {
-					q[cable].normal.enqueue(*byte).unwrap();
+		let send_midi = |message: &[u8], cable: usize| {
+			midi_out_queues.lock(|q| {
+				if q[cable].normal.capacity() >= q[cable].normal.len() + message.len() {
+					for byte in message {
+						q[cable].normal.enqueue(*byte).unwrap();
+					}
 				}
-			}
-		})};
+			})
+		};
 
 		gui_handler.process(input, flash_store, preset, gui_midi_in_consumer, send_midi);
 
@@ -698,8 +707,11 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 			current_preset.lock(|p| *p = gui_handler.data.preset);
 			gui_handler.data.preset_changed = false;
 		}
-		
+
 		// FIXME HACK: this also sets the first output mask which *should* be set when loading the preset in init...
-		OUTPUT_MASK.store(mode_mask_to_output_mask(gui_handler.data.preset.mode_mask), Ordering::Relaxed);
+		OUTPUT_MASK.store(
+			mode_mask_to_output_mask(gui_handler.data.preset.mode_mask),
+			Ordering::Relaxed,
+		);
 	}
 }

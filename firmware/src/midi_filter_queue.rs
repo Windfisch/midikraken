@@ -1,26 +1,31 @@
-use heapless::spsc::{Queue, Producer, Consumer};
 use core::sync::atomic::AtomicU16;
 use core::sync::atomic::Ordering::Relaxed;
+use heapless::spsc::{Consumer, Producer, Queue};
 
 pub struct MidiFilterQueue<const N: usize> {
 	queue: Queue<[u8; 4], N>,
-	filter: AtomicU16
+	filter: AtomicU16,
 }
 
 impl<const N: usize> MidiFilterQueue<N> {
 	pub const fn new() -> MidiFilterQueue<N> {
 		MidiFilterQueue {
 			queue: Queue::new(),
-			filter: AtomicU16::new(0xFFFF)
+			filter: AtomicU16::new(0xFFFF),
 		}
 	}
 
-	pub fn split(&mut self) -> (MidiFilterQueueProducer<N>, MidiFilterQueueConsumer<N>)
-	{
+	pub fn split(&mut self) -> (MidiFilterQueueProducer<N>, MidiFilterQueueConsumer<N>) {
 		let (producer, consumer) = self.queue.split();
 
-		let producer = MidiFilterQueueProducer { producer, filter: &self.filter };
-		let consumer = MidiFilterQueueConsumer { consumer, filter: &self.filter };
+		let producer = MidiFilterQueueProducer {
+			producer,
+			filter: &self.filter,
+		};
+		let consumer = MidiFilterQueueConsumer {
+			consumer,
+			filter: &self.filter,
+		};
 
 		(producer, consumer)
 	}
@@ -28,12 +33,12 @@ impl<const N: usize> MidiFilterQueue<N> {
 
 pub struct MidiFilterQueueConsumer<'a, const N: usize> {
 	consumer: Consumer<'a, [u8; 4], N>,
-	filter: &'a AtomicU16
+	filter: &'a AtomicU16,
 }
 
 pub struct MidiFilterQueueProducer<'a, const N: usize> {
 	producer: Producer<'a, [u8; 4], N>,
-	filter: &'a AtomicU16
+	filter: &'a AtomicU16,
 }
 
 impl<const N: usize> MidiFilterQueueProducer<'_, N> {

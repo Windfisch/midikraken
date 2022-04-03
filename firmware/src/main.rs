@@ -30,9 +30,8 @@ mod display;
 mod dma_adapter;
 mod gui;
 mod gui_task;
-mod user_input;
 mod midi_filter_queue;
-
+mod user_input;
 
 #[allow(unused_imports)]
 use debugln::*;
@@ -42,14 +41,14 @@ use heapless::spsc::Queue;
 use parse_midi;
 
 use flash::MyFlashStore;
-use simple_flash_store::FlashStore;
 use midi_filter_queue::{MidiFilterQueue, MidiFilterQueueConsumer, MidiFilterQueueProducer};
+use simple_flash_store::FlashStore;
 
 use sysex_bootloader::BootloaderSysexStatemachine;
 
 #[allow(unused_imports)]
 use core::fmt::Write;
-use core::sync::atomic::{AtomicU32, Ordering, AtomicBool};
+use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use rtic::app;
 use stm32f1xx_hal::time::Hertz;
 use stm32f1xx_hal::usb::{Peripheral, UsbBus, UsbBusType};
@@ -273,7 +272,13 @@ mod app {
 				"========================================================"
 			)
 			.ok();
-			writeln!(tx, "midikraken {} @ {}", env!("VERGEN_GIT_SEMVER"), env!("VERGEN_GIT_SHA")).ok();
+			writeln!(
+				tx,
+				"midikraken {} @ {}",
+				env!("VERGEN_GIT_SEMVER"),
+				env!("VERGEN_GIT_SHA")
+			)
+			.ok();
 			writeln!(tx, "      built on {}", env!("VERGEN_BUILD_TIMESTAMP")).ok();
 			if cfg!(feature = "bootloader") {
 				writeln!(tx, "      bootloader enabled").ok();
@@ -527,7 +532,7 @@ mod app {
 		let handle_received_byte::LocalResources {
 			midi_parsers,
 			clock_count,
-			gui_midi_in_producer
+			gui_midi_in_producer,
 		} = c.local;
 
 		while let Some((cable, byte)) = queue.lock(|q| q.dequeue()) {
@@ -761,7 +766,9 @@ fn usb_poll<B: usb_device::bus::UsbBus>(
 		let cable = (message[0] & 0xF0) >> 4;
 		let is_realtime = message[1] & 0xF8 == 0xF8;
 
-		if MIDI_INHIBIT.load(Ordering::Relaxed) || enqueue_message(message, &mut midi_out_queues[cable as usize]) {
+		if MIDI_INHIBIT.load(Ordering::Relaxed)
+			|| enqueue_message(message, &mut midi_out_queues[cable as usize])
+		{
 			buffer.acknowledge();
 		}
 		else {

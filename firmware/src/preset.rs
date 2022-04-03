@@ -156,7 +156,7 @@ fn serialize_routing(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize
 
 fn serialize_trs_mode(data_opt: &mut Option<&mut [u8]>, preset: &Preset) -> usize {
 	if let Some(ref mut data) = data_opt {
-		data[0..4].copy_from_slice(&preset.mode_mask.to_be_bytes());
+		data[0..4].copy_from_slice(&preset.mode_mask.to_le_bytes());
 	}
 	return 4;
 }

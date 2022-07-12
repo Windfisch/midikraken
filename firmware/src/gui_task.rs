@@ -692,13 +692,9 @@ pub(crate) fn gui_task(c: gui_task::Context) {
 		let preset = current_preset.lock(|p| *p);
 
 		let send_midi = |message: &[u8], cable: usize| {
-			midi_out_queues.lock(|q| {
-				if q[cable].normal.capacity() >= q[cable].normal.len() + message.len() {
-					for byte in message {
-						q[cable].normal.enqueue(*byte).unwrap();
-					}
-				}
-			})
+			midi_out_queues
+				.lock(|q| q[cable].normal.enqueue_all(message))
+				.ok();
 		};
 
 		gui_handler.process(input, flash_store, preset, gui_midi_in_consumer, send_midi);

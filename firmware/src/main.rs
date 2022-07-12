@@ -95,16 +95,87 @@ fn benchmark(phase: i8) -> u16 {
 	}
 }
 
+pub struct NotifyingQueue<T: Copy, const N: usize> {
+	queue: Queue<T, N>,
+	notification_pending: bool,
+}
+
+impl<T: Copy, const N: usize> NotifyingQueue<T, N> {
+	pub fn new() -> NotifyingQueue<T, N> {
+		NotifyingQueue {
+			queue: Queue::new(),
+			notification_pending: false,
+		}
+	}
+
+	pub fn enqueue(&mut self, value: T) -> Result<(), T> {
+		self.queue.enqueue(value)
+	}
+
+	pub fn enqueue_all<'a>(&mut self, message: &'a [T]) -> Result<(), &'a [T]> {
+		if self.queue.len() + message.len() <= self.queue.capacity() {
+			for item in message.iter() {
+				self.queue.enqueue(*item).map_err(|_| ()).unwrap();
+			}
+			return Ok(());
+		}
+		else {
+			return Err(message);
+		}
+	}
+
+	pub fn dequeue(&mut self) -> Option<(T, bool)> {
+		let item = self.queue.dequeue()?;
+
+		if self.queue.is_empty() && self.notification_pending {
+			self.notification_pending = false;
+			Some((item, true))
+		}
+		else {
+			Some((item, false))
+		}
+	}
+
+	pub fn request_notification(&mut self) {
+		self.notification_pending = true;
+	}
+}
+
 pub struct MidiOutQueue {
-	realtime: Queue<u8, 16>,
-	normal: Queue<u8, 16>,
+	realtime: NotifyingQueue<u8, 16>,
+	normal: NotifyingQueue<u8, 16>,
 }
 
 impl Default for MidiOutQueue {
 	fn default() -> MidiOutQueue {
 		MidiOutQueue {
-			realtime: Queue::new(),
-			normal: Queue::new(),
+			realtime: NotifyingQueue::new(),
+			normal: NotifyingQueue::new(),
+		}
+	}
+}
+
+impl MidiOutQueue {
+	pub fn dequeue(&mut self) -> Option<(u8, bool)> {
+		self.realtime.dequeue().or_else(|| self.normal.dequeue())
+	}
+
+	pub fn enqueue_usb_message(&mut self, message: [u8; 4], request_notification: bool) -> bool {
+		let is_realtime = message[1] & 0xF8 == 0xF8;
+
+		if is_realtime {
+			let ok = self.realtime.enqueue(message[1]).is_ok();
+			if !ok && request_notification {
+				self.realtime.request_notification();
+			}
+			ok
+		}
+		else {
+			let ok = self.normal.enqueue_all(&message[1..]).is_ok();
+			if !ok && request_notification {
+				self.normal.request_notification();
+			}
+			ok
 		}
 	}
 }
@@ -504,7 +575,7 @@ mod app {
 				};
 
 				if forward_event || forward_clock {
-					enqueue_message(usb_message, &mut midi_out_queues[cable_out]);
+					midi_out_queues[cable_out].enqueue_usb_message(usb_message, false);
 					send_task::spawn().ok();
 				}
 			}
@@ -582,43 +653,22 @@ mod app {
 			mut midi_out_queues,
 		} = c.shared;
 
-		// A queue is considered "unblocked", if it leaves the "almost full" state. Being "almost full"
-		// means that no full-size (i.e. 3 byte) MIDI event can be inserted any more.
-		let mut unblocked_queue = false;
+		let mut notify_usb_isr = false;
 
 		sw_uart_tx.lock(|sw_uart_tx| {
 			for cable in 0..NUM_PORT_PAIRS {
 				if sw_uart_tx.clear_to_send(cable) {
-					if let (Some(byte), was_full) = midi_out_queues.lock(|q| {
-						let leaves_full = q[cable].realtime.is_full(); // realtime events are 1 byte only
-						(q[cable].realtime.dequeue(), leaves_full)
-					}) {
+					if let Some((byte, notify)) = midi_out_queues.lock(|q| q[cable].dequeue()) {
 						#[cfg(feature = "debugprint_verbose")]
 						debug!("USB >>> MIDI{} {:02X?}...\n", cable, byte);
 						sw_uart_tx.send_byte(cable, byte);
-						if was_full {
-							unblocked_queue = true;
-						}
-					}
-					else if let (Some(byte), was_almost_full) = midi_out_queues.lock(|q| {
-						// normal midi events are up to 3 bytes, so we are only interested in "can we now
-						// fit a full 3 bytes in the queue again?"
-						let leaves_almost_full =
-							q[cable].normal.len() == q[cable].realtime.capacity() - 2;
-						(q[cable].normal.dequeue(), leaves_almost_full)
-					}) {
-						#[cfg(feature = "debugprint_verbose")]
-						debug!("USB >>> MIDI{} {:02X?}...\n", cable, byte);
-						sw_uart_tx.send_byte(cable, byte);
-						if was_almost_full {
-							unblocked_queue = true;
-						}
+						notify_usb_isr |= notify;
 					}
 				}
 			}
 		});
 
-		if unblocked_queue {
+		if notify_usb_isr {
 			rtic::pend(stm32f1xx_hal::stm32::Interrupt::USB_LP_CAN_RX0);
 		}
 	}
@@ -752,30 +802,6 @@ impl UsbMidiBuffer {
 	}
 }
 
-fn enqueue_message(message: [u8; 4], queue: &mut MidiOutQueue) -> bool {
-	let is_realtime = message[1] & 0xF8 == 0xF8;
-
-	if is_realtime {
-		return queue.realtime.enqueue(message[1]).is_ok();
-	}
-	else {
-		return enqueue_all_bytes(message, &mut queue.normal);
-	}
-}
-
-fn enqueue_all_bytes<const LEN: usize>(message: [u8; 4], queue: &mut Queue<u8, LEN>) -> bool {
-	let len = parse_midi::payload_length(message[0]);
-	if queue.len() + len as usize <= queue.capacity() {
-		for i in 0..len {
-			queue.enqueue(message[1 + i as usize]).unwrap();
-		}
-		return true;
-	}
-	else {
-		return false;
-	}
-}
-
 fn usb_poll<B: usb_device::bus::UsbBus>(
 	// FIXME inline that function in the usb_isr
 	usb_dev: &mut UsbDevice<'static, B>,
@@ -788,10 +814,9 @@ fn usb_poll<B: usb_device::bus::UsbBus>(
 
 	while let Some(message) = buffer.peek(midi) {
 		let cable = (message[0] & 0xF0) >> 4;
-		let is_realtime = message[1] & 0xF8 == 0xF8;
 
 		if MIDI_INHIBIT.load(Ordering::Relaxed)
-			|| enqueue_message(message, &mut midi_out_queues[cable as usize])
+			|| midi_out_queues[cable as usize].enqueue_usb_message(message, true)
 		{
 			buffer.acknowledge();
 		}
@@ -799,6 +824,7 @@ fn usb_poll<B: usb_device::bus::UsbBus>(
 			break;
 		}
 
+		let is_realtime = message[1] & 0xF8 == 0xF8;
 		if !is_realtime && cable == 0 {
 			for i in 0..parse_midi::payload_length(message[0]) {
 				bootloader_sysex_statemachine.push(message[1 + i as usize]);

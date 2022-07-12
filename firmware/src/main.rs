@@ -581,22 +581,46 @@ mod app {
 			mut sw_uart_tx,
 			mut midi_out_queues,
 		} = c.shared;
+
+		// A queue is considered "unblocked", if it leaves the "almost full" state. Being "almost full"
+		// means that no full-size (i.e. 3 byte) MIDI event can be inserted any more.
+		let mut unblocked_queue = false;
+
 		sw_uart_tx.lock(|sw_uart_tx| {
 			for cable in 0..NUM_PORT_PAIRS {
 				if sw_uart_tx.clear_to_send(cable) {
-					if let Some(byte) = midi_out_queues.lock(|q| q[cable].realtime.dequeue()) {
+					if let (Some(byte), was_full) = midi_out_queues.lock(|q| {
+						let leaves_full = q[cable].realtime.is_full(); // realtime events are 1 byte only
+						(q[cable].realtime.dequeue(), leaves_full)
+					}) {
 						#[cfg(feature = "debugprint_verbose")]
 						debug!("USB >>> MIDI{} {:02X?}...\n", cable, byte);
 						sw_uart_tx.send_byte(cable, byte);
+						if was_full {
+							unblocked_queue = true;
+						}
 					}
-					else if let Some(byte) = midi_out_queues.lock(|q| q[cable].normal.dequeue()) {
+					else if let (Some(byte), was_almost_full) = midi_out_queues.lock(|q| {
+						// normal midi events are up to 3 bytes, so we are only interested in "can we now
+						// fit a full 3 bytes in the queue again?"
+						let leaves_almost_full =
+							q[cable].normal.len() == q[cable].realtime.capacity() - 2;
+						(q[cable].normal.dequeue(), leaves_almost_full)
+					}) {
 						#[cfg(feature = "debugprint_verbose")]
 						debug!("USB >>> MIDI{} {:02X?}...\n", cable, byte);
 						sw_uart_tx.send_byte(cable, byte);
+						if was_almost_full {
+							unblocked_queue = true;
+						}
 					}
 				}
 			}
 		});
+
+		if unblocked_queue {
+			rtic::pend(stm32f1xx_hal::stm32::Interrupt::USB_LP_CAN_RX0);
+		}
 	}
 
 	use crate::gui_task::gui_task;

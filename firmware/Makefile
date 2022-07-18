@@ -1,4 +1,4 @@
-all: debug.dfu.bin release.dfu.bin
+all: release.dfu.bin
 
 FEATURES_RELEASE=debugprint_version
 FEATURES_DEBUG=debugprint_version,debugprint_basic,debugprint_verbose,debugpanic
